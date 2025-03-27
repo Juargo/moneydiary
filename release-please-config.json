@@ -2,11 +2,13 @@
     "packages": {
         "frontend": {
             "package-name": "moneydiary-frontend",
-            "release-type": "node"
+            "release-type": "node",
+            "initial-version": "0.1.0"
         },
         "backend": {
             "package-name": "moneydiary-backend",
-            "release-type": "python"
+            "release-type": "python",
+            "initial-version": "0.1.0"
         }
     }
 }
