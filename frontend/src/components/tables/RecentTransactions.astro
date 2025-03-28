@@ -1,0 +1,75 @@
+---
+const transactions = [
+  {
+    id: 1,
+    description: "Supermercado Dia",
+    category: "Comida",
+    date: "2023-11-20",
+    amount: "-$85.50",
+    isExpense: true
+  },
+  {
+    id: 2,
+    description: "Transferencia recibida",
+    category: "Ingresos",
+    date: "2023-11-18",
+    amount: "+$750.00",
+    isExpense: false
+  },
+  {
+    id: 3,
+    description: "Netflix",
+    category: "Entretenimiento",
+    date: "2023-11-15",
+    amount: "-$15.99",
+    isExpense: true
+  },
+  {
+    id: 4,
+    description: "Gasolina",
+    category: "Transporte",
+    date: "2023-11-14",
+    amount: "-$45.00",
+    isExpense: true
+  },
+  {
+    id: 5,
+    description: "Salario",
+    category: "Ingresos",
+    date: "2023-11-10",
+    amount: "+$2,100.00",
+    isExpense: false
+  }
+];
+---
+
+<div class="bg-white p-6 rounded-lg shadow">
+  <div class="flex justify-between items-center mb-4">
+    <h3 class="text-lg font-semibold">Transacciones Recientes</h3>
+    <a href="/transactions" class="text-primary-600 text-sm hover:underline">Ver todas</a>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead>
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+          <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {transactions.map(tx => (
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tx.description}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.category}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.date}</td>
+            <td class={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${tx.isExpense ? 'text-red-600' : 'text-green-600'}`}>
+              {tx.amount}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
