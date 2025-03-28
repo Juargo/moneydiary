@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export default function UserSelector({ onUserSelect }) {
+export default function UserSelector() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -44,8 +44,9 @@ export default function UserSelector({ onUserSelect }) {
 
   const handleUserSelect = (user) => {
     localStorage.setItem('currentUser', JSON.stringify(user));
-    onUserSelect(user);
+    window.location.href = '/';
   };
+  
 
   if (loading) return (
     <div className="flex justify-center items-center h-screen">

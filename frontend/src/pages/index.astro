@@ -50,21 +50,23 @@ import '../styles/global.css';
       checkUser();
     });
   }
+  
+  // Configurar botón de cambiar usuario
+  const changeUserButton = document.getElementById('change-user-button');
+  if (changeUserButton) {
+    changeUserButton.addEventListener('click', () => {
+      // No eliminamos la información del usuario, solo mostramos el selector
+      if (dashboard) dashboard.classList.add('hidden');
+      if (userSelector) userSelector.classList.remove('hidden');
+    });
+  }
 </script>
 
 <DashboardLayout title="Dashboard">
   <div id="user-selector" class="hidden">
-    <UserSelector client:load onUserSelect={(user: { username: string; id: number }) => {
-      // Guardar usuario en localStorage
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      
-      // Disparar evento para actualizar la UI
-      document.dispatchEvent(new CustomEvent('user-selected', { detail: user }));
-      
-      // Redireccionar al dashboard (no es necesario físicamente ya que estamos en la misma página,
-      // pero esto asegura que la URL esté limpia)
-      window.location.href = '/';
-    }} />
+    <UserSelector 
+      client:load 
+    />
   </div>
   
   <div id="dashboard">
@@ -78,6 +80,12 @@ import '../styles/global.css';
           <p class="text-sm text-gray-600">Usuario actual:</p>
           <p id="user-info" class="font-medium"></p>
         </div>
+        <button 
+          id="change-user-button" 
+          class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-2 rounded-md text-sm font-medium"
+        >
+          Cambiar usuario
+        </button>
         <button 
           id="logout-button" 
           class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-sm font-medium"
