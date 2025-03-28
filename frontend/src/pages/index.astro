@@ -55,7 +55,15 @@ import '../styles/global.css';
 <DashboardLayout title="Dashboard">
   <div id="user-selector" class="hidden">
     <UserSelector client:load onUserSelect={(user: { username: string; id: number }) => {
+      // Guardar usuario en localStorage
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      
+      // Disparar evento para actualizar la UI
       document.dispatchEvent(new CustomEvent('user-selected', { detail: user }));
+      
+      // Redireccionar al dashboard (no es necesario físicamente ya que estamos en la misma página,
+      // pero esto asegura que la URL esté limpia)
+      window.location.href = '/';
     }} />
   </div>
   
