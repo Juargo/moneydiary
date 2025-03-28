@@ -1,0 +1,8 @@
+{
+  "packages": {
+    "backend": {
+      "component": "moneydiary-backend",
+      "release-type": "python"
+    }
+  }
+}
