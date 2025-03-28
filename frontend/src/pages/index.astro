@@ -4,52 +4,119 @@ import StatsCard from '../components/cards/StatsCard.astro';
 import ExpenseChart from '../components/charts/ExpenseChart';
 import CategoryChart from '../components/charts/CategoryChart';
 import RecentTransactions from '../components/tables/RecentTransactions.astro';
+import UserSelector from '../components/UserSelector';
 import '../styles/global.css';
 ---
 
+<script>
+  // Lógica para verificar si hay un usuario en localStorage
+  const userSelector = document.getElementById('user-selector');
+  const dashboard = document.getElementById('dashboard');
+  const userInfo = document.getElementById('user-info');
+  
+  // Verificar si existe un usuario en localStorage
+  const checkUser = () => {
+    const currentUser = localStorage.getItem('currentUser');
+    if (currentUser) {
+      // Mostrar dashboard y ocultar selector
+      if (dashboard) dashboard.classList.remove('hidden');
+      if (userSelector) userSelector.classList.add('hidden');
+      
+      // Mostrar información del usuario
+      const userData = JSON.parse(currentUser);
+      if (userInfo) {
+        userInfo.textContent = `${userData.username}`;
+      }
+    } else {
+      // Mostrar selector y ocultar dashboard
+      if (dashboard) dashboard.classList.add('hidden');
+      if (userSelector) userSelector.classList.remove('hidden');
+    }
+  };
+
+  // Verificar al cargar la página
+  document.addEventListener('DOMContentLoaded', checkUser);
+
+  // Configurar evento para cuando se selecciona un usuario desde el componente UserSelector
+  document.addEventListener('user-selected', (event) => {
+    checkUser();
+  });
+
+  // Configurar botón de cerrar sesión
+  const logoutButton = document.getElementById('logout-button');
+  if (logoutButton) {
+    logoutButton.addEventListener('click', () => {
+      localStorage.removeItem('currentUser');
+      checkUser();
+    });
+  }
+</script>
+
 <DashboardLayout title="Dashboard">
-  <div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">Bienvenido a tu MoneyDiary</h1>
-    <p class="text-gray-600">Consulta un resumen de tus finanzas personales</p>
+  <div id="user-selector" class="hidden">
+    <UserSelector client:load onUserSelect={(user: { username: string; id: number }) => {
+      document.dispatchEvent(new CustomEvent('user-selected', { detail: user }));
+    }} />
   </div>
-
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-    <StatsCard 
-      title="Balance Total" 
-      value="$4,250.75" 
-      icon="fas fa-wallet" 
-      change={{ value: "8.2%", isPositive: true }}
-    />
-    <StatsCard 
-      title="Ingresos Mensuales" 
-      value="$2,400.00" 
-      icon="fas fa-arrow-down" 
-      change={{ value: "5.3%", isPositive: true }}
-    />
-    <StatsCard 
-      title="Gastos Mensuales" 
-      value="$1,600.00" 
-      icon="fas fa-arrow-up" 
-      change={{ value: "2.1%", isPositive: false }}
-    />
-    <StatsCard 
-      title="Ahorros" 
-      value="$800.00" 
-      icon="fas fa-piggy-bank" 
-      change={{ value: "12.5%", isPositive: true }}
-    />
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-    <div class="lg:col-span-2">
-      <ExpenseChart client:load />
+  
+  <div id="dashboard">
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Bienvenido a tu MoneyDiary</h1>
+        <p class="text-gray-600">Consulta un resumen de tus finanzas personales</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="text-right">
+          <p class="text-sm text-gray-600">Usuario actual:</p>
+          <p id="user-info" class="font-medium"></p>
+        </div>
+        <button 
+          id="logout-button" 
+          class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-sm font-medium"
+        >
+          Cerrar sesión
+        </button>
+      </div>
     </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <StatsCard 
+        title="Balance Total" 
+        value="$4,250.75" 
+        icon="fas fa-wallet" 
+        change={{ value: "8.2%", isPositive: true }}
+      />
+      <StatsCard 
+        title="Ingresos Mensuales" 
+        value="$2,400.00" 
+        icon="fas fa-arrow-down" 
+        change={{ value: "5.3%", isPositive: true }}
+      />
+      <StatsCard 
+        title="Gastos Mensuales" 
+        value="$1,600.00" 
+        icon="fas fa-arrow-up" 
+        change={{ value: "2.1%", isPositive: false }}
+      />
+      <StatsCard 
+        title="Ahorros" 
+        value="$800.00" 
+        icon="fas fa-piggy-bank" 
+        change={{ value: "12.5%", isPositive: true }}
+      />
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div class="lg:col-span-2">
+        <ExpenseChart client:load />
+      </div>
+      <div>
+        <CategoryChart client:load />
+      </div>
+    </div>
+
     <div>
-      <CategoryChart client:load />
+      <RecentTransactions />
     </div>
-  </div>
-
-  <div>
-    <RecentTransactions />
   </div>
 </DashboardLayout>
