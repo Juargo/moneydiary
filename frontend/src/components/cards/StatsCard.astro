@@ -1,0 +1,34 @@
+---
+interface Props {
+  title: string;
+  value: string;
+  icon: string;
+  change?: {
+    value: string;
+    isPositive: boolean;
+  };
+}
+
+const { title, value, icon, change } = Astro.props;
+---
+
+<div class="bg-white rounded-lg shadow p-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h3 class="text-sm text-gray-500 font-medium">{title}</h3>
+      <p class="text-2xl font-bold mt-1">{value}</p>
+      
+      {change && (
+        <p class={`text-sm mt-2 ${change.isPositive ? 'text-green-500' : 'text-red-500'} flex items-center`}>
+          <span class={`mr-1 ${change.isPositive ? 'text-green-500' : 'text-red-500'}`}>
+            <i class={`fas ${change.isPositive ? 'fa-arrow-up' : 'fa-arrow-down'}`}></i>
+          </span>
+          {change.value} desde el mes pasado
+        </p>
+      )}
+    </div>
+    <div class="p-3 bg-primary-100 rounded-full">
+      <i class={`${icon} text-primary-700 text-xl`}></i>
+    </div>
+  </div>
+</div>
