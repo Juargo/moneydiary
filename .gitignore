@@ -1,0 +1,29 @@
+# Archivos generados por Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribución / empaquetado
+dist/
+build/
+*.egg-info/
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+
+# Archivos de caché de pytest
+.pytest_cache/
+
+# Archivos de cobertura
+.coverage
+htmlcov/
+
+# Archivos locales de configuración
+.env
+.vscode/
+.idea/
+
+# Logs
+*.log
