@@ -25,7 +25,48 @@ jobs:
         run: |
           mkdir -p deploy
           cp -r backend/* deploy/
-          echo "<?php /* Backend Proxy */ \$uri = \$_SERVER['REQUEST_URI']; \$method = \$_SERVER['REQUEST_METHOD']; /* Route the request to your Python backend */ ?>" > deploy/index.php
+          
+          # Crear archivo WSGI para Python
+          cat > deploy/passenger_wsgi.py << 'EOL'
+          import sys
+          import os
+
+          # Añadir el directorio actual al path de Python
+          INTERP = os.path.expanduser("/usr/bin/python3")
+          if sys.executable != INTERP:
+              os.execl(INTERP, INTERP, *sys.argv)
+
+          # Añadir directorio de la aplicación al path
+          sys.path.append(os.getcwd())
+
+          # Importar la aplicación desde app.py (ajusta según tu estructura)
+          from app import app as application
+
+          # Para depuración
+          import logging
+          logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+          EOL
+          
+          # Crear archivo .htaccess para Python
+          cat > deploy/.htaccess << 'EOL'
+          # Habilitar el motor de reescritura
+          RewriteEngine On
+
+          # No redirigir para archivos o directorios existentes
+          RewriteCond %{REQUEST_FILENAME} !-f
+          RewriteCond %{REQUEST_FILENAME} !-d
+
+          # Redirigir todas las solicitudes a passenger_wsgi.py
+          RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]
+
+          # Permitir encabezados CORS
+          Header set Access-Control-Allow-Origin "*"
+          Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+          Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+          EOL
+          
+          # Asegurar que los scripts tengan permisos de ejecución
+          chmod +x deploy/*.py
           
       - name: Deploy Backend to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
