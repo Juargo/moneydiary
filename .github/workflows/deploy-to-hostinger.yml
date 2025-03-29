@@ -41,14 +41,20 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: ./backend
-        run: pip install -r requirements.txt
+        run: |
+          # Crear un entorno virtual para aislar las dependencias
+          python -m venv venvents.txt --no-deps
+          source venv/bin/activatetes
+          # Instalar con opción de ignorar incompatibilidades install -r requirements.txt --no-dependencies
+          pip install --no-deps -r requirements.txtpecífica de pydantic
+          pip install -r requirements.txt --use-pep517
 
       - name: Deploy to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
-          server: ${{ secrets.HOSTINGER_FTP_SERVER }}
-          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
-          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
-          local-dir: ./frontend/build/
-          server-dir: ${{ secrets.HOSTINGER_FTP_PATH }}/
+          server: ${{ secrets.HOSTINGER_FTP_SERVER }}          
           dangerous-clean-slate: true
+          server-dir: ${{ secrets.HOSTINGER_FTP_PATH }}/      
+          local-dir: ./frontend/build/          
+          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}          
+          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
