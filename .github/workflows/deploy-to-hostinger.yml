@@ -16,13 +16,15 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-          cache: 'npm'
+          # Eliminamos la opción de cache porque no tenemos archivo de lockfile
           
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Debug directory structure
-        run: ls -la
+      - name: Debug frontend directory
+        run: |
+          ls -la ./frontend
+          cat ./frontend/package.json
 
       - name: Install frontend dependencies
         working-directory: ./frontend
