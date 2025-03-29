@@ -42,10 +42,21 @@ jobs:
       - name: Install backend dependencies
         working-directory: ./backend
         run: |
-          # Instalamos directamente sin entorno virtual
           pip install --upgrade pip
-          # Intentamos instalar las dependencias con diferentes opciones
-          pip install -r requirements.txt || pip install -r requirements.txt --no-dependencies
+          
+          # Verificamos el contenido del archivo requirements.txt
+          echo "Contenido de requirements.txt:"
+          cat requirements.txt
+          
+          # Instalamos primero pydantic fijando una versión específica
+          pip install pydantic==2.10.6
+          
+          # Instalamos las dependencias ignorando los requisitos de versión de pydantic
+          pip install --no-deps -r requirements.txt
+          
+          # Instalamos el resto de dependencias excluyendo pydantic
+          grep -v "pydantic" requirements.txt > requirements_without_pydantic.txt
+          pip install -r requirements_without_pydantic.txt
 
       - name: Deploy to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
