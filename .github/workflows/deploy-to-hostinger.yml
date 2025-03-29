@@ -17,19 +17,20 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          
       - name: Install pnpm
-        run: npm install -g pnpmendencies
-ng-directory: ./frontend
+        run: npm install -g pnpm
+
       - name: Debug directory structure
-        run: |-lock.json first if it doesn't exist
-          ls -la          if [ ! -f "package-lock.json" ]; then
+        run: |
+          ls -la
           find ./frontend -type f -name "package.json" -o -name "pnpm-workspace.yaml" | xargs cat || true
 
       - name: Install frontend dependencies
         working-directory: ./frontend
         run: pnpm install --no-strict
 
-      - name: Build frontendild
+      - name: Build frontend
         working-directory: ./frontend
         run: pnpm build
 
