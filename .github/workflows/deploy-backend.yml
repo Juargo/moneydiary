@@ -1,0 +1,37 @@
+name: Deploy Backend to Hostinger
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: pip install -r requirements.txt
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy
+          cp -r backend/* deploy/
+          echo "<?php /* Backend Proxy */ \$uri = \$_SERVER['REQUEST_URI']; \$method = \$_SERVER['REQUEST_METHOD']; /* Route the request to your Python backend */ ?>" > deploy/index.php
+          
+      - name: Deploy Backend to Hostinger
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          local-dir: ./deploy/
+          server-dir: ${{ secrets.HOSTINGER_API_PATH }}/
