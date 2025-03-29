@@ -33,6 +33,9 @@ jobs:
           mkdir -p deploy
           cp -r backend/* deploy/
           
+          # Asegurar que la estructura de directorios existe
+          mkdir -p deploy/app
+          
           # Crear archivo WSGI para Python
           cat > deploy/passenger_wsgi.py << 'EOL'
           import sys
@@ -75,6 +78,23 @@ jobs:
           # Asegurar que los scripts tengan permisos de ejecución
           chmod +x deploy/*.py
           
+          # Crear un archivo __init__.py básico en el directorio app si no existe
+          if [ ! -f deploy/app/__init__.py ]; then
+            echo "# Inicialización del paquete app" > deploy/app/__init__.py
+            echo "from flask import Flask" >> deploy/app/__init__.py
+            echo "app = Flask(__name__)" >> deploy/app/__init__.py
+            echo "import app.routes  # Importa las rutas" >> deploy/app/__init__.py
+          fi
+          
+      - name: Create remote directories
+        uses: garygrossgarten/github-action-ssh@release
+        with:
+          host: ${{ secrets.HOSTINGER_SSH_HOST || secrets.HOSTINGER_FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_SSH_USERNAME || secrets.HOSTINGER_FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_SSH_PASSWORD || secrets.HOSTINGER_FTP_PASSWORD }}
+          command: |
+            mkdir -p ${{ secrets.HOSTINGER_API_PATH }}/app
+
       - name: Deploy Backend to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
