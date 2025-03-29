@@ -20,70 +20,61 @@ jobs:
       - name: Install backend dependencies
         working-directory: ./backend
         run: |
-          # Crear un requirements.txt modificado sin las entradas conflictivas de pydantica depuración
+          # Crear un requirements.txt modificado sin las entradas conflictivas de pydantic
           grep -v "pydantic" requirements.txt > requirements-fixed.txt
           # Agregar una versión específica de pydantic
           echo "pydantic==1.10.7" >> requirements-fixed.txt
-                    # Instalar pip-tools para resolver conflictos de dependencias
           # Instalar desde el archivo modificado
           pip install -r requirements-fixed.txt
-      - name: Create deployment packageents.txt --no-deps || echo "Instalación con --no-deps completada con advertencias"
-        run: |pip install pydantic==1.10.7
-          mkdir -p deployas necesarias
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy
           cp -r backend/* deploy/
-          || echo "Hay conflictos de dependencias, pero continuamos"
+          
           # Crear archivo WSGI para Python
-          cat > deploy/passenger_wsgi.py << 'EOL'      - name: Create deployment package
+          cat > deploy/passenger_wsgi.py << 'EOL'
           import sys
           import os
 
           # Añadir el directorio actual al path de Python
-          INTERP = os.path.expanduser("/usr/bin/python3")          # Crear archivo WSGI para Python
+          INTERP = os.path.expanduser("/usr/bin/python3")
           if sys.executable != INTERP:
               os.execl(INTERP, INTERP, *sys.argv)
-          import os
-          # Añadir directorio de la aplicación al path
-          sys.path.append(os.getcwd())ath de Python
-          INTERP = os.path.expanduser("/usr/bin/python3")
-          # Importar la aplicación desde app.py (ajusta según tu estructura) != INTERP:
-          from app import app as applicationNTERP, INTERP, *sys.argv)
 
-          # Para depuraciónñadir directorio de la aplicación al path
-          import loggingsys.path.append(os.getcwd())
+          # Añadir directorio de la aplicación al path
+          sys.path.append(os.getcwd())
+
+          # Importar la aplicación desde app.py (ajusta según tu estructura)
+          from app import app as application
+
+          # Para depuración
+          import logging
           logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-          EOLapp.py (ajusta según tu estructura)
+          EOL
           
           # Crear archivo .htaccess para Python
-          cat > deploy/.htaccess << 'EOL'          # Para depuración
+          cat > deploy/.htaccess << 'EOL'
           # Habilitar el motor de reescritura
-          RewriteEngine Onrr, level=logging.DEBUG)
+          RewriteEngine On
 
-          # No redirigir para archivos o directorios existentes          
+          # No redirigir para archivos o directorios existentes
           RewriteCond %{REQUEST_FILENAME} !-f
           RewriteCond %{REQUEST_FILENAME} !-d
-          # Habilitar el motor de reescritura
+
           # Redirigir todas las solicitudes a passenger_wsgi.py
           RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]
 
           # Permitir encabezados CORS
-          Header set Access-Control-Allow-Origin "*"riteCond %{REQUEST_FILENAME} !-d
+          Header set Access-Control-Allow-Origin "*"
           Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
           Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-          EOLassenger_wsgi.py/$1 [QSA,L]
+          EOL
           
           # Asegurar que los scripts tengan permisos de ejecución
-          chmod +x deploy/*.py*"
-          der set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-      - name: Deploy Backend to Hostingerntent-Type, Authorization"
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-        with:
-          server: ${{ secrets.HOSTINGER_FTP_SERVER }}cripts tengan permisos de ejecución
-          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
-          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}          
-
-
-
-          server-dir: ${{ secrets.HOSTINGER_API_PATH }}/          local-dir: ./deploy/      - name: Deploy Backend to Hostinger
+          chmod +x deploy/*.py
+          
+      - name: Deploy Backend to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: ${{ secrets.HOSTINGER_FTP_SERVER }}
