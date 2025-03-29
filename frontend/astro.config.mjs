@@ -6,6 +6,7 @@ import tailwindcssPostcss from '@tailwindcss/postcss';
 // https://astro.build/config
 export default defineConfig({
   integrations: [react()],
+  base: '/moneydiary', // Añadimos este prefijo para todas las URLs generadas
   vite: {
     plugins: [],
     css: {
