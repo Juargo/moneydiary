@@ -42,12 +42,10 @@ jobs:
       - name: Install backend dependencies
         working-directory: ./backend
         run: |
-          # Crear un entorno virtual para aislar las dependencias
-          python -m venv venv
-          source venv/bin/activate
-          # Instalar con opción de ignorar incompatibilidades
-          pip install --no-deps -r requirements.txt
-          pip install -r requirements.txt --use-pep517
+          # Instalamos directamente sin entorno virtual
+          pip install --upgrade pip
+          # Intentamos instalar las dependencias con diferentes opciones
+          pip install -r requirements.txt || pip install -r requirements.txt --no-dependencies
 
       - name: Deploy to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
