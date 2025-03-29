@@ -1,78 +1,78 @@
-# name: Deploy Backend to Hostinger
+name: Deploy Backend to Hostinger
 
-# on:
-#   push:
-#     branches: [ main ]
-#   workflow_dispatch:
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v3
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-#       - name: Setup Python
-#         uses: actions/setup-python@v4
-#         with:
-#           python-version: '3.9'
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-#       - name: Install backend dependencies
-#         working-directory: ./backend
-#         run: pip install -r requirements.txt
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: pip install -r requirements.txt
 
-#       - name: Create deployment package
-#         run: |
-#           mkdir -p deploy
-#           cp -r backend/* deploy/
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy
+          cp -r backend/* deploy/
           
-#           # Crear archivo WSGI para Python
-#           cat > deploy/passenger_wsgi.py << 'EOL'
-#           import sys
-#           import os
+          # Crear archivo WSGI para Python
+          cat > deploy/passenger_wsgi.py << 'EOL'
+          import sys
+          import os
 
-#           # Añadir el directorio actual al path de Python
-#           INTERP = os.path.expanduser("/usr/bin/python3")
-#           if sys.executable != INTERP:
-#               os.execl(INTERP, INTERP, *sys.argv)
+          # Añadir el directorio actual al path de Python
+          INTERP = os.path.expanduser("/usr/bin/python3")
+          if sys.executable != INTERP:
+              os.execl(INTERP, INTERP, *sys.argv)
 
-#           # Añadir directorio de la aplicación al path
-#           sys.path.append(os.getcwd())
+          # Añadir directorio de la aplicación al path
+          sys.path.append(os.getcwd())
 
-#           # Importar la aplicación desde app.py (ajusta según tu estructura)
-#           from app import app as application
+          # Importar la aplicación desde app.py (ajusta según tu estructura)
+          from app import app as application
 
-#           # Para depuración
-#           import logging
-#           logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-#           EOL
+          # Para depuración
+          import logging
+          logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+          EOL
           
-#           # Crear archivo .htaccess para Python
-#           cat > deploy/.htaccess << 'EOL'
-#           # Habilitar el motor de reescritura
-#           RewriteEngine On
+          # Crear archivo .htaccess para Python
+          cat > deploy/.htaccess << 'EOL'
+          # Habilitar el motor de reescritura
+          RewriteEngine On
 
-#           # No redirigir para archivos o directorios existentes
-#           RewriteCond %{REQUEST_FILENAME} !-f
-#           RewriteCond %{REQUEST_FILENAME} !-d
+          # No redirigir para archivos o directorios existentes
+          RewriteCond %{REQUEST_FILENAME} !-f
+          RewriteCond %{REQUEST_FILENAME} !-d
 
-#           # Redirigir todas las solicitudes a passenger_wsgi.py
-#           RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]
+          # Redirigir todas las solicitudes a passenger_wsgi.py
+          RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]
 
-#           # Permitir encabezados CORS
-#           Header set Access-Control-Allow-Origin "*"
-#           Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-#           Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-#           EOL
+          # Permitir encabezados CORS
+          Header set Access-Control-Allow-Origin "*"
+          Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+          Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+          EOL
           
-#           # Asegurar que los scripts tengan permisos de ejecución
-#           chmod +x deploy/*.py
+          # Asegurar que los scripts tengan permisos de ejecución
+          chmod +x deploy/*.py
           
-#       - name: Deploy Backend to Hostinger
-#         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-#         with:
-#           server: ${{ secrets.HOSTINGER_FTP_SERVER }}
-#           username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
-#           password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
-#           local-dir: ./deploy/
-#           server-dir: ${{ secrets.HOSTINGER_API_PATH }}/
+      - name: Deploy Backend to Hostinger
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          local-dir: ./deploy/
+          server-dir: ${{ secrets.HOSTINGER_API_PATH }}/
