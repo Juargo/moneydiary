@@ -43,7 +43,7 @@ jobs:
       - name: Debug FTP Configuration
         run: |
           echo "Verificando configuración FTP (valores ocultos):"
-          echo "FTP Server configurado: ${{ secrets.HOSTINGER_FTP_SERVER != '' && 'Sí' || 'No' }}"
+          echo "FTP Server configurado: ${{ secrets.HOSTINGER_FTP_SERVER }}"
           echo "FTP Username configurado: ${{ secrets.HOSTINGER_FTP_USERNAME != '' && 'Sí' || 'No' }}"
           echo "FTP Password configurado: ${{ secrets.HOSTINGER_FTP_PASSWORD != '' && 'Sí' || 'No' }}"
           echo "FTP Path configurado: ${{ secrets.HOSTINGER_FTP_PATH != '' && 'Sí' || 'No' }}"
