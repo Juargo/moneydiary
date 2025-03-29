@@ -43,7 +43,7 @@ jobs:
         working-directory: ./backend
         run: |
           # Crear un entorno virtual para aislar las dependencias
-          python -m venv venvents.txt --no-deps
+          python3 -m venv venvents.txt
           source venv/bin/activatetes
           # Instalar con opción de ignorar incompatibilidades install -r requirements.txt --no-dependencies
           pip install --no-deps -r requirements.txtpecífica de pydantic
