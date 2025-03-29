@@ -33,6 +33,13 @@ jobs:
         working-directory: ./frontend
         run: pnpm build
 
+      - name: Debug build output directory
+        run: |
+          echo "Verificando directorios de compilación:"
+          ls -la ./frontend/
+          ls -la ./frontend/dist/ || echo "No existe el directorio dist"
+          ls -la ./frontend/build/ || echo "No existe el directorio build"
+
       # Elimino configuración de Python y dependencias de backend ya que no son necesarias
       # para el despliegue del frontend
 
@@ -42,6 +49,6 @@ jobs:
           server: ${{ secrets.HOSTINGER_FTP_SERVER }}
           username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
           password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
-          local-dir: ./frontend/build/
+          local-dir: ./frontend/dist/
           server-dir: ${{ secrets.HOSTINGER_FTP_PATH }}/
           dangerous-clean-slate: true
