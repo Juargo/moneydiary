@@ -40,8 +40,19 @@ jobs:
           ls -la ./frontend/dist/ || echo "No existe el directorio dist"
           ls -la ./frontend/build/ || echo "No existe el directorio build"
 
-      # Elimino configuración de Python y dependencias de backend ya que no son necesarias
-      # para el despliegue del frontend
+      - name: Debug FTP Configuration
+        run: |
+          echo "Verificando configuración FTP (valores ocultos):"
+          echo "FTP Server configurado: ${{ secrets.HOSTINGER_FTP_SERVER != '' && 'Sí' || 'No' }}"
+          echo "FTP Username configurado: ${{ secrets.HOSTINGER_FTP_USERNAME != '' && 'Sí' || 'No' }}"
+          echo "FTP Password configurado: ${{ secrets.HOSTINGER_FTP_PASSWORD != '' && 'Sí' || 'No' }}"
+          echo "FTP Path configurado: ${{ secrets.HOSTINGER_FTP_PATH != '' && 'Sí' || 'No' }}"
+          
+          # Verificamos conectividad al servidor
+          if command -v ping &> /dev/null; then
+            echo "Intentando ping al servidor FTP (podría fallar por seguridad):"
+            ping -c 1 ${{ secrets.HOSTINGER_FTP_SERVER }} || echo "No se pudo hacer ping, pero esto es normal si el servidor bloquea ICMP"
+          fi
 
       - name: Deploy to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -52,3 +63,6 @@ jobs:
           local-dir: ./frontend/dist/
           server-dir: ${{ secrets.HOSTINGER_FTP_PATH }}/
           dangerous-clean-slate: true
+          log-level: verbose
+          timeout: 60000
+          protocol: ftp
