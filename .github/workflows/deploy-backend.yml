@@ -37,19 +37,84 @@ jobs:
           cp backend/setup.py deploy/
           cp backend/requirements.txt deploy/requirements-fixed.txt
           
-          # Copiar directorios principales pero excluyendo archivos innecesarios
-          mkdir -p deploy/app
+          # Crear directorios necesarios para la estructura del proyecto
+          mkdir -p deploy/app/graphql
+          mkdir -p deploy/app/db
+          mkdir -p deploy/app/models
+          mkdir -p deploy/ddl
+          
+          # Asegurarnos de que todos los módulos tengan __init__.py
+          touch deploy/app/__init__.py
+          touch deploy/app/graphql/__init__.py
+          touch deploy/app/db/__init__.py
+          touch deploy/app/models/__init__.py
+          
+          # Copiar contenido existente manteniendo la estructura
           if [ -d "backend/app" ]; then
-            cp -r backend/app/* deploy/app/ 2>/dev/null || :
+            # Copiar archivo main.py explícitamente
+            cp backend/app/main.py deploy/app/main.py
+            
+            # Copiar directorios si existen
+            if [ -d "backend/app/graphql" ]; then
+              cp -r backend/app/graphql/* deploy/app/graphql/ 2>/dev/null || :
+            fi
+            
+            if [ -d "backend/app/db" ]; then
+              cp -r backend/app/db/* deploy/app/db/ 2>/dev/null || :
+            fi
+            
+            if [ -d "backend/app/models" ]; then
+              cp -r backend/app/models/* deploy/app/models/ 2>/dev/null || :
+            fi
           fi
           
+          # Crear el esquema GraphQL mínimo si no existe
+          if [ ! -f "deploy/app/graphql/schema.py" ]; then
+            cat > deploy/app/graphql/schema.py << 'EOL'
+import strawberry
+
+@strawberry.type
+class Query:
+    @strawberry.field
+    def hello(self) -> str:
+        return "Hello World"
+
+schema = strawberry.Schema(query=Query)
+EOL
+          fi
+          
+          # Crear configuración de base de datos mínima si no existe
+          if [ ! -f "deploy/app/db/config.py" ]; then
+            cat > deploy/app/db/config.py << 'EOL'
+import os
+
+# Configuración para Tortoise ORM
+TORTOISE_ORM = {
+    "connections": {"default": os.getenv("DATABASE_URL", "sqlite://db.sqlite3")},
+    "apps": {
+        "models": {
+            "models": ["app.models", "aerich.models"],
+            "default_connection": "default",
+        },
+    },
+}
+EOL
+          fi
+          
+          # Archivos DDL
           mkdir -p deploy/ddl
           if [ -d "backend/ddl" ]; then
             cp -r backend/ddl/* deploy/ddl/ 2>/dev/null || :
           fi
-          
-          # Crear archivo placeholder en ddl si no hay archivos
           echo "# Este directorio contiene scripts SQL y definiciones de la base de datos" > deploy/ddl/README.md
+          
+          # Verificar que todos los __init__.py existan
+          find deploy -type d -name "app*" | while read dir; do
+            if [ ! -f "$dir/__init__.py" ]; then
+              echo "# Init file for $dir" > "$dir/__init__.py"
+              echo "Creado __init__.py en $dir"
+            fi
+          done
           
           # Crear archivo WSGI para Python adaptado para FastAPI
           cat > deploy/passenger_wsgi.py << 'EOL'
