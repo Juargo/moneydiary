@@ -70,7 +70,7 @@ jobs:
           
           # Crear el esquema GraphQL mínimo si no existe
           if [ ! -f "deploy/app/graphql/schema.py" ]; then
-            cat > deploy/app/graphql/schema.py << 'EOL'
+            cat > deploy/app/graphql/schema.py << 'SCHEMAEOF'
 import strawberry
 
 @strawberry.type
@@ -80,12 +80,12 @@ class Query:
         return "Hello World"
 
 schema = strawberry.Schema(query=Query)
-EOL
+SCHEMAEOF
           fi
           
           # Crear configuración de base de datos mínima si no existe
           if [ ! -f "deploy/app/db/config.py" ]; then
-            cat > deploy/app/db/config.py << 'EOL'
+            cat > deploy/app/db/config.py << 'CONFIGEOF'
 import os
 
 # Configuración para Tortoise ORM
@@ -98,7 +98,7 @@ TORTOISE_ORM = {
         },
     },
 }
-EOL
+CONFIGEOF
           fi
           
           # Archivos DDL
@@ -117,7 +117,7 @@ EOL
           done
           
           # Crear archivo WSGI para Python adaptado para FastAPI
-          cat > deploy/passenger_wsgi.py << 'EOL'
+          cat > deploy/passenger_wsgi.py << 'WSGIEOF'
           import sys
           import os
 
@@ -156,7 +156,7 @@ EOL
                   return [output]
               
               logger.debug("Creada aplicación WSGI de respaldo")
-          EOL
+WSGIEOF
           
           # Crear archivo .htaccess para Python
           cat > deploy/.htaccess << 'EOL'
