@@ -86,15 +86,10 @@ jobs:
             echo "import app.routes  # Importa las rutas" >> deploy/app/__init__.py
           fi
           
-      - name: Create remote directories
-        uses: garygrossgarten/github-action-ssh@release
-        with:
-          host: ${{ secrets.HOSTINGER_SSH_HOST || secrets.HOSTINGER_FTP_SERVER }}
-          username: ${{ secrets.HOSTINGER_SSH_USERNAME || secrets.HOSTINGER_FTP_USERNAME }}
-          password: ${{ secrets.HOSTINGER_SSH_PASSWORD || secrets.HOSTINGER_FTP_PASSWORD }}
-          command: |
-            mkdir -p ${{ secrets.HOSTINGER_API_PATH }}/app
-
+          # Lista el contenido del directorio para verificación
+          echo "Contenido del directorio deploy:"
+          find deploy -type f | sort
+          
       - name: Deploy Backend to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
@@ -102,4 +97,4 @@ jobs:
           username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
           password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
           local-dir: ./deploy/
-          server-dir: ${{ secrets.HOSTINGER_API_SSH_PATH }}/
+          server-dir: ${{ secrets.HOSTINGER_API_PATH }}/
