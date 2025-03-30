@@ -116,10 +116,36 @@ CONFIGEOF
             fi
           done
           
-          # Crear archivo WSGI para Python adaptado para FastAPI
+          # Crear archivo WSGI para Python adaptado para FastAPI con información de diagnóstico
           cat > deploy/passenger_wsgi.py << 'WSGIEOF'
           import sys
           import os
+          import platform
+          import json
+          import logging
+          from datetime import datetime
+
+          # Configurar logging avanzado
+          log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+          logging.basicConfig(
+              stream=sys.stderr,
+              level=logging.DEBUG,
+              format=log_format
+          )
+          logger = logging.getLogger("passenger_wsgi")
+          
+          # Registrar información del entorno
+          logger.info("=== INICIANDO API MONEYDIARY ===")
+          logger.info(f"Fecha y hora: {datetime.now().isoformat()}")
+          logger.info(f"Python version: {sys.version}")x
+          logger.info(f"Platform: {platform.platform()}")
+          logger.info(f"Working directory: {os.getcwd()}")
+          logger.info(f"Python path: {sys.path}")
+          
+          # Registrar variables de entorno (sin información sensible)
+          env_vars = {k: v for k, v in os.environ.items() 
+                     if not any(x in k.lower() for x in ['key', 'token', 'secret', 'password', 'auth'])}
+          logger.info(f"Environment variables: {json.dumps(env_vars, indent=2)}")
 
           # Añadir el directorio actual al path de Python
           INTERP = os.path.expanduser("/usr/bin/python3")
@@ -128,34 +154,63 @@ CONFIGEOF
 
           # Añadir directorio de la aplicación al path
           sys.path.append(os.getcwd())
-
+          
           # Importar la aplicación desde app.main (estructura FastAPI)
-          from app.main import app as fastapi_app
+          try:
+              from app.main import app as fastapi_app
+              logger.info("FastAPI app importada correctamente desde app.main")
+              
+              # Agregar un endpoint de diagnóstico
+              from fastapi import Request
+              
+              @fastapi_app.get("/diagnostico")
+              async def diagnostico(request: Request):
+                  """Endpoint para diagnóstico del servidor."""
+                  return {
+                      "timestamp": datetime.now().isoformat(),
+                      "python_version": sys.version,
+                      "platform": platform.platform(),
+                      "working_directory": os.getcwd(),
+                      "headers": dict(request.headers),
+                      "client": request.client.host if request.client else None,
+                      "server_port": request.url.port,
+                      "api_path": request.url.path,
+                      "modules": sorted(sys.modules.keys())
+                  }
+              
+          except Exception as e:
+              logger.error(f"Error al importar la aplicación FastAPI: {str(e)}")
+              raise
 
           # Adaptador para WSGI (FastAPI es ASGI, necesitamos convertirlo)
-          import logging
-          logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-          logger = logging.getLogger(__name__)
-          logger.debug("Inicializando aplicación FastAPI para WSGI")
-
-          # Para convertir ASGI a WSGI
           try:
               from asgiref.wsgi import WsgiToAsgi
               application = WsgiToAsgi(fastapi_app)
-              logger.debug("Aplicación FastAPI convertida a WSGI correctamente")
-          except ImportError:
-              logger.error("No se pudo convertir la aplicación FastAPI a WSGI")
+              logger.info("Aplicación FastAPI convertida a WSGI correctamente")
+          except ImportError as e:
+              logger.error(f"No se pudo convertir la aplicación FastAPI a WSGI: {str(e)}")
               
               # Crear una aplicación de respaldo básica
               def application(environ, start_response):
                   status = '200 OK'
-                  output = b'API en mantenimiento - FastAPI no pudo inicializarse'
+                  env_info = json.dumps({
+                      "date": datetime.now().isoformat(),
+                      "environ": {k: str(v) for k, v in environ.items() if not k.startswith('wsgi.')},
+                      "python": sys.version,
+                      "working_dir": os.getcwd(),
+                      "error": "FastAPI no pudo inicializarse"
+                  }, indent=2)
+                  
+                  output = f"API en mantenimiento - Información diagnóstica:\n{env_info}".encode('utf-8')
                   response_headers = [('Content-type', 'text/plain'),
                                     ('Content-Length', str(len(output)))]
                   start_response(status, response_headers)
                   return [output]
               
-              logger.debug("Creada aplicación WSGI de respaldo")
+              logger.info("Creada aplicación WSGI de respaldo para diagnóstico")
+          
+          # Registrar información antes de que el WSGI se inicialice
+          logger.info("=== CONFIGURACIÓN DE API COMPLETADA ===")
 WSGIEOF
           
           # Crear archivo .htaccess para Python
