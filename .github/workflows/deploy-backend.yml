@@ -1,4 +1,4 @@
-name: Deploy Backend to Hostinger
+name: Build and Deploy Backend Docker Image
 
 on:
   push:
@@ -6,256 +6,115 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ghcr.io/${{ github.repository }}-api
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=,format=short
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
   deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Deploy to Hostinger via SSH
+        uses: appleboy/ssh-action@v0.1.10
         with:
-          python-version: '3.9'
-
-      - name: Install backend dependencies
-        working-directory: ./backend
-        run: |
-          # Crear un requirements.txt modificado sin las entradas conflictivas
-          grep -v -E "pydantic|python-dateutil" requirements.txt > requirements-fixed.txt
-          # Agregar versiones específicas de los paquetes conflictivos
-          echo "pydantic==1.10.7" >> requirements-fixed.txt
-          echo "python-dateutil==2.8.2" >> requirements-fixed.txt
-          # Instalar desde el archivo modificado - solo para verificación, no para el despliegue
-          pip install -r requirements-fixed.txt
-
-      - name: Create deployment package
-        run: |
-          # Crear un directorio limpio para el despliegue
-          mkdir -p deploy
-          
-          # Copiar setup.py y requirements.txt
-          cp backend/setup.py deploy/
-          cp backend/requirements.txt deploy/requirements-fixed.txt
-          
-          # Crear directorios necesarios para la estructura del proyecto
-          mkdir -p deploy/app/graphql
-          mkdir -p deploy/app/db
-          mkdir -p deploy/app/models
-          mkdir -p deploy/ddl
-          
-          # Asegurarnos de que todos los módulos tengan __init__.py
-          touch deploy/app/__init__.py
-          touch deploy/app/graphql/__init__.py
-          touch deploy/app/db/__init__.py
-          touch deploy/app/models/__init__.py
-          
-          # Copiar contenido existente manteniendo la estructura
-          if [ -d "backend/app" ]; then
-            # Copiar archivo main.py explícitamente
-            cp backend/app/main.py deploy/app/main.py
-            
-            # Copiar directorios si existen
-            if [ -d "backend/app/graphql" ]; then
-              cp -r backend/app/graphql/* deploy/app/graphql/ 2>/dev/null || :
+          host: ${{ secrets.HOSTINGER_SSH_HOST }}
+          username: ${{ secrets.HOSTINGER_SSH_USERNAME }}
+          password: ${{ secrets.HOSTINGER_SSH_PASSWORD }}
+          port: 22
+          script_stop: true
+          script: |
+            # Asegurarse de que docker está instalado
+            if ! command -v docker &> /dev/null; then
+                echo "Docker no está instalado. Instalando..."
+                curl -fsSL https://get.docker.com -o get-docker.sh
+                sudo sh get-docker.sh
+                sudo usermod -aG docker $USER
             fi
             
-            if [ -d "backend/app/db" ]; then
-              cp -r backend/app/db/* deploy/app/db/ 2>/dev/null || :
-            fi
+            # Configurar acceso a GitHub Container Registry
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            if [ -d "backend/app/models" ]; then
-              cp -r backend/app/models/* deploy/app/models/ 2>/dev/null || :
-            fi
-          fi
-          
-          # Crear el esquema GraphQL mínimo si no existe
-          if [ ! -f "deploy/app/graphql/schema.py" ]; then
-            cat > deploy/app/graphql/schema.py << 'SCHEMAEOF'
-import strawberry
-
-@strawberry.type
-class Query:
-    @strawberry.field
-    def hello(self) -> str:
-        return "Hello World"
-
-schema = strawberry.Schema(query=Query)
-SCHEMAEOF
-          fi
-          
-          # Crear configuración de base de datos mínima si no existe
-          if [ ! -f "deploy/app/db/config.py" ]; then
-            cat > deploy/app/db/config.py << 'CONFIGEOF'
-import os
-
-# Configuración para Tortoise ORM
-TORTOISE_ORM = {
-    "connections": {"default": os.getenv("DATABASE_URL", "sqlite://db.sqlite3")},
-    "apps": {
-        "models": {
-            "models": ["app.models", "aerich.models"],
-            "default_connection": "default",
-        },
-    },
-}
-CONFIGEOF
-          fi
-          
-          # Archivos DDL
-          mkdir -p deploy/ddl
-          if [ -d "backend/ddl" ]; then
-            cp -r backend/ddl/* deploy/ddl/ 2>/dev/null || :
-          fi
-          echo "# Este directorio contiene scripts SQL y definiciones de la base de datos" > deploy/ddl/README.md
-          
-          # Verificar que todos los __init__.py existan
-          find deploy -type d -name "app*" | while read dir; do
-            if [ ! -f "$dir/__init__.py" ]; then
-              echo "# Init file for $dir" > "$dir/__init__.py"
-              echo "Creado __init__.py en $dir"
-            fi
-          done
-          
-          # Crear archivo WSGI para Python adaptado para FastAPI con información de diagnóstico
-          cat > deploy/passenger_wsgi.py << 'WSGIEOF'
-          import sys
-          import os
-          import platform
-          import json
-          import logging
-          from datetime import datetime
-
-          # Configurar logging avanzado
-          log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-          logging.basicConfig(
-              stream=sys.stderr,
-              level=logging.DEBUG,
-              format=log_format
-          )
-          logger = logging.getLogger("passenger_wsgi")
-          
-          # Registrar información del entorno
-          logger.info("=== INICIANDO API MONEYDIARY ===")
-          logger.info(f"Fecha y hora: {datetime.now().isoformat()}")
-          logger.info(f"Python version: {sys.version}")x
-          logger.info(f"Platform: {platform.platform()}")
-          logger.info(f"Working directory: {os.getcwd()}")
-          logger.info(f"Python path: {sys.path}")
-          
-          # Registrar variables de entorno (sin información sensible)
-          env_vars = {k: v for k, v in os.environ.items() 
-                     if not any(x in k.lower() for x in ['key', 'token', 'secret', 'password', 'auth'])}
-          logger.info(f"Environment variables: {json.dumps(env_vars, indent=2)}")
-
-          # Añadir el directorio actual al path de Python
-          INTERP = os.path.expanduser("/usr/bin/python3")
-          if sys.executable != INTERP:
-              os.execl(INTERP, INTERP, *sys.argv)
-
-          # Añadir directorio de la aplicación al path
-          sys.path.append(os.getcwd())
-          
-          # Importar la aplicación desde app.main (estructura FastAPI)
-          try:
-              from app.main import app as fastapi_app
-              logger.info("FastAPI app importada correctamente desde app.main")
-              
-              # Agregar un endpoint de diagnóstico
-              from fastapi import Request
-              
-              @fastapi_app.get("/diagnostico")
-              async def diagnostico(request: Request):
-                  """Endpoint para diagnóstico del servidor."""
-                  return {
-                      "timestamp": datetime.now().isoformat(),
-                      "python_version": sys.version,
-                      "platform": platform.platform(),
-                      "working_directory": os.getcwd(),
-                      "headers": dict(request.headers),
-                      "client": request.client.host if request.client else None,
-                      "server_port": request.url.port,
-                      "api_path": request.url.path,
-                      "modules": sorted(sys.modules.keys())
-                  }
-              
-          except Exception as e:
-              logger.error(f"Error al importar la aplicación FastAPI: {str(e)}")
-              raise
-
-          # Adaptador para WSGI (FastAPI es ASGI, necesitamos convertirlo)
-          try:
-              from asgiref.wsgi import WsgiToAsgi
-              application = WsgiToAsgi(fastapi_app)
-              logger.info("Aplicación FastAPI convertida a WSGI correctamente")
-          except ImportError as e:
-              logger.error(f"No se pudo convertir la aplicación FastAPI a WSGI: {str(e)}")
-              
-              # Crear una aplicación de respaldo básica
-              def application(environ, start_response):
-                  status = '200 OK'
-                  env_info = json.dumps({
-                      "date": datetime.now().isoformat(),
-                      "environ": {k: str(v) for k, v in environ.items() if not k.startswith('wsgi.')},
-                      "python": sys.version,
-                      "working_dir": os.getcwd(),
-                      "error": "FastAPI no pudo inicializarse"
-                  }, indent=2)
-                  
-                  output = f"API en mantenimiento - Información diagnóstica:\n{env_info}".encode('utf-8')
-                  response_headers = [('Content-type', 'text/plain'),
-                                    ('Content-Length', str(len(output)))]
-                  start_response(status, response_headers)
-                  return [output]
-              
-              logger.info("Creada aplicación WSGI de respaldo para diagnóstico")
-          
-          # Registrar información antes de que el WSGI se inicialice
-          logger.info("=== CONFIGURACIÓN DE API COMPLETADA ===")
-WSGIEOF
-          
-          # Crear archivo .htaccess para Python
-          cat > deploy/.htaccess << 'EOL'
-          # Habilitar el motor de reescritura
-          RewriteEngine On
-
-          # No redirigir para archivos o directorios existentes
-          RewriteCond %{REQUEST_FILENAME} !-f
-          RewriteCond %{REQUEST_FILENAME} !-d
-
-          # Redirigir todas las solicitudes a passenger_wsgi.py
-          RewriteRule ^(.*)$ passenger_wsgi.py/$1 [QSA,L]
-
-          # Permitir encabezados CORS
-          Header set Access-Control-Allow-Origin "*"
-          Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-          Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-          EOL
-          
-          # Asegurar que los scripts tengan permisos de ejecución
-          chmod +x deploy/*.py
-          
-          # Añadir dependencia de asgiref para la conversión WSGI/ASGI
-          echo "asgiref==3.7.2" >> deploy/requirements-fixed.txt
-          
-          # Lista el contenido del directorio para verificación
-          echo "Contenido del directorio deploy:"
-          find deploy -type f | sort
-          
-      - name: Deploy Backend to Hostinger
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-        with:
-          server: ${{ secrets.HOSTINGER_FTP_SERVER }}
-          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
-          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
-          local-dir: ./deploy/
-          server-dir: ${{ secrets.HOSTINGER_API_PATH }}/
-          dangerous-clean-slate: false  # Para no borrar archivos existentes
-          concurrency: 1  # Limitar la concurrencia para evitar timeouts
-          timeout: 120000  # Aumentar el timeout a 2 minutos
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/__pycache__/**
-            **/venv/**
-            **/*.pyc
+            # Crear directorio para la aplicación
+            mkdir -p ~/moneydiary-api/data
+            
+            # Crear archivo .env con las variables de producción para el servidor MySQL externo
+            cat > ~/moneydiary-api/.env << 'EOL'
+            MYSQL_HOST=${{ secrets.MYSQL_HOST }}
+            MYSQL_PORT=${{ secrets.MYSQL_PORT }}
+            MYSQL_DB=${{ secrets.MYSQL_DB }}
+            MYSQL_USER=${{ secrets.MYSQL_USER }}
+            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+            EOL
+            
+            # Copiar docker-compose.yml para producción (sin servicio MySQL)
+            cat > ~/moneydiary-api/docker-compose.yml << 'EOL'
+            version: '3.8'
+            
+            services:
+              api:
+                image: ghcr.io/${{ github.repository }}-api:latest
+                container_name: moneydiary-api
+                restart: always
+                ports:
+                  - "8000:8000"
+                environment:
+                  - MYSQL_HOST=${MYSQL_HOST}
+                  - MYSQL_PORT=${MYSQL_PORT}
+                  - MYSQL_DB=${MYSQL_DB}
+                  - MYSQL_USER=${MYSQL_USER}
+                  - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+                volumes:
+                  - ./data:/app/data
+                healthcheck:
+                  test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+                  interval: 30s
+                  timeout: 10s
+                  retries: 3
+                  start_period: 10s
+            EOL
+            
+            # Desplegar usando docker-compose
+            cd ~/moneydiary-api
+            docker pull ghcr.io/${{ github.repository }}-api:latest
+            docker-compose down || true
+            docker-compose up -d
+            
+            # Verificar estado
+            docker-compose ps
+            
+            # Ejecutar prueba de conexión a la base de datos
+            echo "Probando conexión a la base de datos MySQL externa..."
+            docker exec moneydiary-api python -m app.db.check_connection
