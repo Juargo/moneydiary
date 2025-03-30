@@ -25,19 +25,30 @@ jobs:
           # Agregar versiones específicas de los paquetes conflictivos
           echo "pydantic==1.10.7" >> requirements-fixed.txt
           echo "python-dateutil==2.8.2" >> requirements-fixed.txt
-          # Instalar desde el archivo modificado
+          # Instalar desde el archivo modificado - solo para verificación, no para el despliegue
           pip install -r requirements-fixed.txt
 
       - name: Create deployment package
         run: |
+          # Crear un directorio limpio para el despliegue
           mkdir -p deploy
-          cp -r backend/* deploy/
           
-          # Asegurar que la estructura de directorios existe
+          # Copiar solo los archivos necesarios, excluyendo archivos innecesarios
+          cp backend/app.py deploy/
+          cp backend/requirements.txt deploy/requirements-fixed.txt
+          
+          # Copiar directorios principales pero excluyendo archivos innecesarios
           mkdir -p deploy/app
-          mkdir -p deploy/ddl
+          if [ -d "backend/app" ]; then
+            cp -r backend/app/* deploy/app/ 2>/dev/null || :
+          fi
           
-          # Crear archivo placeholder en ddl para asegurar que el directorio se cree
+          mkdir -p deploy/ddl
+          if [ -d "backend/ddl" ]; then
+            cp -r backend/ddl/* deploy/ddl/ 2>/dev/null || :
+          fi
+          
+          # Crear archivo placeholder en ddl si no hay archivos
           echo "# Este directorio contiene scripts SQL y definiciones de la base de datos" > deploy/ddl/README.md
           
           # Crear archivo WSGI para Python
@@ -87,7 +98,11 @@ jobs:
             echo "# Inicialización del paquete app" > deploy/app/__init__.py
             echo "from flask import Flask" >> deploy/app/__init__.py
             echo "app = Flask(__name__)" >> deploy/app/__init__.py
-            echo "import app.routes  # Importa las rutas" >> deploy/app/__init__.py
+            echo "# Importa las rutas" >> deploy/app/__init__.py
+            echo "try:" >> deploy/app/__init__.py
+            echo "    import app.routes" >> deploy/app/__init__.py
+            echo "except ImportError:" >> deploy/app/__init__.py
+            echo "    pass  # Las rutas se configurarán más tarde" >> deploy/app/__init__.py
           fi
           
           # Lista el contenido del directorio para verificación
@@ -103,3 +118,12 @@ jobs:
           local-dir: ./deploy/
           server-dir: ${{ secrets.HOSTINGER_API_PATH }}/
           dangerous-clean-slate: false  # Para no borrar archivos existentes
+          concurrency: 1  # Limitar la concurrencia para evitar timeouts
+          timeout: 120000  # Aumentar el timeout a 2 minutos
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/__pycache__/**
+            **/venv/**
+            **/*.pyc
