@@ -35,6 +35,10 @@ jobs:
           
           # Asegurar que la estructura de directorios existe
           mkdir -p deploy/app
+          mkdir -p deploy/ddl
+          
+          # Crear archivo placeholder en ddl para asegurar que el directorio se cree
+          echo "# Este directorio contiene scripts SQL y definiciones de la base de datos" > deploy/ddl/README.md
           
           # Crear archivo WSGI para Python
           cat > deploy/passenger_wsgi.py << 'EOL'
@@ -98,3 +102,4 @@ jobs:
           password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
           local-dir: ./deploy/
           server-dir: ${{ secrets.HOSTINGER_API_PATH }}/
+          dangerous-clean-slate: false  # Para no borrar archivos existentes
