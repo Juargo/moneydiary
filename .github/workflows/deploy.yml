@@ -1,0 +1,76 @@
+name: Deploy to DigitalOcean
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    types:
+      - completed
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          name: id_rsa # optional
+          config: |
+            Host digitalocean
+              HostName ${{ secrets.DO_HOST }}
+              User ${{ secrets.DO_USER }}
+              IdentityFile ~/.ssh/id_rsa
+
+      - name: Copy files to server
+        run: |
+          scp -o StrictHostKeyChecking=no ./docker/docker-compose.prod.yml digitalocean:~/docker-compose.prod.yml
+          scp -r -o StrictHostKeyChecking=no ./docker/nginx digitalocean:~/docker/
+          scp -r -o StrictHostKeyChecking=no ./docker/scripts digitalocean:~/docker/
+          ssh -o StrictHostKeyChecking=no digitalocean "chmod +x ~/docker/scripts/*.sh"
+
+      - name: Create .env file on server
+        run: |
+          cat << EOF > .env
+          MYSQL_HOST=${{ secrets.MYSQL_HOST }}
+          MYSQL_PORT=${{ secrets.MYSQL_PORT }}
+          MYSQL_DB=${{ secrets.MYSQL_DB }}
+          MYSQL_USER=${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+          BACKEND_URL=${{ secrets.BACKEND_URL }}
+          DOMAIN=${{ secrets.DOMAIN }}
+          SSL_EMAIL=${{ secrets.SSL_EMAIL }}
+          EOF
+          scp -o StrictHostKeyChecking=no .env digitalocean:~/.env
+
+      - name: Deploy to DigitalOcean
+        run: |
+          ssh -o StrictHostKeyChecking=no digitalocean << 'ENDSSH'
+            cd ~
+            mkdir -p docker/nginx/{conf.d,certs,www} docker/data
+            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+            docker pull ghcr.io/juargo/moneydiary-api:latest
+            docker pull ghcr.io/juargo/moneydiary-frontend:latest
+            
+            # Actualizar configuración de Nginx con el dominio correcto
+            if [ ! -z "$DOMAIN" ]; then
+              sed -i "s/yourdomain.com/$DOMAIN/g" ~/docker/nginx/conf.d/app.conf
+            fi
+            
+            # Iniciar servicios
+            docker-compose -f docker-compose.prod.yml down || true
+            docker-compose -f docker-compose.prod.yml up -d
+            
+            # Configurar certificados SSL si no existen
+            if [ ! -f ~/docker/nginx/certs/cert.pem ] && [ ! -z "$DOMAIN" ] && [ ! -z "$SSL_EMAIL" ]; then
+              echo "Configurando certificados SSL..."
+              ~/docker/scripts/setup-ssl.sh $DOMAIN $SSL_EMAIL production
+            fi
+          ENDSSH

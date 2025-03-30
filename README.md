@@ -144,3 +144,66 @@ Header set Access-Control-Allow-Origin "*"
 Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
 Header set Access-Control-Allow-Headers "Content-Type, Authorization"
 ```
+
+# Money Diary
+
+Sistema de gestión de finanzas personales con API backend y frontend.
+
+## Estructura del Proyecto
+
+- `/api` - Backend API desarrollado con [tecnología]
+- `/frontend` - Frontend desarrollado con [tecnología]
+- `/docker` - Archivos para desplegar el proyecto en producción
+
+## Desarrollo Local
+
+### Requisitos
+
+- Node.js vX.X.X o superior
+- Docker y Docker Compose
+- Base de datos MySQL
+
+### Configuración del Entorno de Desarrollo
+
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/juargo/moneydiary.git
+   cd moneydiary
+   ```
+
+2. Configura el backend:
+   ```bash
+   cd api
+   npm install
+   # Configura las variables de entorno
+   cp .env.example .env
+   # Edita .env con tus configuraciones
+   ```
+
+3. Configura el frontend:
+   ```bash
+   cd ../frontend
+   npm install
+   # Configura las variables de entorno
+   cp .env.example .env
+   # Edita .env con tus configuraciones
+   ```
+
+## Despliegue
+
+El proyecto utiliza GitHub Actions para automatizar el despliegue:
+
+1. **Build and Push Docker Images**: Construye y publica las imágenes Docker de backend y frontend en GitHub Container Registry.
+2. **Deploy to DigitalOcean**: Despliega las imágenes en un servidor de DigitalOcean utilizando el archivo docker-compose.prod.yml.
+
+Para más detalles sobre el despliegue, consulta el [README de Docker](/docker/README.md).
+
+## Secrets y Variables de Entorno
+
+El proyecto requiere varios secrets para funcionar correctamente en producción. Todos estos secrets deben configurarse en GitHub Actions.
+
+Consulta la [lista completa de secrets](/docker/README.md#secrets-del-proyecto) para obtener más detalles.
+
+## Licencia
+
+[Tipo de licencia]
