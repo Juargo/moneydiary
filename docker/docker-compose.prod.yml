@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # API Backend
   api:
     image: ghcr.io/juargo/moneydiary-api:latest
     container_name: moneydiary-api
@@ -13,11 +14,51 @@ services:
       - MYSQL_DB=${MYSQL_DB}
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - ENV=production
     volumes:
       - ./data:/app/data
+    networks:
+      - moneydiary-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+      
+  # Frontend
+  frontend:
+    image: ghcr.io/juargo/moneydiary-frontend:latest
+    container_name: moneydiary-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    environment:
+      - BACKEND_URL=${BACKEND_URL:-http://api:8000}
+    networks:
+      - moneydiary-network
+    depends_on:
+      - api
+
+  # Nginx para manejo de SSL y proxy inverso
+  nginx:
+    image: nginx:alpine
+    container_name: moneydiary-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/certs:/etc/nginx/certs
+      - ./nginx/www:/var/www/html
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - moneydiary-network
+
+# Redes
+networks:
+  moneydiary-network:
+    driver: bridge
