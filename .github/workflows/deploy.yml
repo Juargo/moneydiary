@@ -35,6 +35,18 @@ jobs:
           echo "  UserKnownHostsFile=/dev/null" >> ~/.ssh/config
           chmod 600 ~/.ssh/config
 
+      - name: List files in workspace
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Contents of current directory:"
+          ls -la
+          echo "Contents of docker directory (if exists):"
+          ls -la docker || echo "Docker directory not found"
+          echo "Docker subdirectories (if exist):"
+          find docker -type d -ls 2>/dev/null || echo "No subdirectories found"
+          echo "Docker files:"
+          find docker -type f -ls 2>/dev/null || echo "No files found"
+
       - name: Copy files to server
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
