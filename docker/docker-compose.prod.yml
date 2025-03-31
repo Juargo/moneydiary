@@ -50,8 +50,9 @@ services:
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/certs:/etc/nginx/certs
+      - ./nginx/certs:/etc/letsencrypt
       - ./nginx/www:/var/www/html
+      - ./nginx/acme-challenge:/var/www/html/.well-known/acme-challenge
     depends_on:
       - api
       - frontend
@@ -65,7 +66,10 @@ services:
     volumes:
       - ./nginx/certs:/etc/letsencrypt
       - ./nginx/www:/var/www/html
+      - ./nginx/acme-challenge:/var/www/html/.well-known/acme-challenge
     command: certonly --webroot --webroot-path=/var/www/html --email ${SSL_EMAIL:-admin@example.com} --agree-tos --no-eff-email -d ${DOMAIN:-localhost}
+    depends_on:
+      - nginx
 
 # Redes
 networks:
