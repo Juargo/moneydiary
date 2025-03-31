@@ -3,7 +3,7 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Copiar requirements primero para aprovechar la caché
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código de la aplicación
