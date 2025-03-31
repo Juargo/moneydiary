@@ -7,7 +7,7 @@ COPY requirement.txt .
 RUN pip install --no-cache-dir -r requirement.txt
 
 # Copiar el código de la aplicación
-COPY backend/api ./api
+COPY backend/app ./api
 
 # Configurar variables de entorno
 ENV PYTHONPATH=/app
