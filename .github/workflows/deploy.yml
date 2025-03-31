@@ -72,7 +72,7 @@ jobs:
           sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${WORKSPACE}/docker/docker-compose.prod.yml" ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/docker-compose.prod.yml
           
           echo "Copiando archivos de configuración de nginx"
-          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${WORKSPACE}/docker/nginx/app.conf" ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/docker/nginx/conf.d/
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${WORKSPACE}/docker/nginx/conf.d/app.conf" ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/docker/nginx/conf.d/
           
           echo "Copiando scripts"
           sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${WORKSPACE}/docker/scripts/setup-ssl.sh" ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/docker/scripts/
