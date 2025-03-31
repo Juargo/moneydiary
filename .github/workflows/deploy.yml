@@ -33,6 +33,8 @@ jobs:
           echo "  User ${{ secrets.DO_USER }}" >> ~/.ssh/config
           echo "  StrictHostKeyChecking no" >> ~/.ssh/config
           echo "  UserKnownHostsFile=/dev/null" >> ~/.ssh/config
+          echo "  ServerAliveInterval 30" >> ~/.ssh/config
+          echo "  ServerAliveCountMax 6" >> ~/.ssh/config
           chmod 600 ~/.ssh/config
 
       - name: List files in workspace
@@ -94,29 +96,62 @@ jobs:
           EOF
           sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null .env ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/.env
 
-      - name: Deploy to DigitalOcean
+      - name: Prepare deployment environment
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'ENDSSH'
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=6 ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
             cd ~
             mkdir -p docker/nginx/{conf.d,certs,www} docker/data
-            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-            docker pull ghcr.io/juargo/moneydiary-api:latest
-            docker pull ghcr.io/juargo/moneydiary-frontend:latest
             
             # Actualizar configuración de Nginx con el dominio correcto
             if [ ! -z "$DOMAIN" ]; then
               sed -i "s/yourdomain.com/$DOMAIN/g" ~/docker/nginx/conf.d/app.conf
             fi
+          EOF
+
+      - name: Docker login and pull images
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=6 ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
+            cd ~
+            echo "Iniciando sesión en Docker..."
+            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
             
-            # Iniciar servicios
+            echo "Descargando imágenes Docker..."
+            docker pull ghcr.io/juargo/moneydiary-api:latest
+            docker pull ghcr.io/juargo/moneydiary-frontend:latest
+          EOF
+
+      - name: Start Docker services
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=6 ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
+            cd ~
+            echo "Deteniendo servicios existentes..."
             docker-compose -f docker-compose.prod.yml down || true
-            docker-compose -f docker-compose.prod.yml up -d
             
+            echo "Iniciando servicios..."
+            docker-compose -f docker-compose.prod.yml up -d
+          EOF
+
+      - name: Configure SSL certificates
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=6 ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
+            cd ~
             # Configurar certificados SSL si no existen
             if [ ! -f ~/docker/nginx/certs/cert.pem ] && [ ! -z "$DOMAIN" ] && [ ! -z "$SSL_EMAIL" ]; then
               echo "Configurando certificados SSL..."
               ~/docker/scripts/setup-ssl.sh $DOMAIN $SSL_EMAIL production
+            else
+              echo "Los certificados SSL ya existen o falta la configuración necesaria."
             fi
-          ENDSSH
+            
+            # Verificar el estado de los contenedores
+            echo "Estado de los contenedores:"
+            docker ps
+          EOF
