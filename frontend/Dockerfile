@@ -4,17 +4,21 @@ FROM node:18-alpine AS build
 # Establecer directorio de trabajo
 WORKDIR /app
 
+# Instalar pnpm
+RUN npm install -g pnpm
+
 # Copiar archivos de dependencias
 COPY frontend/package*.json ./
+COPY frontend/pnpm-lock.yaml ./
 
-# Instalar dependencias
-RUN npm ci
+# Instalar dependencias (usando el equivalente de pnpm a npm ci)
+RUN pnpm install --frozen-lockfile
 
 # Copiar el resto del código fuente
 COPY frontend/ ./
 
 # Construir la aplicación
-RUN npm run build
+RUN pnpm run build
 
 # Etapa de producción
 FROM nginx:alpine
