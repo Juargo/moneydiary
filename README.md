@@ -147,20 +147,37 @@ Header set Access-Control-Allow-Headers "Content-Type, Authorization"
 
 # Money Diary
 
-Sistema de gestión de finanzas personales con API backend y frontend.
+Sistema de gestión de finanzas personales con API backend en Python y frontend en Astro.
 
 ## Estructura del Proyecto
 
-- `/api` - Backend API desarrollado con [tecnología]
-- `/frontend` - Frontend desarrollado con [tecnología]
-- `/docker` - Archivos para desplegar el proyecto en producción
+```
+/
+├── backend/                # Backend desarrollado con Python
+│   ├── api/                # Código fuente de la API
+│   │   ├── main.py         # Punto de entrada principal
+│   │   └── ...             # Otros módulos y paquetes
+│   └── Dockerfile          # Dockerfile para construir la imagen del backend
+├── frontend/               # Frontend desarrollado con Astro
+│   ├── src/                # Código fuente del frontend
+│   ├── public/             # Archivos estáticos
+│   ├── package.json        # Dependencias y scripts
+│   └── Dockerfile          # Dockerfile para construir la imagen del frontend
+├── docker/                 # Configuración para despliegue en producción
+│   ├── docker-compose.prod.yml  # Configuración para producción
+│   └── ...                 # Otros archivos de configuración
+├── requirement.txt         # Dependencias de Python para el backend
+└── .github/                # Configuración de GitHub Actions
+    └── workflows/          # Workflows para CI/CD
+```
 
 ## Desarrollo Local
 
 ### Requisitos
 
-- Node.js vX.X.X o superior
-- Docker y Docker Compose
+- Python 3.9+ para el backend
+- Node.js para el frontend
+- Docker y Docker Compose (para desarrollo con contenedores)
 - Base de datos MySQL
 
 ### Configuración del Entorno de Desarrollo
@@ -171,29 +188,36 @@ Sistema de gestión de finanzas personales con API backend y frontend.
    cd moneydiary
    ```
 
-2. Configura el backend:
+2. Configura el backend Python:
    ```bash
-   cd api
-   npm install
-   # Configura las variables de entorno
+   # Crear entorno virtual
+   python -m venv venv
+   source venv/bin/activate  # En Windows: venv\Scripts\activate
+   
+   # Instalar dependencias
+   pip install -r requirement.txt
+   
+   # Configurar variables de entorno (opcional)
    cp .env.example .env
    # Edita .env con tus configuraciones
+   
+   # Ejecutar el backend
+   cd backend
+   uvicorn api.main:app --reload
    ```
 
 3. Configura el frontend:
    ```bash
-   cd ../frontend
+   cd frontend
    npm install
-   # Configura las variables de entorno
-   cp .env.example .env
-   # Edita .env con tus configuraciones
+   npm run dev
    ```
 
 ## Despliegue
 
 El proyecto utiliza GitHub Actions para automatizar el despliegue:
 
-1. **Build and Push Docker Images**: Construye y publica las imágenes Docker de backend y frontend en GitHub Container Registry.
+1. **Build and Push Docker Images**: Construye y publica las imágenes Docker del backend Python y frontend en GitHub Container Registry.
 2. **Deploy to DigitalOcean**: Despliega las imágenes en un servidor de DigitalOcean utilizando el archivo docker-compose.prod.yml.
 
 Para más detalles sobre el despliegue, consulta el [README de Docker](/docker/README.md).

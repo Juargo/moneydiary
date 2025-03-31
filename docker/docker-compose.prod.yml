@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # API Backend
+  # API Backend (Python)
   api:
     image: ghcr.io/juargo/moneydiary-api:latest
     container_name: moneydiary-api
@@ -20,7 +20,7 @@ services:
     networks:
       - moneydiary-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
