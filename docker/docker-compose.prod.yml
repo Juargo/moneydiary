@@ -50,7 +50,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/certs:/etc/letsencrypt
+      - ./nginx/certs:/etc/nginx/certs
       - ./nginx/www:/var/www/html
       - ./nginx/acme-challenge:/var/www/html/.well-known/acme-challenge
     depends_on:
@@ -58,6 +58,18 @@ services:
       - frontend
     networks:
       - moneydiary-network
+    # Comando para crear certificados SSL temporales al iniciar
+    command: >
+      sh -c "
+        mkdir -p /etc/nginx/certs &&
+        if [ ! -f /etc/nginx/certs/dummy.crt ]; then
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 
+          -keyout /etc/nginx/certs/dummy.key 
+          -out /etc/nginx/certs/dummy.crt 
+          -subj '/CN=localhost';
+        fi &&
+        nginx -g 'daemon off;'
+      "
 
   # Servicio Certbot para certificados SSL (solo se ejecuta bajo demanda)
   certbot:
@@ -67,7 +79,7 @@ services:
       - ./nginx/certs:/etc/letsencrypt
       - ./nginx/www:/var/www/html
       - ./nginx/acme-challenge:/var/www/html/.well-known/acme-challenge
-    command: certonly --webroot --webroot-path=/var/www/html --email ${SSL_EMAIL:-admin@example.com} --agree-tos --no-eff-email -d ${DOMAIN:-localhost}
+    command: certonly --webroot --webroot-path=/var/www/html --email admin@jorgedev.cl --agree-tos --no-eff-email -d jorgedev.cl --force-renewal
     depends_on:
       - nginx
 
