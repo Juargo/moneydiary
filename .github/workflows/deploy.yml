@@ -47,23 +47,35 @@ jobs:
           echo "Docker files:"
           find docker -type f -ls 2>/dev/null || echo "No files found"
 
-      - name: Copy files to server
+      - name: Prepare server directories
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          # Usar rutas absolutas para los archivos
+          # Crear directorios necesarios en el servidor
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
+            mkdir -p ~/docker/nginx/conf.d
+            mkdir -p ~/docker/scripts
+            mkdir -p ~/docker/nginx/certs
+            mkdir -p ~/docker/nginx/www
+            mkdir -p ~/docker/data
+          EOF
+
+      - name: Copy configuration files
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          # Usar rutas absolutas y copiar archivos individuales
           WORKSPACE="${GITHUB_WORKSPACE}"
-          echo "Usando directorio de trabajo: ${WORKSPACE}"
-          
-          # Verificar los archivos antes de copiar
-          ls -la "${WORKSPACE}/docker/docker-compose.prod.yml"
-          ls -la "${WORKSPACE}/docker/nginx"
-          ls -la "${WORKSPACE}/docker/scripts"
-          
-          # Copiar con rutas absolutas
+          echo "Copiando docker-compose.prod.yml"
           sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${WORKSPACE}/docker/docker-compose.prod.yml" ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/docker-compose.prod.yml
-          sshpass -e scp -r -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${WORKSPACE}/docker/nginx" ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/docker/
-          sshpass -e scp -r -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${WORKSPACE}/docker/scripts" ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/docker/
+          
+          echo "Copiando archivos de configuración de nginx"
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${WORKSPACE}/docker/nginx/conf.d/app.conf" ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/docker/nginx/conf.d/
+          
+          echo "Copiando scripts"
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${WORKSPACE}/docker/scripts/setup-ssl.sh" ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/docker/scripts/
+          
+          echo "Ajustando permisos de ejecución para scripts"
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "chmod +x ~/docker/scripts/*.sh"
 
       - name: Create .env file on server
