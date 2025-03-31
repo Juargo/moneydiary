@@ -17,23 +17,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install SSH key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: unnecessary
-          name: id_rsa
-          config: |
-            Host digitalocean
-              HostName ${{ secrets.DO_HOST }}
-              User ${{ secrets.DO_USER }}
-              IdentityFile ~/.ssh/id_rsa
-              StrictHostKeyChecking no
-              UserKnownHostsFile=/dev/null
-
-      - name: Clean known hosts
+      - name: Setup SSH directory
         run: |
-          ssh-keygen -f ~/.ssh/known_hosts -R "${{ secrets.DO_HOST }}" || true
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          touch ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH connection
+        run: |
+          echo "Host digitalocean" >> ~/.ssh/config
+          echo "  HostName ${{ secrets.DO_HOST }}" >> ~/.ssh/config
+          echo "  User ${{ secrets.DO_USER }}" >> ~/.ssh/config
+          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+          echo "  UserKnownHostsFile=/dev/null" >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
 
       - name: Copy files to server
         run: |
