@@ -21,20 +21,26 @@ jobs:
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
-          name: id_rsa # optional
+          known_hosts: unnecessary
+          name: id_rsa
           config: |
             Host digitalocean
               HostName ${{ secrets.DO_HOST }}
               User ${{ secrets.DO_USER }}
               IdentityFile ~/.ssh/id_rsa
+              StrictHostKeyChecking no
+              UserKnownHostsFile=/dev/null
+
+      - name: Clean known hosts
+        run: |
+          ssh-keygen -f ~/.ssh/known_hosts -R "${{ secrets.DO_HOST }}" || true
 
       - name: Copy files to server
         run: |
-          scp -o StrictHostKeyChecking=no ./docker/docker-compose.prod.yml digitalocean:~/docker-compose.prod.yml
-          scp -r -o StrictHostKeyChecking=no ./docker/nginx digitalocean:~/docker/
-          scp -r -o StrictHostKeyChecking=no ./docker/scripts digitalocean:~/docker/
-          ssh -o StrictHostKeyChecking=no digitalocean "chmod +x ~/docker/scripts/*.sh"
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ./docker/docker-compose.prod.yml digitalocean:~/docker-compose.prod.yml
+          scp -r -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ./docker/nginx digitalocean:~/docker/
+          scp -r -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ./docker/scripts digitalocean:~/docker/
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null digitalocean "chmod +x ~/docker/scripts/*.sh"
 
       - name: Create .env file on server
         run: |
@@ -48,11 +54,11 @@ jobs:
           DOMAIN=${{ secrets.DOMAIN }}
           SSL_EMAIL=${{ secrets.SSL_EMAIL }}
           EOF
-          scp -o StrictHostKeyChecking=no .env digitalocean:~/.env
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null .env digitalocean:~/.env
 
       - name: Deploy to DigitalOcean
         run: |
-          ssh -o StrictHostKeyChecking=no digitalocean << 'ENDSSH'
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null digitalocean << 'ENDSSH'
             cd ~
             mkdir -p docker/nginx/{conf.d,certs,www} docker/data
             docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
