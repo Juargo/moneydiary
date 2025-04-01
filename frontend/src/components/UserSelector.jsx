@@ -10,7 +10,7 @@ export default function UserSelector() {
       try {
         // Usamos la variable de entorno para la URL del backend
         const backendUrl = import.meta.env.BACKEND_URL || 'http://localhost:8000';
-        const graphqlEndpoint = `${backendUrl}/graphql`;
+        const graphqlEndpoint = `https://jorgedev.cl:8000/graphql`;
         
         console.log('Conectando a:', graphqlEndpoint); // Para depuración
         
