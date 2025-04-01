@@ -93,6 +93,8 @@ jobs:
           BACKEND_URL=${{ secrets.BACKEND_URL }}
           DOMAIN=${{ secrets.DOMAIN }}
           SSL_EMAIL=${{ secrets.SSL_EMAIL }}
+          VITE_BACKEND_URL=${{ secrets.BACKEND_URL }}
+          PUBLIC_BACKEND_URL=${{ secrets.BACKEND_URL }}
           EOF
           sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null .env ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/.env
 

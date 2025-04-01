@@ -13,6 +13,10 @@ export default defineConfig({
       postcss: {
         plugins: [tailwindcssPostcss()]
       }
+    },
+    define: {
+      // Exponemos la variable de entorno al cliente
+      'import.meta.env.PUBLIC_BACKEND_URL': JSON.stringify(process.env.BACKEND_URL || 'http://localhost:3001')
     }
   }
 });

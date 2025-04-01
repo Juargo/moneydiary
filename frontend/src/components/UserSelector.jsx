@@ -8,7 +8,13 @@ export default function UserSelector() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await fetch('http://localhost:8000/graphql', {
+        // Usamos la variable de entorno para la URL del backend
+        const backendUrl = import.meta.env.PUBLIC_BACKEND_URL || 'http://localhost:8000';
+        const graphqlEndpoint = `${backendUrl}/graphql`;
+        
+        console.log('Conectando a:', graphqlEndpoint); // Para depuración
+        
+        const response = await fetch(graphqlEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
