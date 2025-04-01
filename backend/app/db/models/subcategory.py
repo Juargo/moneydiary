@@ -1,12 +1,12 @@
-""" Model for Banks """
 from tortoise import fields
 from tortoise.models import Model
 
-class Bank(Model):
-    """ Model for Banks """
+
+class Subcategory(Model):
+    """ Model for Subcategories """ 
     id = fields.IntField(pk=True)
     name = fields.CharField(max_length=100)
- 
+    description = fields.CharField(max_length=255, null=True)
     # Relaciones inversas definidas en otros modelos
     # transactions: ReverseRelation["Transaction"]
 
@@ -15,5 +15,5 @@ class Bank(Model):
     updated_at = fields.DatetimeField(auto_now=True)
 
     class Meta:
-        """ Meta class for Bank """
-        table = "banks"
+        """ Meta class for Subcategory """
+        table = "subcategories"
