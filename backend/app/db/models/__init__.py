@@ -4,11 +4,17 @@ from .user import User
 from .user_bank import UserBank
 from .transaction import Transaction, TransactionType
 from .subcategory import Subcategory
+from .budget import Budget
+from .category import Category
+from .pattern import Pattern
 
 __all__ = [
     "Transaction",
     "TransactionType",
     "User",
     "Bank",
-    "Subcategory"
+    "Subcategory",
+    "Budget",
+    "Category",
+    "Pattern"
 ]
