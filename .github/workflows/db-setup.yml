@@ -35,17 +35,49 @@ jobs:
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          echo "Copiando schema_creator.py y seeder.py al servidor"
-          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null backend/schema_creator.py backend/seeder.py ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:./backend/
+          echo "Creando directorio de backend si no existe"
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "mkdir -p ~/backend/app/db"
+          
+          echo "Copiando todo el directorio backend al servidor"
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r backend/* ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/
+
+      - name: Preparar entorno Python
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=6 ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
+            cd ~/backend
+            
+            # Verificar directorio actual y su contenido
+            echo "Directorio actual: $(pwd)"
+            ls -la
+            
+            # Crear entorno virtual si no existe
+            if [ ! -d "venv" ]; then
+              echo "Creando entorno virtual..."
+              python3 -m venv venv
+            fi
+            
+            # Activar entorno virtual e instalar dependencias
+            echo "Activando entorno virtual e instalando dependencias..."
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install tortoise-orm
+            pip install -r requirements.txt || echo "No se encontró requirements.txt"
+          EOF
 
       - name: Ejecutar scripts de base de datos
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=6 ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
-            cd /backend
+            cd ~/backend
             echo "Activando entorno virtual..."
             source venv/bin/activate
+            
+            echo "Verificando estructura de directorios y archivos:"
+            ls -la
+            ls -la app/db || echo "Directorio app/db no encontrado"
             
             echo "Creando esquema de base de datos..."
             python schema_creator.py
