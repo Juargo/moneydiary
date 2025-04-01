@@ -36,14 +36,14 @@ jobs:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           echo "Copiando schema_creator.py y seeder.py al servidor"
-          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null backend/schema_creator.py backend/seeder.py ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:${{ secrets.PRODUCTION_PATH }}/backend/
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null backend/schema_creator.py backend/seeder.py ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:./backend/
 
       - name: Ejecutar scripts de base de datos
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=6 ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
-            cd ${{ secrets.PRODUCTION_PATH }}/backend
+            cd /backend
             echo "Activando entorno virtual..."
             source venv/bin/activate
             
