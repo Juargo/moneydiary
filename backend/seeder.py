@@ -1,5 +1,5 @@
-"""Ejecutar este archivo para crear las tablas en la base de datos y poblarlas 
-con datos de prueba"""
+"""Ejecutar este archivo para poblar la base de datos con datos de prueba.
+Importante: Primero debe ejecutarse schema_creator.py para crear la estructura de la base de datos"""
 
 import asyncio
 from tortoise import Tortoise
@@ -9,12 +9,16 @@ from app.db.seeds.users import seed_users
 from app.db.seeds.user_banks import seed_user_banks
 
 async def run():
-    """ Main function """
+    """ Función para ejecutar los seeds """
+    print("Inicializando conexión a la base de datos...")
     await Tortoise.init(config=TORTOISE_ORM)
-    await Tortoise.generate_schemas()
+    
+    print("Ejecutando seeds...")
     await seed_banks()
     await seed_users()
     await seed_user_banks()
+    
+    print("Seeds ejecutados exitosamente")
     await Tortoise.close_connections()
 
 if __name__ == "__main__":

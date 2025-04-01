@@ -1,0 +1,57 @@
+name: Database Setup and Seeding en Producción
+
+on:
+  workflow_dispatch:  # Permite ejecutar el workflow manualmente desde la interfaz de GitHub
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'backend/app/db/**'  # Se ejecuta cuando hay cambios en la estructura de la base de datos
+
+jobs:
+  setup-database:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+      
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+        
+      - name: Setup SSH directory
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          touch ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          echo "Host production" >> ~/.ssh/config
+          echo "  HostName ${{ secrets.DO_HOST }}" >> ~/.ssh/config
+          echo "  User ${{ secrets.DO_USER }}" >> ~/.ssh/config
+          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+          echo "  UserKnownHostsFile=/dev/null" >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Transferir archivos al servidor
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          echo "Copiando schema_creator.py y seeder.py al servidor"
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null backend/schema_creator.py backend/seeder.py ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:${{ secrets.PRODUCTION_PATH }}/backend/
+
+      - name: Ejecutar scripts de base de datos
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=6 ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
+            cd ${{ secrets.PRODUCTION_PATH }}/backend
+            echo "Activando entorno virtual..."
+            source venv/bin/activate
+            
+            echo "Creando esquema de base de datos..."
+            python schema_creator.py
+            
+            echo "Ejecutando seeds para poblar la base de datos..."
+            python seeder.py
+            
+            echo "Proceso completado."
+          EOF
