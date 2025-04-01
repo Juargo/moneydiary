@@ -35,11 +35,42 @@ jobs:
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          echo "Creando directorio de backend si no existe"
-          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "mkdir -p ~/backend/app/db"
+          # Crear estructura de directorios necesaria
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
+            mkdir -p ~/backend/app/db/models
+            mkdir -p ~/backend/app/db/seeds
+            mkdir -p ~/backend/app/db/migrations
+          EOF
           
-          echo "Copiando todo el directorio backend al servidor"
-          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r backend/* ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/
+          # Transferir solo los archivos necesarios
+          echo "Copiando archivos principales"
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            backend/schema_creator.py \
+            backend/seeder.py \
+            backend/app/__init__.py \
+            ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/
+          
+          echo "Copiando archivos de configuración de la base de datos"
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            backend/app/db/__init__.py \
+            backend/app/db/config.py \
+            ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/app/db/
+          
+          echo "Copiando modelos"
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            backend/app/db/models/__init__.py \
+            backend/app/db/models/bank.py \
+            backend/app/db/models/user.py \
+            backend/app/db/models/user_bank.py \
+            ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/app/db/models/
+          
+          echo "Copiando seeds"
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            backend/app/db/seeds/__init__.py \
+            backend/app/db/seeds/banks.py \
+            backend/app/db/seeds/users.py \
+            backend/app/db/seeds/user_banks.py \
+            ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/app/db/seeds/
 
       - name: Preparar entorno Python
         env:
