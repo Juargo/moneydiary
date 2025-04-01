@@ -77,7 +77,7 @@ jobs:
             backend/requirements.txt \
             ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/ || echo "requirements.txt no encontrado"
 
-      - name: Preparar entorno Python
+      - name: Preparar entorno Python y dependencias
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
@@ -88,72 +88,87 @@ jobs:
             echo "Directorio actual: $(pwd)"
             ls -la
             
-            # Crear entorno virtual si no existe
-            if [ ! -d "venv" ]; then
-              echo "Creando entorno virtual..."
-              python3 -m venv venv || python -m venv venv
+            # Verificar la versión de Python instalada
+            echo "Python version:"
+            python3 --version || python --version
+            
+            # Asegurarse de que pip está instalado en el sistema
+            echo "Verificando pip a nivel del sistema:"
+            if ! command -v pip3 &> /dev/null && ! command -v pip &> /dev/null; then
+                echo "Pip no encontrado, instalando..."
+                sudo yum install -y python3-pip || sudo apt-get install -y python3-pip
             fi
             
-            # Activar entorno virtual e instalar dependencias
-            echo "Activando entorno virtual e instalando dependencias..."
-            source venv/bin/activate || . venv/bin/activate
+            # Eliminar entorno virtual anterior si hay problemas
+            echo "Eliminando entorno virtual anterior si existe..."
+            rm -rf venv
             
-            # Actualizar pip e instalar requerimientos básicos
-            echo "Actualizando pip e instalando dependencias esenciales..."
-            pip install --upgrade pip
+            # Crear nuevo entorno virtual
+            echo "Creando entorno virtual..."
+            python3 -m venv venv
             
-            # Instalar tortoise-orm y otras dependencias específicas
-            echo "Instalando tortoise-orm y dependencias relacionadas..."
-            pip install tortoise-orm==0.19.3 aiomysql asyncpg
+            # Verificar la estructura del entorno virtual
+            echo "Verificando estructura del entorno virtual:"
+            ls -la venv/bin
             
-            # Instalar desde requirements.txt si existe
-            if [ -f "requirements.txt" ]; then
-              echo "Instalando dependencias desde requirements.txt..."
-              pip install -r requirements.txt
-            else 
-              echo "No se encontró requirements.txt, continuando con dependencias básicas"
+            # Instalar dependencias directamente con la ruta completa al pip del entorno virtual
+            echo "Instalando dependencias..."
+            ~/backend/venv/bin/pip install --upgrade pip
+            ~/backend/venv/bin/pip install tortoise-orm aiomysql asyncpg
+            
+            if [ -f requirements.txt ]; then
+                echo "Instalando desde requirements.txt"
+                ~/backend/venv/bin/pip install -r requirements.txt
             fi
             
-            # Confirmar instalación de tortoise-orm
-            echo "Verificando instalación de tortoise-orm:"
-            pip list | grep tortoise
+            echo "Paquetes instalados:"
+            ~/backend/venv/bin/pip list
           EOF
 
-      - name: Ejecutar scripts de base de datos con variables de entorno
+      - name: Crear archivo de variables de entorno
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          cat << EOF > .env
+          MYSQL_HOST=${{ secrets.MYSQL_HOST }}
+          MYSQL_PORT=${{ secrets.MYSQL_PORT }}
+          MYSQL_DB=${{ secrets.MYSQL_DB }}
+          MYSQL_USER=${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+          EOF
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null .env ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/.env
+
+      - name: Ejecutar scripts de base de datos
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=6 ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
             cd ~/backend
-            echo "Activando entorno virtual..."
-            source venv/bin/activate || . venv/bin/activate
             
-            echo "Verificando estructura de directorios y archivos:"
-            ls -la
-            ls -la app/db || echo "Directorio app/db no encontrado"
+            # Usar la ruta absoluta a Python del entorno virtual
+            PYTHON=~/backend/venv/bin/python
             
-            # Establecer variables de entorno para la base de datos
-            export MYSQL_HOST=${MYSQL_HOST:-"localhost"}
-            export MYSQL_PORT=${MYSQL_PORT:-3306}
-            export MYSQL_DB=${MYSQL_DB:-"moneydiary"}
-            export MYSQL_USER=${MYSQL_USER:-"root"}
-            export MYSQL_PASSWORD=${MYSQL_PASSWORD:-"password"}
+            # Cargar variables de entorno
+            if [ -f .env ]; then
+              echo "Cargando variables de entorno..."
+              export $(cat .env | xargs)
+            fi
             
-            echo "Variables de entorno configuradas. Usando base de datos: $MYSQL_DB en $MYSQL_HOST"
+            echo "Variables de entorno configuradas:"
+            echo "MYSQL_HOST: $MYSQL_HOST"
+            echo "MYSQL_DB: $MYSQL_DB"
             
-            echo "Verificando configuración de Python:"
-            which python
-            python --version
+            # Ajustar PYTHONPATH
+            export PYTHONPATH=~/backend:$PYTHONPATH
             
-            echo "Verificando PYTHONPATH:"
-            export PYTHONPATH=$PYTHONPATH:$(pwd)
-            echo $PYTHONPATH
+            echo "Verificando estructura del directorio backend/app:"
+            ls -la app
             
             echo "Creando esquema de base de datos..."
-            python schema_creator.py
+            $PYTHON schema_creator.py
             
             echo "Ejecutando seeds para poblar la base de datos..."
-            python seeder.py
+            $PYTHON seeder.py
             
             echo "Proceso completado."
           EOF
