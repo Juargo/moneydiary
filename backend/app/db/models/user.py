@@ -1,9 +1,9 @@
-""" Model for Users """
+""" Model for User """
 from tortoise import fields
 from tortoise.models import Model
 
 class User(Model):
-    """ Model for Users """
+    """ Model for User """
     id = fields.IntField(pk=True)
     username = fields.CharField(max_length=50, unique=True)
     # Campos de auditoría
@@ -12,4 +12,4 @@ class User(Model):
 
     class Meta:
         """ Meta class for User """
-        table = "users"
+        table = "user"

@@ -15,17 +15,16 @@ class TransactionType(str, Enum):
 
 
 class Transaction(Model):
-    """ Model for Transactions """
+    """ Model for Transaction """
     id = fields.IntField(pk=True)
     transaction_date = fields.DatetimeField(default=datetime.now)
     description = fields.CharField(max_length=255)
-    amount = fields.DecimalField(max_digits=10, decimal_places=2)
+    amount = fields.DecimalField(max_digits=15, decimal_places=0)
     type = fields.CharEnumField(TransactionType)
 
     # Relaciones
-    user = fields.ForeignKeyField('models.User', related_name='transactions')
-    bank = fields.ForeignKeyField('models.Bank', related_name='transactions')
-    subcategory = fields.ForeignKeyField('models.Subcategory', related_name='transactions')
+    user_bank = fields.ForeignKeyField('models.UserBank', related_name='transaction')
+    subcategory = fields.ForeignKeyField('models.Subcategory', related_name='transaction')
 
     # Campos de auditoría
     created_at = fields.DatetimeField(auto_now_add=True)
@@ -33,4 +32,4 @@ class Transaction(Model):
 
     class Meta:
         """ Meta class for Transaction """
-        table = "transactions"
+        table = "transaction"

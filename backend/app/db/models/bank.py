@@ -1,9 +1,9 @@
-""" Model for Banks """
+""" Model for Bank """
 from tortoise import fields
 from tortoise.models import Model
 
 class Bank(Model):
-    """ Model for Banks """
+    """ Model for Bank """
     id = fields.IntField(pk=True)
     name = fields.CharField(max_length=100)
  
@@ -16,4 +16,4 @@ class Bank(Model):
 
     class Meta:
         """ Meta class for Bank """
-        table = "banks"
+        table = "bank"
