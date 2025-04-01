@@ -71,6 +71,11 @@ jobs:
             backend/app/db/seeds/users.py \
             backend/app/db/seeds/user_banks.py \
             ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/app/db/seeds/
+          
+          # Copiar requirements.txt si existe
+          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            backend/requirements.txt \
+            ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/ || echo "requirements.txt no encontrado"
 
       - name: Preparar entorno Python
         env:
@@ -86,29 +91,63 @@ jobs:
             # Crear entorno virtual si no existe
             if [ ! -d "venv" ]; then
               echo "Creando entorno virtual..."
-              python3 -m venv venv
+              python3 -m venv venv || python -m venv venv
             fi
             
             # Activar entorno virtual e instalar dependencias
             echo "Activando entorno virtual e instalando dependencias..."
-            source venv/bin/activate
+            source venv/bin/activate || . venv/bin/activate
+            
+            # Actualizar pip e instalar requerimientos básicos
+            echo "Actualizando pip e instalando dependencias esenciales..."
             pip install --upgrade pip
-            pip install tortoise-orm
-            pip install -r requirements.txt || echo "No se encontró requirements.txt"
+            
+            # Instalar tortoise-orm y otras dependencias específicas
+            echo "Instalando tortoise-orm y dependencias relacionadas..."
+            pip install tortoise-orm==0.19.3 aiomysql asyncpg
+            
+            # Instalar desde requirements.txt si existe
+            if [ -f "requirements.txt" ]; then
+              echo "Instalando dependencias desde requirements.txt..."
+              pip install -r requirements.txt
+            else 
+              echo "No se encontró requirements.txt, continuando con dependencias básicas"
+            fi
+            
+            # Confirmar instalación de tortoise-orm
+            echo "Verificando instalación de tortoise-orm:"
+            pip list | grep tortoise
           EOF
 
-      - name: Ejecutar scripts de base de datos
+      - name: Ejecutar scripts de base de datos con variables de entorno
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=6 ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} << 'EOF'
             cd ~/backend
             echo "Activando entorno virtual..."
-            source venv/bin/activate
+            source venv/bin/activate || . venv/bin/activate
             
             echo "Verificando estructura de directorios y archivos:"
             ls -la
             ls -la app/db || echo "Directorio app/db no encontrado"
+            
+            # Establecer variables de entorno para la base de datos
+            export MYSQL_HOST=${MYSQL_HOST:-"localhost"}
+            export MYSQL_PORT=${MYSQL_PORT:-3306}
+            export MYSQL_DB=${MYSQL_DB:-"moneydiary"}
+            export MYSQL_USER=${MYSQL_USER:-"root"}
+            export MYSQL_PASSWORD=${MYSQL_PASSWORD:-"password"}
+            
+            echo "Variables de entorno configuradas. Usando base de datos: $MYSQL_DB en $MYSQL_HOST"
+            
+            echo "Verificando configuración de Python:"
+            which python
+            python --version
+            
+            echo "Verificando PYTHONPATH:"
+            export PYTHONPATH=$PYTHONPATH:$(pwd)
+            echo $PYTHONPATH
             
             echo "Creando esquema de base de datos..."
             python schema_creator.py
