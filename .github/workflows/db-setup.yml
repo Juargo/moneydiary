@@ -58,10 +58,7 @@ jobs:
           
           echo "Copiando modelos"
           sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            backend/app/db/models/__init__.py \
-            backend/app/db/models/bank.py \
-            backend/app/db/models/user.py \
-            backend/app/db/models/user_bank.py \
+            backend/app/db/models/* \
             ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/backend/app/db/models/
           
           echo "Copiando seeds"
