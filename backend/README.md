@@ -14,6 +14,68 @@ All API endpoints are prefixed with `/api/v1`.
 
 Endpoints for managing identification patterns that help categorize transactions.
 
+#### Create a Pattern
+
+Creates a new pattern and associates it with a subcategory.
+
+- **URL**: `/api/v1/patterns/`
+- **Method**: `POST`
+- **Request Body**:
+  ```json
+  {
+    "exp_name": "string",
+    "subcategory_id": integer
+  }
+  ```
+- **Response**: 
+  - **Success Response**:
+    - **Code**: 200
+    - **Content**: 
+    ```json
+    {
+      "id": integer,
+      "exp_name": "string",
+      "subcategory_id": integer,
+      "message": "Pattern created successfully"
+    }
+    ```
+  - **Error Responses**:
+    - **Code**: 404
+    - **Content**: `{ "detail": "Subcategory with ID {subcategory_id} not found" }`
+    
+    OR
+    
+    - **Code**: 400
+    - **Content**: `{ "detail": "Pattern with expression '{exp_name}' already exists for this subcategory" }`
+    
+    OR
+    
+    - **Code**: 500
+    - **Content**: `{ "detail": "Failed to create pattern: {error_message}" }`
+
+**Example Request**:
+
+```bash
+# Using curl
+curl -X POST http://localhost:8000/api/v1/patterns/ \
+  -H "Content-Type: application/json" \
+  -d '{"exp_name": "NETFLIX*", "subcategory_id": 5}'
+
+# Using httpie
+http POST http://localhost:8000/api/v1/patterns/ exp_name="NETFLIX*" subcategory_id=5
+```
+
+**Example Response**:
+
+```json
+{
+  "id": 42,
+  "exp_name": "NETFLIX*",
+  "subcategory_id": 5,
+  "message": "Pattern created successfully"
+}
+```
+
 #### Delete a Pattern
 
 Removes a pattern from the database.
