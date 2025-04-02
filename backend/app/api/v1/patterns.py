@@ -12,6 +12,10 @@ router = APIRouter(prefix="/patterns", tags=["patterns"])
 class PatternCreate(BaseModel):
     exp_name: str
     subcategory_id: int
+
+# Pydantic model for pattern update - only update exp_name now
+class PatternUpdate(BaseModel):
+    exp_name: Optional[str] = None
     
 @router.post("/", response_model=dict)
 async def create_pattern(pattern: PatternCreate):
@@ -46,6 +50,42 @@ async def create_pattern(pattern: PatternCreate):
         raise HTTPException(
             status_code=500, 
             detail=f"Failed to create pattern: {str(e)}"
+        )
+
+@router.patch("/{pattern_id}", response_model=dict)
+async def update_pattern(pattern_id: int, pattern_data: PatternUpdate):
+    """Update a pattern by its ID"""
+    try:
+        # Get the pattern
+        pattern = await Pattern.get(id=pattern_id)
+        
+        # Update exp_name if provided
+        if pattern_data.exp_name is not None:
+            pattern.exp_name = pattern_data.exp_name
+        
+        # Save the changes
+        await pattern.save()
+        
+        return {
+            "id": pattern.id,
+            "exp_name": pattern.exp_name,
+            "subcategory_id": pattern.subcategory_id,
+            "message": "Pattern updated successfully"
+        }
+    except DoesNotExist:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Pattern with ID {pattern_id} not found"
+        )
+    except IntegrityError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Pattern with expression '{pattern_data.exp_name}' already exists for this subcategory"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update pattern: {str(e)}"
         )
 
 @router.delete("/{pattern_id}", response_model=dict)

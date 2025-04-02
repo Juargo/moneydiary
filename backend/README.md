@@ -76,6 +76,69 @@ http POST http://localhost:8000/api/v1/patterns/ exp_name="NETFLIX*" subcategory
 }
 ```
 
+#### Update a Pattern
+
+Updates an existing pattern's expression name.
+
+- **URL**: `/api/v1/patterns/{pattern_id}`
+- **Method**: `PATCH`
+- **URL Parameters**:
+  - `pattern_id`: The ID of the pattern to update
+- **Request Body**:
+  ```json
+  {
+    "exp_name": "string"  // optional
+  }
+  ```
+- **Response**: 
+  - **Success Response**:
+    - **Code**: 200
+    - **Content**: 
+    ```json
+    {
+      "id": integer,
+      "exp_name": "string",
+      "subcategory_id": integer,
+      "message": "Pattern updated successfully"
+    }
+    ```
+  - **Error Responses**:
+    - **Code**: 404
+    - **Content**: `{ "detail": "Pattern with ID {pattern_id} not found" }`
+    
+    OR
+    
+    - **Code**: 400
+    - **Content**: `{ "detail": "Pattern with expression '{exp_name}' already exists for this subcategory" }`
+    
+    OR
+    
+    - **Code**: 500
+    - **Content**: `{ "detail": "Failed to update pattern: {error_message}" }`
+
+**Example Request**:
+
+```bash
+# Using curl
+curl -X PATCH http://localhost:8000/api/v1/patterns/42 \
+  -H "Content-Type: application/json" \
+  -d '{"exp_name": "NETFLIX PREMIUM*"}'
+
+# Using httpie
+http PATCH http://localhost:8000/api/v1/patterns/42 exp_name="NETFLIX PREMIUM*"
+```
+
+**Example Response**:
+
+```json
+{
+  "id": 42,
+  "exp_name": "NETFLIX PREMIUM*",
+  "subcategory_id": 5,
+  "message": "Pattern updated successfully"
+}
+```
+
 #### Delete a Pattern
 
 Removes a pattern from the database.
