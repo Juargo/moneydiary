@@ -7,6 +7,10 @@ from app.db.config import TORTOISE_ORM
 from app.db.seeds.banks import seed_banks
 from app.db.seeds.users import seed_users
 from app.db.seeds.user_banks import seed_user_banks
+from app.db.seeds.budget_seed import seed_budgets
+from app.db.seeds.category_seed import seed_categories
+from app.db.seeds.subcategory_seed import seed_subcategories
+from app.db.seeds.pattern_seed import seed_patterns
 
 async def run():
     """ Función para ejecutar los seeds """
@@ -17,6 +21,10 @@ async def run():
     await seed_banks()
     await seed_users()
     await seed_user_banks()
+    await seed_budgets()
+    await seed_categories()
+    await seed_subcategories()
+    await seed_patterns()
     
     print("Seeds ejecutados exitosamente")
     await Tortoise.close_connections()
