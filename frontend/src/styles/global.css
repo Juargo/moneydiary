@@ -11,3 +11,28 @@ html, body {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+
+/* Accordion Styles */
+details > summary {
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.group[open] > summary {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.group-open\:rotate-180 {
+  transform: rotate(0deg);
+}
+
+details[open] .group-open\:rotate-180 {
+  transform: rotate(180deg);
+}
+
+.transition-transform {
+  transition: transform 0.15s ease-in-out;
+}
