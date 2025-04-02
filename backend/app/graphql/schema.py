@@ -95,13 +95,13 @@ class Query:
         ]
 
     @strawberry.field
-    async def budgets(self, user: User) -> List[Budget]:
+    async def budgets(self, user_id: int) -> List[Budget]:
         """ Obtener todos los presupuestos de un usuario """
-        budgets = await BudgetModel.filter(user_id=user_id)
+        budgets = await BudgetModel.filter(user=user_id)
         return [
             Budget(
                 id=budget.id,
-                user=budget.user,
+                user=budget.user_id,
                 name=budget.name,
                 description=budget.description,
                 created_at=str(budget.created_at),

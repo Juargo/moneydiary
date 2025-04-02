@@ -24,7 +24,7 @@ async def seed_budgets():
         # Definir los budgets a crear
         budgets_data = [
             {
-                "name": "Vida Personal"
+                "name": "Vida Personal",
                 "description": "Presupuesto para gastos personales y de ocio",
             },
             {
@@ -42,7 +42,6 @@ async def seed_budgets():
             existing_budget = await Budget.get_or_none(
                 user=jorge,
                 name=budget_data["name"]
-                description=budget_data["description"]2
             )
             
             if existing_budget:
