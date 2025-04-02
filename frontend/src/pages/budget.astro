@@ -336,6 +336,42 @@ const totalRemaining = totalBudgeted - totalSpent;
     </div>
   </div>
   
+  <!-- Modal for confirming pattern deletion -->
+  <div id="deletePatternModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Eliminar Patrón</h3>
+        <button id="closeDeletePatternModal" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div>
+        <p class="mb-4 text-gray-700">¿Estás seguro de que deseas eliminar este patrón? Esta acción no se puede deshacer.</p>
+        <p class="mb-4 font-medium" id="deletePatternName"></p>
+        
+        <input type="hidden" id="deletePatternId">
+        
+        <div class="flex justify-end gap-3">
+          <button 
+            type="button" 
+            id="cancelDeletePatternBtn"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="button"
+            id="confirmDeletePatternBtn" 
+            class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <!-- Accordion View for Budget > Categories > Subcategories > Patterns -->
   <div class="space-y-4 mb-6">
     {budgetData.map((budget, budgetIndex) => (
@@ -767,14 +803,139 @@ const totalRemaining = totalBudgeted - totalSpent;
     });
   }
   
-  // Placeholder for delete functionality (will be implemented later)
+  // Implementation of delete pattern functionality
   function setupDeletePatternFunctionality() {
+    const deletePatternModal = document.getElementById('deletePatternModal');
+    const deletePatternId = document.getElementById('deletePatternId') as HTMLInputElement;
+    const deletePatternName = document.getElementById('deletePatternName');
+    const closeDeleteModalBtn = document.getElementById('closeDeletePatternModal');
+    const cancelDeleteBtn = document.getElementById('cancelDeletePatternBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeletePatternBtn');
+    
+    // Add event listeners for all "Delete Pattern" buttons
     document.querySelectorAll('.delete-pattern-btn').forEach(button => {
       button.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent event bubbling
-        // Delete functionality will be implemented later
+        
+        const btn = e.currentTarget as HTMLButtonElement;
+        const patternId = btn.dataset.patternId;
+        const patternElement = btn.closest('li');
+        
+        if (!patternElement) {
+          console.error('Pattern element not found');
+          return;
+        }
+        
+        // Get the current pattern expression text
+        const patternExpNameElement = patternElement.querySelector('span');
+        if (!patternExpNameElement) {
+          console.error('Pattern expression element not found');
+          return;
+        }
+        const patternExpName = patternExpNameElement.textContent || '';
+        
+        // Set the pattern ID and display the pattern name in the modal
+        deletePatternId.value = patternId || '';
+        if (deletePatternName) {
+          deletePatternName.textContent = `"${patternExpName.trim()}"`;
+        }
+        
+        // Show the modal
+        if (deletePatternModal) {
+          deletePatternModal.classList.remove('hidden');
+        }
       });
     });
+    
+    // Close modal when clicking the close button or cancel button
+    if (closeDeleteModalBtn) {
+      closeDeleteModalBtn.addEventListener('click', () => {
+        if (deletePatternModal) {
+          deletePatternModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    if (cancelDeleteBtn) {
+      cancelDeleteBtn.addEventListener('click', () => {
+        if (deletePatternModal) {
+          deletePatternModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Close modal when clicking outside
+    if (deletePatternModal) {
+      deletePatternModal.addEventListener('click', (e) => {
+        if (e.target === deletePatternModal) {
+          deletePatternModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Handle delete confirmation
+    if (confirmDeleteBtn) {
+      confirmDeleteBtn.addEventListener('click', async () => {
+        const patternId = parseInt(deletePatternId.value);
+        
+        if (isNaN(patternId)) {
+          console.error('Invalid pattern ID');
+          return;
+        }
+        
+        try {
+          // Show loading state
+          const originalText = confirmDeleteBtn.innerHTML;
+          confirmDeleteBtn.disabled = true;
+          confirmDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+          
+          // Call the API to delete the pattern
+          const response = await fetch(`http://localhost:8000/api/v1/patterns/${patternId}`, {
+            method: 'DELETE',
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Error al eliminar el patrón');
+          }
+          
+          // Remove the pattern from the UI
+          const patternElement = document.querySelector(`.delete-pattern-btn[data-pattern-id="${patternId}"]`)?.closest('li');
+          if (patternElement) {
+            const patternList = patternElement.parentElement;
+            patternElement.remove();
+            
+            // If the list is now empty, display the "no patterns" message
+            if (patternList && patternList.children.length === 0) {
+              const subcategoryId = patternList.dataset.subcategoryId;
+              const newEmptyMessage = document.createElement('div');
+              newEmptyMessage.className = 'pattern-list';
+              newEmptyMessage.dataset.subcategoryId = subcategoryId;
+              newEmptyMessage.innerHTML = '<p class="text-sm text-gray-500 py-2">No hay patrones definidos</p>';
+              
+              patternList.parentNode?.replaceChild(newEmptyMessage, patternList);
+            }
+          }
+          
+          // Close the modal
+          if (deletePatternModal) {
+            deletePatternModal.classList.add('hidden');
+          }
+          
+          // Show success message
+          showNotification('Patrón eliminado exitosamente', 'success');
+        } catch (error) {
+          console.error('Error deleting pattern:', error);
+          showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al eliminar el patrón', 'error');
+        } finally {
+          // Restore button state
+          if (confirmDeleteBtn) {
+            confirmDeleteBtn.disabled = false;
+            confirmDeleteBtn.innerHTML = originalText;
+          }
+        }
+      });
+    }
   }
   
   // Helper function to show notifications
