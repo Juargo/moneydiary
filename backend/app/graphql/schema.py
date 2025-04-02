@@ -7,6 +7,8 @@ from app.db.models.budget import Budget as BudgetModel
 from app.db.models.category import Category as CategoryModel
 from app.db.models.subcategory import Subcategory as SubcategoryModel
 from app.db.models.pattern import Pattern as PatternModel
+from app.db.models.bank import Bank as BankModel
+from app.db.models.user_bank import UserBank as UserBankModel
 
 
 @strawberry.type
@@ -53,6 +55,25 @@ class Pattern:
     id: int
     exp_name: str = strawberry.field(name="expName")
     subcategory_id: int = strawberry.field(name="subcategoryId")
+    created_at: str = strawberry.field(name="createdAt")
+    updated_at: str = strawberry.field(name="updatedAt")
+
+@strawberry.type
+class Bank:
+    """ Tipo GraphQL para bancos """
+    id: int
+    name: str
+    created_at: str = strawberry.field(name="createdAt")
+    updated_at: str = strawberry.field(name="updatedAt")
+
+@strawberry.type
+class UserBank:
+    """ Tipo GraphQL para la relación entre usuarios y bancos """
+    id: int
+    user_id: int = strawberry.field(name="userId")
+    bank_id: int = strawberry.field(name="bankId")
+    balance: float
+    description: Optional[str]
     created_at: str = strawberry.field(name="createdAt")
     updated_at: str = strawberry.field(name="updatedAt")
 
@@ -146,6 +167,37 @@ class Query:
                 updated_at=str(pattern.updated_at)
             )
             for pattern in patterns
+        ]
+        
+    @strawberry.field
+    async def banks(self) -> List[Bank]:
+        """ Obtener todos los bancos """
+        banks = await BankModel.all()
+        return [
+            Bank(
+                id=bank.id,
+                name=bank.name,
+                created_at=str(bank.created_at),
+                updated_at=str(bank.updated_at)
+            )
+            for bank in banks
+        ]
+    
+    @strawberry.field(name="userBanks")  # Explicitly name the field in camelCase for GraphQL
+    async def user_banks(self, userId: int) -> List[UserBank]:
+        """ Obtener todos los bancos de un usuario """
+        user_banks = await UserBankModel.filter(user_id=userId).prefetch_related('bank')
+        return [
+            UserBank(
+                id=user_bank.id,
+                user_id=user_bank.user_id,
+                bank_id=user_bank.bank_id,
+                balance=float(user_bank.balance),
+                description=user_bank.description,
+                created_at=str(user_bank.created_at),
+                updated_at=str(user_bank.updated_at)
+            )
+            for user_bank in user_banks
         ]
 
 schema = strawberry.Schema(query=Query)
