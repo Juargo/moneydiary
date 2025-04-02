@@ -2,56 +2,215 @@
 import DashboardLayout from '../layouts/DashboardLayout.astro';
 import '../styles/global.css';
 
-const budgets = [
-  {
-    id: 1,
-    category: "Comida",
-    limit: 400,
-    spent: 320,
-    remaining: 80,
-    progress: 80
-  },
-  {
-    id: 2,
-    category: "Transporte",
-    limit: 200,
-    spent: 175,
-    remaining: 25,
-    progress: 87.5
-  },
-  {
-    id: 3,
-    category: "Entretenimiento",
-    limit: 150,
-    spent: 90,
-    remaining: 60,
-    progress: 60
-  },
-  {
-    id: 4,
-    category: "Vivienda",
-    limit: 800,
-    spent: 800,
-    remaining: 0,
-    progress: 100
-  },
-  {
-    id: 5,
-    category: "Compras",
-    limit: 200,
-    spent: 230,
-    remaining: -30,
-    progress: 115
-  },
-  {
-    id: 6,
-    category: "Salud",
-    limit: 100,
-    spent: 45,
-    remaining: 55,
-    progress: 45
+// GraphQL queries
+const BUDGETS_QUERY = `
+  query GetBudgets($userId: Int!) {
+    budgets(userId: $userId) {
+      id
+      name
+      description
+    }
   }
-];
+`;
+
+const CATEGORIES_QUERY = `
+  query GetCategories($budgetId: Int!) {
+    categories(budgetId: $budgetId) {
+      id
+      name
+      description
+    }
+  }
+`;
+
+const SUBCATEGORIES_QUERY = `
+  query GetSubcategories($categoryId: Int!) {
+    subcategories(categoryId: $categoryId) {
+      id
+      name
+    }
+  }
+`;
+
+const PATTERNS_QUERY = `
+  query GetPatterns($subcategoryId: Int!) {
+    patterns(subcategoryId: $subcategoryId) {
+      id
+      expName
+    }
+  }
+`;
+
+// Fetch data from GraphQL API
+async function fetchGraphQL(query: string, variables: Record<string, any> = {}) {
+  const response = await fetch('http://localhost:8000/graphql', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      variables,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`GraphQL request failed: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.data;
+}
+
+// Mock user ID - in a real application, this would come from authentication
+const userId = 1;
+
+// Fetch all needed data
+let budgetData = [];
+try {
+  // Fetch budgets
+  const budgetsData = await fetchGraphQL(BUDGETS_QUERY, { userId });
+  
+  if (budgetsData && budgetsData.budgets) {
+    // For each budget, fetch categories
+    for (const budget of budgetsData.budgets) {
+      const categoriesData = await fetchGraphQL(CATEGORIES_QUERY, { budgetId: budget.id });
+      
+      const categories = [];
+      if (categoriesData && categoriesData.categories) {
+        // For each category, fetch subcategories
+        for (const category of categoriesData.categories) {
+          const subcategoriesData = await fetchGraphQL(SUBCATEGORIES_QUERY, { categoryId: category.id });
+          
+          const subcategories = [];
+          if (subcategoriesData && subcategoriesData.subcategories) {
+            // For each subcategory, fetch patterns
+            for (const subcategory of subcategoriesData.subcategories) {
+              const patternsData = await fetchGraphQL(PATTERNS_QUERY, { subcategoryId: subcategory.id });
+              
+              subcategories.push({
+                ...subcategory,
+                patterns: patternsData?.patterns || []
+              });
+            }
+          }
+          
+          categories.push({
+            ...category,
+            subcategories
+          });
+        }
+      }
+      
+      budgetData.push({
+        ...budget,
+        categories
+      });
+    }
+  }
+} catch (error) {
+  console.error('Error fetching data:', error);
+  // Fallback to mock data if the API request fails
+  budgetData = [];
+}
+
+// Process data for display
+const budgets = budgetData.map(budget => {
+  // Sum up all spending for each category
+  const categories = budget.categories.map((category: { id: number; name: string; description?: string; subcategories: any[] }) => {
+    const limit = 1000; // This would ideally come from the API
+    const spent = 800; // This would be calculated from transactions in a real app
+    const remaining = limit - spent;
+    const progress = (spent / limit) * 100;
+    
+    return {
+      id: category.id,
+      category: category.name,
+      limit,
+      spent,
+      remaining,
+      progress,
+      description: category.description
+    };
+  });
+  
+  return {
+    id: budget.id,
+    name: budget.name,
+    description: budget.description,
+    categories
+  };
+});
+
+// If no data is available, use dummy data for display
+// Define the type for budgets
+interface Budget {
+  id: number;
+  category: string;
+  limit: number;
+  spent: number;
+  remaining: number;
+  progress: number;
+  description?: string;
+}
+
+const displayBudgets: Budget[] = budgets.length > 0 
+  ? budgets[0].categories 
+  : [
+    {
+      id: 1,
+      category: "Comida",
+      limit: 400,
+      spent: 320,
+      remaining: 80,
+      progress: 80
+    },
+    {
+      id: 2,
+      category: "Transporte",
+      limit: 200,
+      spent: 175,
+      remaining: 25,
+      progress: 87.5
+    },
+    {
+      id: 3,
+      category: "Entretenimiento",
+      limit: 150,
+      spent: 90,
+      remaining: 60,
+      progress: 60
+    },
+    {
+      id: 4,
+      category: "Vivienda",
+      limit: 800,
+      spent: 800,
+      remaining: 0,
+      progress: 100
+    },
+    {
+      id: 5,
+      category: "Compras",
+      limit: 200,
+      spent: 230,
+      remaining: -30,
+      progress: 115
+    },
+    {
+      id: 6,
+      category: "Salud",
+      limit: 100,
+      spent: 45,
+      remaining: 55,
+      progress: 45
+    }
+  ];
+
+// Calculate summary statistics
+const totalBudgeted = displayBudgets.reduce((sum: number, budget: { limit: number }) => sum + budget.limit, 0);
+const totalSpent = displayBudgets.reduce((sum: number, budget: { spent: number }) => sum + budget.spent, 0);
+const totalRemaining = totalBudgeted - totalSpent;
 ---
 
 <DashboardLayout title="Presupuestos">
@@ -69,21 +228,21 @@ const budgets = [
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
         <h3 class="text-sm text-green-700 font-medium">Total Presupuestado</h3>
-        <p class="text-2xl font-bold text-green-800">$1,850.00</p>
+        <p class="text-2xl font-bold text-green-800">${totalBudgeted.toFixed(2)}</p>
       </div>
-      <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h3 class="text-sm text-blue-700 font-medium">Total Gastado</h3>
-        <p class="text-2xl font-bold text-blue-800">$1,660.00</p>
-      </div>
+    <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+      <h3 class="text-sm text-blue-700 font-medium">Total Gastado</h3>
+      <p class="text-2xl font-bold text-blue-800">${totalSpent.toFixed(2)}</p>
+    </div>
       <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
         <h3 class="text-sm text-indigo-700 font-medium">Total Disponible</h3>
-        <p class="text-2xl font-bold text-indigo-800">$190.00</p>
+        <p class="text-2xl font-bold text-indigo-800">${totalRemaining.toFixed(2)}</p>
       </div>
     </div>
   </div>
   
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-    {budgets.map(budget => (
+    {displayBudgets.map(budget => (
       <div class="bg-white rounded-lg shadow p-6">
         <div class="flex justify-between items-center mb-4">
           <h3 class="text-lg font-semibold">{budget.category}</h3>
