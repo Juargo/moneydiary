@@ -51,10 +51,8 @@ class Subcategory:
 class Pattern:
     """ Tipo GraphQL para patrones de transacciones """
     id: int
-    user_id: int = strawberry.field(name="userId")
-    pattern: str
-    category_id: int = strawberry.field(name="categoryId")
-    subcategory_id: Optional[int] = strawberry.field(name="subcategoryId")
+    exp_name: str = strawberry.field(name="expName")
+    subcategory_id: int = strawberry.field(name="subcategoryId")
     created_at: str = strawberry.field(name="createdAt")
     updated_at: str = strawberry.field(name="updatedAt")
 
@@ -136,15 +134,13 @@ class Query:
         ]
 
     @strawberry.field
-    async def patterns(self, user_id: int) -> List[Pattern]:
-        """ Obtener todos los patrones de un usuario """
-        patterns = await PatternModel.filter(user_id=user_id)
+    async def patterns(self, subcategory_id: int) -> List[Pattern]:
+        """ Obtener todos los patrones de una subcategoría """
+        patterns = await PatternModel.filter(subcategory_id=subcategory_id)
         return [
             Pattern(
                 id=pattern.id,
-                user_id=pattern.user_id,
-                pattern=pattern.pattern,
-                category_id=pattern.category_id,
+                exp_name=pattern.exp_name,
                 subcategory_id=pattern.subcategory_id,
                 created_at=str(pattern.created_at),
                 updated_at=str(pattern.updated_at)
