@@ -3,6 +3,10 @@ from typing import List, Optional
 
 import strawberry
 from app.db.models.user import User as UserModel
+from app.db.models.budget import Budget as BudgetModel
+from app.db.models.category import Category as CategoryModel
+from app.db.models.subcategory import Subcategory as SubcategoryModel
+from app.db.models.pattern import Pattern as PatternModel
 
 
 @strawberry.type
@@ -11,6 +15,47 @@ class User:
     id: int
     username: str
     # Cambiando los nombres de los campos para seguir la convención de camelCase de GraphQL
+    created_at: str = strawberry.field(name="createdAt")
+    updated_at: str = strawberry.field(name="updatedAt")
+
+@strawberry.type
+class Budget:
+    """ Tipo GraphQL para presupuestos """
+    id: int
+    user: int = strawberry.field(name="user")
+    name: str
+    description: Optional[str] = strawberry.field(name="description")
+    created_at: str = strawberry.field(name="createdAt")
+    updated_at: str = strawberry.field(name="updatedAt")
+
+@strawberry.type
+class Category:
+    """ Tipo GraphQL para categorías """
+    id: int
+    user_id: int = strawberry.field(name="userId")
+    name: str
+    icon: Optional[str]
+    color: Optional[str]
+    created_at: str = strawberry.field(name="createdAt")
+    updated_at: str = strawberry.field(name="updatedAt")
+
+@strawberry.type
+class Subcategory:
+    """ Tipo GraphQL para subcategorías """
+    id: int
+    category_id: int = strawberry.field(name="categoryId")
+    name: str
+    created_at: str = strawberry.field(name="createdAt")
+    updated_at: str = strawberry.field(name="updatedAt")
+
+@strawberry.type
+class Pattern:
+    """ Tipo GraphQL para patrones de transacciones """
+    id: int
+    user_id: int = strawberry.field(name="userId")
+    pattern: str
+    category_id: int = strawberry.field(name="categoryId")
+    subcategory_id: Optional[int] = strawberry.field(name="subcategoryId")
     created_at: str = strawberry.field(name="createdAt")
     updated_at: str = strawberry.field(name="updatedAt")
 
@@ -47,6 +92,71 @@ class Query:
                 updated_at=str(user.updated_at)
             )
             for user in users
+        ]
+
+    @strawberry.field
+    async def budgets(self, user: User) -> List[Budget]:
+        """ Obtener todos los presupuestos de un usuario """
+        budgets = await BudgetModel.filter(user_id=user_id)
+        return [
+            Budget(
+                id=budget.id,
+                user=budget.user,
+                name=budget.name,
+                description=budget.description,
+                created_at=str(budget.created_at),
+                updated_at=str(budget.updated_at)
+            )
+            for budget in budgets
+        ]
+
+    @strawberry.field
+    async def categories(self, user_id: int) -> List[Category]:
+        """ Obtener todas las categorías de un usuario """
+        categories = await CategoryModel.filter(user_id=user_id)
+        return [
+            Category(
+                id=category.id,
+                user_id=category.user_id,
+                name=category.name,
+                icon=category.icon,
+                color=category.color,
+                created_at=str(category.created_at),
+                updated_at=str(category.updated_at)
+            )
+            for category in categories
+        ]
+
+    @strawberry.field
+    async def subcategories(self, category_id: int) -> List[Subcategory]:
+        """ Obtener todas las subcategorías de una categoría """
+        subcategories = await SubcategoryModel.filter(category_id=category_id)
+        return [
+            Subcategory(
+                id=subcategory.id,
+                category_id=subcategory.category_id,
+                name=subcategory.name,
+                created_at=str(subcategory.created_at),
+                updated_at=str(subcategory.updated_at)
+            )
+            for subcategory in subcategories
+        ]
+
+    @strawberry.field
+    async def patterns(self, user_id: int) -> List[Pattern]:
+        """ Obtener todos los patrones de un usuario """
+        patterns = await PatternModel.filter(user_id=user_id)
+        return [
+            Pattern(
+                id=pattern.id,
+                user_id=pattern.user_id,
+                pattern=pattern.pattern,
+                category_id=pattern.category_id,
+                subcategory_id=pattern.subcategory_id,
+                created_at=str(pattern.created_at),
+                updated_at=str(pattern.updated_at)
+            )
+            for pattern in patterns
         ]
 
 schema = strawberry.Schema(query=Query)
