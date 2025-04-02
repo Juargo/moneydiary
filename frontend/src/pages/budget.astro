@@ -372,6 +372,134 @@ const totalRemaining = totalBudgeted - totalSpent;
     </div>
   </div>
   
+  <!-- Modal for adding a new subcategory -->
+  <div id="addSubcategoryModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Agregar Nueva Subcategoría</h3>
+        <button id="closeSubcategoryModal" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form id="subcategoryForm">
+        <input type="hidden" id="categoryId" name="categoryId">
+        
+        <div class="mb-4">
+          <label for="subcategoryName" class="block text-sm font-medium text-gray-700 mb-1">
+            Nombre de la Subcategoría
+          </label>
+          <input 
+            type="text" 
+            id="subcategoryName" 
+            name="subcategoryName"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Ej: Supermercado, Restaurantes, etc."
+            required
+          >
+        </div>
+        
+        <div class="flex justify-end gap-3">
+          <button 
+            type="button" 
+            id="cancelSubcategoryBtn"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="submit" 
+            class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            Guardar Subcategoría
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for editing a subcategory -->
+  <div id="editSubcategoryModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Editar Subcategoría</h3>
+        <button id="closeEditSubcategoryModal" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form id="editSubcategoryForm">
+        <input type="hidden" id="editSubcategoryId" name="editSubcategoryId">
+        
+        <div class="mb-4">
+          <label for="editSubcategoryName" class="block text-sm font-medium text-gray-700 mb-1">
+            Nombre de la Subcategoría
+          </label>
+          <input 
+            type="text" 
+            id="editSubcategoryName" 
+            name="editSubcategoryName"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Ej: Supermercado, Restaurantes, etc."
+            required
+          >
+        </div>
+        
+        <div class="flex justify-end gap-3">
+          <button 
+            type="button" 
+            id="cancelEditSubcategoryBtn"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="submit" 
+            class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for confirming subcategory deletion -->
+  <div id="deleteSubcategoryModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Eliminar Subcategoría</h3>
+        <button id="closeDeleteSubcategoryModal" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div>
+        <p class="mb-4 text-gray-700">¿Estás seguro de que deseas eliminar esta subcategoría? Esta acción eliminará también todos los patrones asociados y no se puede deshacer.</p>
+        <p class="mb-4 font-medium" id="deleteSubcategoryName"></p>
+        
+        <input type="hidden" id="deleteSubcategoryId">
+        
+        <div class="flex justify-end gap-3">
+          <button 
+            type="button" 
+            id="cancelDeleteSubcategoryBtn"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="button"
+            id="confirmDeleteSubcategoryBtn" 
+            class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <!-- Accordion View for Budget > Categories > Subcategories > Patterns -->
   <div class="space-y-4 mb-6">
     {budgetData.map((budget, budgetIndex) => (
@@ -425,7 +553,15 @@ const totalRemaining = totalBudgeted - totalSpent;
                     <details class="group ml-4 border-l-2 border-gray-200 pl-4 mb-2">
                       <summary class="flex justify-between items-center py-2 cursor-pointer">
                         <h5 class="font-medium">{subcategory.name}</h5>
-                        <i class="fas fa-chevron-down transform group-open:rotate-180 transition-transform"></i>
+                        <div class="flex items-center gap-2">
+                          <button class="text-primary-600 hover:text-primary-800 text-xs edit-subcategory-btn" data-subcategory-id={subcategory.id} data-subcategory-name={subcategory.name}>
+                            <i class="fas fa-edit"></i>
+                          </button>
+                          <button class="text-red-600 hover:text-red-800 text-xs delete-subcategory-btn" data-subcategory-id={subcategory.id} data-subcategory-name={subcategory.name}>
+                            <i class="fas fa-trash"></i>
+                          </button>
+                          <i class="fas fa-chevron-down transform group-open:rotate-180 transition-transform"></i>
+                        </div>
                       </summary>
                       
                       <!-- Patterns Level -->
@@ -467,7 +603,7 @@ const totalRemaining = totalBudgeted - totalSpent;
                   ))}
                   
                   <div class="flex justify-end mt-2 pt-2 border-t border-gray-100">
-                    <button class="text-primary-600 hover:text-primary-800 text-sm">
+                    <button class="text-primary-600 hover:text-primary-800 text-sm add-subcategory-btn" data-category-id={category.id}>
                       <i class="fas fa-plus mr-1"></i> Añadir Subcategoría
                     </button>
                   </div>
@@ -504,6 +640,11 @@ const totalRemaining = totalBudgeted - totalSpent;
     
     // Set up delete pattern functionality (will be implemented later)
     setupDeletePatternFunctionality();
+    
+    // Set up subcategory functionality
+    setupSubcategoryFunctionality();
+    setupEditSubcategoryFunctionality();
+    setupDeleteSubcategoryFunctionality();
   });
   
   function setupPatternFunctionality() {
@@ -938,9 +1079,483 @@ const totalRemaining = totalBudgeted - totalSpent;
     }
   }
   
+  // Implementation of create subcategory functionality
+  function setupSubcategoryFunctionality() {
+    const addSubcategoryModal = document.getElementById('addSubcategoryModal');
+    const subcategoryForm = document.getElementById('subcategoryForm') as HTMLFormElement;
+    const categoryIdInput = document.getElementById('categoryId') as HTMLInputElement;
+    const subcategoryNameInput = document.getElementById('subcategoryName') as HTMLInputElement;
+    const closeModalBtn = document.getElementById('closeSubcategoryModal');
+    const cancelBtn = document.getElementById('cancelSubcategoryBtn');
+    
+    // Add event listeners for all "Add Subcategory" buttons
+    document.querySelectorAll('.add-subcategory-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        const btn = e.currentTarget as HTMLButtonElement;
+        const categoryId = btn.dataset.categoryId;
+        
+        // Set the category ID in the form
+        categoryIdInput.value = categoryId || '';
+        
+        // Clear the form
+        subcategoryForm.reset();
+        
+        // Show the modal
+        if (addSubcategoryModal) {
+          addSubcategoryModal.classList.remove('hidden');
+        }
+      });
+    });
+    
+    // Close modal when clicking the close button or cancel button
+    if (closeModalBtn) {
+      closeModalBtn.addEventListener('click', () => {
+        if (addSubcategoryModal) {
+          addSubcategoryModal.classList.add('hidden');
+        }
+      });
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        if (addSubcategoryModal) {
+          addSubcategoryModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Close modal when clicking outside
+    if (addSubcategoryModal) {
+      addSubcategoryModal.addEventListener('click', (e) => {
+        if (e.target === addSubcategoryModal) {
+          addSubcategoryModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Handle form submission
+    subcategoryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const categoryId = parseInt(categoryIdInput.value);
+      const name = subcategoryNameInput.value.trim();
+      
+      if (!name) {
+        alert('Por favor ingresa un nombre para la subcategoría');
+        return;
+      }
+      
+      try {
+        // Show loading state
+        const submitBtn = subcategoryForm.querySelector('button[type="submit"]');
+        if (!submitBtn) {
+          console.error('Submit button not found');
+          return;
+        }
+        const originalText = submitBtn.innerHTML;
+        (submitBtn as HTMLButtonElement).disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        
+        // Call the API to create a new subcategory
+        const response = await fetch('http://localhost:8000/api/v1/subcategories/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: name,
+            category_id: categoryId
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Error al crear la subcategoría');
+        }
+        
+        const newSubcategory = await response.json();
+        
+        // Find the category container
+        const categoryDetails = document.querySelector(`button.add-subcategory-btn[data-category-id="${categoryId}"]`)?.closest('details');
+        if (!categoryDetails) {
+          console.error('Category container not found');
+          // Reload the page as a fallback
+          window.location.reload();
+          return;
+        }
+        
+        // Find the subcategories container
+        const subcategoriesContainer = categoryDetails.querySelector('.p-4.pt-2.border-t');
+        if (!subcategoriesContainer) {
+          console.error('Subcategories container not found');
+          window.location.reload();
+          return;
+        }
+        
+        // Create new subcategory element
+        const newSubcategoryElement = document.createElement('details');
+        newSubcategoryElement.className = 'group ml-4 border-l-2 border-gray-200 pl-4 mb-2';
+        newSubcategoryElement.innerHTML = `
+          <summary class="flex justify-between items-center py-2 cursor-pointer">
+            <h5 class="font-medium">${newSubcategory.name}</h5>
+            <div class="flex items-center gap-2">
+              <button class="text-primary-600 hover:text-primary-800 text-xs edit-subcategory-btn" data-subcategory-id="${newSubcategory.id}" data-subcategory-name="${newSubcategory.name}">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="text-red-600 hover:text-red-800 text-xs delete-subcategory-btn" data-subcategory-id="${newSubcategory.id}" data-subcategory-name="${newSubcategory.name}">
+                <i class="fas fa-trash"></i>
+              </button>
+              <i class="fas fa-chevron-down transform group-open:rotate-180 transition-transform"></i>
+            </div>
+          </summary>
+          <div class="pl-4 py-2">
+            <div class="flex justify-between items-center mb-2">
+              <h6 class="text-xs uppercase text-gray-500">Patrones de transacciones</h6>
+              <button 
+                class="text-xs text-primary-600 hover:text-primary-800 add-pattern-btn"
+                data-subcategory-id="${newSubcategory.id}"
+                data-subcategory-name="${newSubcategory.name}"
+              >
+                <i class="fas fa-plus mr-1"></i> Añadir Patrón
+              </button>
+            </div>
+            <div class="pattern-list" data-subcategory-id="${newSubcategory.id}">
+              <p class="text-sm text-gray-500 py-2">No hay patrones definidos</p>
+            </div>
+          </div>
+        `;
+        
+        // Insert before the "add subcategory" button's parent div
+        const addBtnContainer = categoryDetails.querySelector('.flex.justify-end.mt-2.pt-2.border-t');
+        if (addBtnContainer && addBtnContainer.parentNode) {
+          addBtnContainer.parentNode.insertBefore(newSubcategoryElement, addBtnContainer);
+        } else {
+          // Fallback: just append to the subcategories container
+          subcategoriesContainer.appendChild(newSubcategoryElement);
+        }
+        
+        // Setup event listeners for the new buttons
+        const newAddPatternBtn = newSubcategoryElement.querySelector('.add-pattern-btn');
+        if (newAddPatternBtn) {
+          newAddPatternBtn.addEventListener('click', (e) => {
+            const btn = e.currentTarget as HTMLButtonElement;
+            const subcategoryId = btn.dataset.subcategoryId;
+            const subcategoryName = btn.dataset.subcategoryName;
+            
+            const subcategoryIdInput = document.getElementById('subcategoryId') as HTMLInputElement;
+            const addPatternModal = document.getElementById('addPatternModal');
+            
+            subcategoryIdInput.value = subcategoryId || '';
+            (document.getElementById('patternForm') as HTMLFormElement).reset();
+            
+            if (addPatternModal) {
+              addPatternModal.classList.remove('hidden');
+            }
+          });
+        }
+        
+        const newEditSubcategoryBtn = newSubcategoryElement.querySelector('.edit-subcategory-btn');
+        if (newEditSubcategoryBtn) {
+          newEditSubcategoryBtn.addEventListener('click', setupSubcategoryEditHandler);
+        }
+        
+        const newDeleteSubcategoryBtn = newSubcategoryElement.querySelector('.delete-subcategory-btn');
+        if (newDeleteSubcategoryBtn) {
+          newDeleteSubcategoryBtn.addEventListener('click', setupSubcategoryDeleteHandler);
+        }
+        
+        // Close the modal
+        if (addSubcategoryModal) {
+          addSubcategoryModal.classList.add('hidden');
+        }
+        
+        // Show success message
+        showNotification('Subcategoría creada exitosamente', 'success');
+      } catch (error) {
+        console.error('Error creating subcategory:', error);
+        showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al crear la subcategoría', 'error');
+      } finally {
+        // Restore button state
+        const submitBtn = subcategoryForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          (submitBtn as HTMLButtonElement).disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
+      }
+    });
+  }
+  
+  // Setup edit handler function for subcategory edit buttons
+  function setupSubcategoryEditHandler(e) {
+    e.stopPropagation(); // Prevent event bubbling
+    
+    const btn = e.currentTarget as HTMLButtonElement;
+    const subcategoryId = btn.dataset.subcategoryId;
+    const subcategoryName = btn.dataset.subcategoryName;
+    
+    // Set the subcategory ID and name in the form
+    const editSubcategoryIdInput = document.getElementById('editSubcategoryId') as HTMLInputElement;
+    const editSubcategoryNameInput = document.getElementById('editSubcategoryName') as HTMLInputElement;
+    const editSubcategoryModal = document.getElementById('editSubcategoryModal');
+    
+    editSubcategoryIdInput.value = subcategoryId || '';
+    editSubcategoryNameInput.value = subcategoryName || '';
+    
+    // Show the modal
+    if (editSubcategoryModal) {
+      editSubcategoryModal.classList.remove('hidden');
+    }
+  }
+  
+  // Setup delete handler function for subcategory delete buttons
+  function setupSubcategoryDeleteHandler(e) {
+    e.stopPropagation(); // Prevent event bubbling
+    
+    const btn = e.currentTarget as HTMLButtonElement;
+    const subcategoryId = btn.dataset.subcategoryId;
+    const subcategoryName = btn.dataset.subcategoryName;
+    
+    // Set the subcategory ID and name in the delete confirmation
+    const deleteSubcategoryIdInput = document.getElementById('deleteSubcategoryId') as HTMLInputElement;
+    const deleteSubcategoryNameElement = document.getElementById('deleteSubcategoryName');
+    const deleteSubcategoryModal = document.getElementById('deleteSubcategoryModal');
+    
+    deleteSubcategoryIdInput.value = subcategoryId || '';
+    if (deleteSubcategoryNameElement) {
+      deleteSubcategoryNameElement.textContent = `"${subcategoryName || ''}"`;
+    }
+    
+    // Show the modal
+    if (deleteSubcategoryModal) {
+      deleteSubcategoryModal.classList.remove('hidden');
+    }
+  }
+  
+  // Implementation of edit subcategory functionality
+  function setupEditSubcategoryFunctionality() {
+    const editSubcategoryModal = document.getElementById('editSubcategoryModal');
+    const editSubcategoryForm = document.getElementById('editSubcategoryForm') as HTMLFormElement;
+    const editSubcategoryIdInput = document.getElementById('editSubcategoryId') as HTMLInputElement;
+    const editSubcategoryNameInput = document.getElementById('editSubcategoryName') as HTMLInputElement;
+    const closeEditModalBtn = document.getElementById('closeEditSubcategoryModal');
+    const cancelEditBtn = document.getElementById('cancelEditSubcategoryBtn');
+    
+    // Add event listeners for all "Edit Subcategory" buttons
+    document.querySelectorAll('.edit-subcategory-btn').forEach(button => {
+      button.addEventListener('click', setupSubcategoryEditHandler);
+    });
+    
+    // Close modal when clicking the close button or cancel button
+    if (closeEditModalBtn) {
+      closeEditModalBtn.addEventListener('click', () => {
+        if (editSubcategoryModal) {
+          editSubcategoryModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    if (cancelEditBtn) {
+      cancelEditBtn.addEventListener('click', () => {
+        if (editSubcategoryModal) {
+          editSubcategoryModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Close modal when clicking outside
+    if (editSubcategoryModal) {
+      editSubcategoryModal.addEventListener('click', (e) => {
+        if (e.target === editSubcategoryModal) {
+          editSubcategoryModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Handle form submission
+    editSubcategoryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const subcategoryId = parseInt(editSubcategoryIdInput.value);
+      const name = editSubcategoryNameInput.value.trim();
+      
+      if (!name) {
+        alert('Por favor ingresa un nombre para la subcategoría');
+        return;
+      }
+      
+      try {
+        // Show loading state
+        const submitBtn = editSubcategoryForm.querySelector('button[type="submit"]');
+        if (!submitBtn) {
+          console.error('Submit button not found');
+          return;
+        }
+        const originalText = submitBtn.innerHTML;
+        (submitBtn as HTMLButtonElement).disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        
+        // Call the API to update the subcategory
+        const response = await fetch(`http://localhost:8000/api/v1/subcategories/${subcategoryId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: name
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Error al actualizar la subcategoría');
+        }
+        
+        const updatedSubcategory = await response.json();
+        
+        // Update the subcategory name in the UI
+        const subcategoryElements = document.querySelectorAll(`.edit-subcategory-btn[data-subcategory-id="${subcategoryId}"]`);
+        subcategoryElements.forEach(element => {
+          const summaryElement = element.closest('summary');
+          if (summaryElement) {
+            const nameElement = summaryElement.querySelector('h5');
+            if (nameElement) {
+              nameElement.textContent = updatedSubcategory.name;
+            }
+            
+            // Update the data attributes
+            const editBtn = summaryElement.querySelector('.edit-subcategory-btn');
+            const deleteBtn = summaryElement.querySelector('.delete-subcategory-btn');
+            const addPatternBtn = summaryElement.parentElement?.querySelector('.add-pattern-btn');
+            
+            if (editBtn) {
+              editBtn.setAttribute('data-subcategory-name', updatedSubcategory.name);
+            }
+            if (deleteBtn) {
+              deleteBtn.setAttribute('data-subcategory-name', updatedSubcategory.name);
+            }
+            if (addPatternBtn) {
+              addPatternBtn.setAttribute('data-subcategory-name', updatedSubcategory.name);
+            }
+          }
+        });
+        
+        // Close the modal
+        if (editSubcategoryModal) {
+          editSubcategoryModal.classList.add('hidden');
+        }
+        
+        // Show success message
+        showNotification('Subcategoría actualizada exitosamente', 'success');
+      } catch (error) {
+        console.error('Error updating subcategory:', error);
+        showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al actualizar la subcategoría', 'error');
+      } finally {
+        // Restore button state
+        const submitBtn = editSubcategoryForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          (submitBtn as HTMLButtonElement).disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
+      }
+    });
+  }
+  
+  // Implementation of delete subcategory functionality
+  function setupDeleteSubcategoryFunctionality() {
+    const deleteSubcategoryModal = document.getElementById('deleteSubcategoryModal');
+    const deleteSubcategoryId = document.getElementById('deleteSubcategoryId') as HTMLInputElement;
+    const closeDeleteModalBtn = document.getElementById('closeDeleteSubcategoryModal');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteSubcategoryBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteSubcategoryBtn');
+    
+    // Add event listeners for all "Delete Subcategory" buttons
+    document.querySelectorAll('.delete-subcategory-btn').forEach(button => {
+      button.addEventListener('click', setupSubcategoryDeleteHandler);
+    });
+    
+    // Close modal when clicking the close button or cancel button
+    if (closeDeleteModalBtn) {
+      closeDeleteModalBtn.addEventListener('click', () => {
+        if (deleteSubcategoryModal) {
+          deleteSubcategoryModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    if (cancelDeleteBtn) {
+      cancelDeleteBtn.addEventListener('click', () => {
+        if (deleteSubcategoryModal) {
+          deleteSubcategoryModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Close modal when clicking outside
+    if (deleteSubcategoryModal) {
+      deleteSubcategoryModal.addEventListener('click', (e) => {
+        if (e.target === deleteSubcategoryModal) {
+          deleteSubcategoryModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Handle delete confirmation
+    if (confirmDeleteBtn) {
+      confirmDeleteBtn.addEventListener('click', async () => {
+        const subcategoryId = parseInt(deleteSubcategoryId.value);
+        
+        if (isNaN(subcategoryId)) {
+          console.error('Invalid subcategory ID');
+          return;
+        }
+        
+        try {
+          // Show loading state
+          const originalText = confirmDeleteBtn.innerHTML;
+          confirmDeleteBtn.disabled = true;
+          confirmDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+          
+          // Call the API to delete the subcategory
+          const response = await fetch(`http://localhost:8000/api/v1/subcategories/${subcategoryId}`, {
+            method: 'DELETE',
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Error al eliminar la subcategoría');
+          }
+          
+          // Remove the subcategory from the UI
+          const subcategoryElement = document.querySelector(`.delete-subcategory-btn[data-subcategory-id="${subcategoryId}"]`)?.closest('details');
+          if (subcategoryElement) {
+            subcategoryElement.remove();
+          }
+          
+          // Close the modal
+          if (deleteSubcategoryModal) {
+            deleteSubcategoryModal.classList.add('hidden');
+          }
+          
+          // Show success message
+          showNotification('Subcategoría eliminada exitosamente', 'success');
+        } catch (error) {
+          console.error('Error deleting subcategory:', error);
+          showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al eliminar la subcategoría', 'error');
+        } finally {
+          // Restore button state
+          if (confirmDeleteBtn) {
+            confirmDeleteBtn.disabled = false;
+            confirmDeleteBtn.innerHTML = originalText;
+          }
+        }
+      });
+    }
+  }
+  
   // Helper function to show notifications
   function showNotification(message, type = 'info') {
     // Simple notification - in a real app you'd use a toast library
     alert(message);
   }
 </script>
+```
+</copilot-edited-file>
