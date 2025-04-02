@@ -238,6 +238,55 @@ const totalRemaining = totalBudgeted - totalSpent;
     </div>
   </div>
   
+  <!-- Modal for adding a new pattern -->
+  <div id="addPatternModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Agregar Nuevo Patrón</h3>
+        <button id="closePatternModal" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form id="patternForm">
+        <input type="hidden" id="subcategoryId" name="subcategoryId">
+        
+        <div class="mb-4">
+          <label for="patternExpression" class="block text-sm font-medium text-gray-700 mb-1">
+            Expresión del Patrón
+          </label>
+          <input 
+            type="text" 
+            id="patternExpression" 
+            name="patternExpression"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Ej: NETFLIX*, *AMAZON*"
+            required
+          >
+          <p class="text-xs text-gray-500 mt-1">
+            Puedes usar * como comodín para hacer coincidir cualquier texto.
+          </p>
+        </div>
+        
+        <div class="flex justify-end gap-3">
+          <button 
+            type="button" 
+            id="cancelPatternBtn"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="submit" 
+            class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            Guardar Patrón
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
   <!-- Accordion View for Budget > Categories > Subcategories > Patterns -->
   <div class="space-y-4 mb-6">
     {budgetData.map((budget, budgetIndex) => (
@@ -295,28 +344,40 @@ const totalRemaining = totalBudgeted - totalSpent;
                       </summary>
                       
                       <!-- Patterns Level -->
-                      {subcategory.patterns && subcategory.patterns.length > 0 ? (
-                        <div class="pl-4 py-2 space-y-1">
-                          <h6 class="text-xs uppercase text-gray-500 mb-1">Patrones de transacciones</h6>
-                          <ul class="space-y-1">
+                      <div class="pl-4 py-2">
+                        <div class="flex justify-between items-center mb-2">
+                          <h6 class="text-xs uppercase text-gray-500">Patrones de transacciones</h6>
+                          <button 
+                            class="text-xs text-primary-600 hover:text-primary-800 add-pattern-btn"
+                            data-subcategory-id={subcategory.id}
+                            data-subcategory-name={subcategory.name}
+                          >
+                            <i class="fas fa-plus mr-1"></i> Añadir Patrón
+                          </button>
+                        </div>
+                        
+                        {subcategory.patterns && subcategory.patterns.length > 0 ? (
+                          <ul class="space-y-1 pattern-list" data-subcategory-id={subcategory.id}>
                             {subcategory.patterns.map((pattern) => (
                               <li class="text-sm py-1 px-2 bg-gray-50 rounded flex justify-between items-center">
                                 <span>{pattern.expName}</span>
                                 <div class="flex gap-2">
-                                  <button class="text-primary-600 hover:text-primary-800 text-xs">
+                                  <button class="text-primary-600 hover:text-primary-800 text-xs edit-pattern-btn" data-pattern-id={pattern.id}>
                                     <i class="fas fa-edit"></i>
                                   </button>
-                                  <button class="text-red-600 hover:text-red-800 text-xs">
+                                  <button class="text-red-600 hover:text-red-800 text-xs delete-pattern-btn" data-pattern-id={pattern.id}>
                                     <i class="fas fa-trash"></i>
                                   </button>
                                 </div>
                               </li>
                             ))}
                           </ul>
-                        </div>
-                      ) : (
-                        <p class="text-sm text-gray-500 py-2 pl-4">No hay patrones definidos</p>
-                      )}
+                        ) : (
+                          <div class="pattern-list" data-subcategory-id={subcategory.id}>
+                            <p class="text-sm text-gray-500 py-2">No hay patrones definidos</p>
+                          </div>
+                        )}
+                      </div>
                     </details>
                   ))}
                   
@@ -349,5 +410,173 @@ const totalRemaining = totalBudgeted - totalSpent;
     allDetails.forEach(detail => {
       (detail as HTMLDetailsElement).open = false;
     });
+    
+    // Set up pattern modals and form submission
+    setupPatternFunctionality();
   });
+  
+  function setupPatternFunctionality() {
+    const addPatternModal = document.getElementById('addPatternModal');
+    const patternForm = document.getElementById('patternForm') as HTMLFormElement;
+    const subcategoryIdInput = document.getElementById('subcategoryId') as HTMLInputElement;
+    const patternExpressionInput = document.getElementById('patternExpression') as HTMLInputElement;
+    const closeModalBtn = document.getElementById('closePatternModal');
+    const cancelBtn = document.getElementById('cancelPatternBtn');
+    
+    // Add event listeners for all "Add Pattern" buttons
+    document.querySelectorAll('.add-pattern-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        const btn = e.currentTarget as HTMLButtonElement;
+        const subcategoryId = btn.dataset.subcategoryId;
+        const subcategoryName = btn.dataset.subcategoryName;
+        
+        // Set the subcategory ID in the form
+        subcategoryIdInput.value = subcategoryId || '';
+        
+        // Clear the form
+        patternForm.reset();
+        
+        // Show the modal
+        if (addPatternModal) {
+          addPatternModal.classList.remove('hidden');
+        }
+      });
+    });
+    
+    // Close modal when clicking the close button or cancel button
+    if (closeModalBtn) {
+      closeModalBtn.addEventListener('click', () => {
+        if (addPatternModal) {
+          addPatternModal.classList.add('hidden');
+        }
+      });
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        if (addPatternModal) {
+          addPatternModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Close modal when clicking outside
+    if (addPatternModal) {
+      addPatternModal.addEventListener('click', (e) => {
+        if (e.target === addPatternModal) {
+          addPatternModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Handle form submission
+    patternForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const subcategoryId = parseInt(subcategoryIdInput.value);
+      const expName = patternExpressionInput.value.trim();
+      
+      if (!expName) {
+        alert('Por favor ingresa una expresión de patrón válida');
+        return;
+      }
+      
+      try {
+        // Show loading state
+        const submitBtn = patternForm.querySelector('button[type="submit"]');
+        if (!submitBtn) {
+          console.error('Submit button not found');
+          return;
+        }
+        let originalText = submitBtn.innerHTML; // Define originalText here
+        (submitBtn as HTMLButtonElement).disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        
+        // Call the API to create a new pattern
+        const response = await fetch('http://localhost:8000/api/v1/patterns/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            exp_name: expName,
+            subcategory_id: subcategoryId
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Error al crear el patrón');
+        }
+        
+        const newPattern = await response.json();
+        
+        // Add the new pattern to the UI
+        let patternListContainer = document.querySelector(`.pattern-list[data-subcategory-id="${subcategoryId}"]`);
+        
+        // Check if we have the empty message and remove it
+        if (!patternListContainer) {
+          console.error('Pattern list container not found');
+          return;
+        }
+        const emptyMessage = patternListContainer.querySelector('p');
+        if (emptyMessage) {
+          patternListContainer.innerHTML = '';
+          
+          // Create a ul element if it doesn't exist
+          if (patternListContainer.tagName !== 'UL') {
+            const ul = document.createElement('ul');
+            ul.className = 'space-y-1 pattern-list';
+            ul.dataset.subcategoryId = subcategoryId.toString();
+            if (patternListContainer.parentNode) {
+              patternListContainer.parentNode.replaceChild(ul, patternListContainer);
+            } else {
+              console.error('Parent node of patternListContainer is null');
+            }
+            patternListContainer = ul;
+          }
+        }
+        
+        // Create the new pattern list item
+        const newPatternItem = document.createElement('li');
+        newPatternItem.className = 'text-sm py-1 px-2 bg-gray-50 rounded flex justify-between items-center';
+        newPatternItem.innerHTML = `
+          <span>${newPattern.exp_name}</span>
+          <div class="flex gap-2">
+            <button class="text-primary-600 hover:text-primary-800 text-xs edit-pattern-btn" data-pattern-id="${newPattern.id}">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="text-red-600 hover:text-red-800 text-xs delete-pattern-btn" data-pattern-id="${newPattern.id}">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        `;
+        
+        patternListContainer.appendChild(newPatternItem);
+        
+        // Close the modal
+        if (addPatternModal) {
+          addPatternModal.classList.add('hidden');
+        }
+        
+        // Show success message
+        showNotification('Patrón creado exitosamente', 'success');
+      } catch (error) {
+        console.error('Error creating pattern:', error);
+        showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al crear el patrón', 'error');
+      } finally {
+        // Restore button state
+        const submitBtn = patternForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          (submitBtn as HTMLButtonElement).disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
+      }
+    });
+  }
+  
+  // Helper function to show notifications
+  function showNotification(message, type = 'info') {
+    // Simple notification - in a real app you'd use a toast library
+    alert(message);
+  }
 </script>
