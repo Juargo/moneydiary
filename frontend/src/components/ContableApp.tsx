@@ -212,7 +212,7 @@ export default function ContableApp({ userId = 1 }) {
     formData.append('bank_id', selectedBank);
 
     try {
-      const response = await fetch(`${API_URL}/upload-bank-report`, {
+      const response = await fetch(`http://localhost:8000/api/v1/transactions/upload-bank-report`, {
         method: 'POST',
         body: formData,
       });
