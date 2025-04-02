@@ -69,9 +69,9 @@ async def downgrade(db: BaseDBAsyncClient) -> str:
         ALTER TABLE `bank` MODIFY COLUMN `name` VARCHAR(50) NOT NULL;
         ALTER TABLE `user_bank` RENAME TO `user_banks`;
         ALTER TABLE `user_bank` MODIFY COLUMN `balance` DECIMAL(15,2) NOT NULL DEFAULT 0;
+        DROP TABLE IF EXISTS `category`;
+        DROP TABLE IF EXISTS `pattern`;
+        DROP TABLE IF EXISTS `transaction`;
         DROP TABLE IF EXISTS `subcategory`;
         DROP TABLE IF EXISTS `budget`;
-        DROP TABLE IF EXISTS `pattern`;
-        DROP TABLE IF EXISTS `category`;
-        DROP TABLE IF EXISTS `transaction`;
         ALTER TABLE `bank` ADD UNIQUE INDEX `name` (`name`);"""
