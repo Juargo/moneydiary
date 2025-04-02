@@ -32,10 +32,9 @@ class Budget:
 class Category:
     """ Tipo GraphQL para categorías """
     id: int
-    user_id: int = strawberry.field(name="userId")
+    budget_id: int = strawberry.field(name="budgetId")
     name: str
-    icon: Optional[str]
-    color: Optional[str]
+    description: Optional[str]
     created_at: str = strawberry.field(name="createdAt")
     updated_at: str = strawberry.field(name="updatedAt")
 
@@ -61,11 +60,6 @@ class Pattern:
 
 @strawberry.type
 class Query:
-    """ Query type """
-    @strawberry.field
-    def hello(self) -> str:
-        """ Hello world """
-        return "Hola desde GraphQL 🚀"
 
     @strawberry.field
     async def user(self, user_id: int) -> Optional[User]:
@@ -111,16 +105,15 @@ class Query:
         ]
 
     @strawberry.field
-    async def categories(self, user_id: int) -> List[Category]:
-        """ Obtener todas las categorías de un usuario """
-        categories = await CategoryModel.filter(user_id=user_id)
+    async def categories(self, budget_id: int) -> List[Category]:
+        """ Obtener todas las categorías de un presupuesto """
+        categories = await CategoryModel.filter(budget_id=budget_id)
         return [
             Category(
                 id=category.id,
-                user_id=category.user_id,
+                budget_id=category.budget_id,
                 name=category.name,
-                icon=category.icon,
-                color=category.color,
+                description=category.description,
                 created_at=str(category.created_at),
                 updated_at=str(category.updated_at)
             )

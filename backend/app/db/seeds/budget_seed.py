@@ -28,6 +28,10 @@ async def seed_budgets():
                 "description": "Presupuesto para gastos personales y de ocio",
             },
             {
+                "name": "Imprevistos",
+                "description": "Presupuesto para gastos inesperados",
+            },
+            {
                 "name": "Comisiones",
                 "description": "Presupuesto para comisiones y gastos relacionados",
             },
