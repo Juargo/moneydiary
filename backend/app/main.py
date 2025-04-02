@@ -7,9 +7,13 @@ from tortoise.contrib.fastapi import register_tortoise
 
 from app.graphql.schema import schema
 from app.db.config import TORTOISE_ORM
+from app.api.v1.router import api_v1_router
 
 
 app = FastAPI()
+
+# Include the API router
+app.include_router(api_v1_router)
 
 # Configuración de CORS
 app.add_middleware(
