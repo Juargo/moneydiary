@@ -14,6 +14,12 @@ interface Transaction {
   Monto?: number;
   Tipo?: string;
   "N° Operación"?: string;
+  // Add new categorization fields
+  category_id?: number | null;
+  category_name?: string;
+  subcategory_id?: number | null;
+  subcategory_name?: string;
+  category_color?: string;
 }
 
 interface Bank {
@@ -418,15 +424,34 @@ export default function ContableApp({ userId = 1 }) {
                 <th>Descripción</th>
                 <th>Monto</th>
                 <th>Tipo</th>
+                <th>Categoría</th>
+                <th>Subcategoría</th>
               </tr>
             </thead>
             <tbody>
               {data.map((item, index) => (
-                <tr key={index} className={item.Tipo?.toLowerCase() || ''}>
+                <tr 
+                  key={index} 
+                  className={item.Tipo?.toLowerCase() || ''}
+                  style={{
+                    borderLeft: item.category_color 
+                      ? `4px solid ${item.category_color}` 
+                      : 'none'
+                  }}
+                >
                   <td>{item.Fecha || item.date}</td>
                   <td>{item.Descripción || item.description}</td>
                   <td>{formatAmount(item.Monto || item.amount || item.Cargo || item.Abono)}</td>
                   <td>{item.Tipo || "-"}</td>
+                  <td>
+                    <span className="category-tag" style={{ 
+                      backgroundColor: item.category_color || '#CCCCCC',
+                      color: item.category_color ? getContrastColor(item.category_color) : '#000'
+                    }}>
+                      {item.category_name || "Sin categoría"}
+                    </span>
+                  </td>
+                  <td>{item.subcategory_name || "Sin subcategoría"}</td>
                 </tr>
               ))}
             </tbody>
@@ -605,7 +630,45 @@ export default function ContableApp({ userId = 1 }) {
           font-weight: 500;
           border-left: 4px solid #1976d2;
         }
+
+        .category-tag {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 0.85rem;
+          font-weight: 500;
+          white-space: nowrap;
+        }
+        
+        td {
+          padding: 0.75rem;
+          text-align: left;
+          border-bottom: 1px solid #ddd;
+          vertical-align: middle;
+        }
+        
+        tr {
+          transition: background-color 0.2s;
+          border-left: 4px solid transparent;
+        }
       `}</style>
     </div>
   );
+}
+
+// Add this utility function for determining text color based on background
+function getContrastColor(hexColor: string) {
+  // Remove the leading # if it exists
+  const hex = hexColor.replace('#', '');
+  
+  // Convert to RGB
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  
+  // Return black for bright colors, white for dark colors
+  return luminance > 0.5 ? '#000000' : '#FFFFFF';
 }
