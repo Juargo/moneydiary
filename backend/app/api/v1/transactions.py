@@ -49,31 +49,31 @@ router = APIRouter(prefix="/transactions", tags=["Transactions"])
 #     transaction_obj = await Transaction.create(**transaction.dict(exclude_unset=True))
 #     return await TransactionPydantic.from_tortoise_orm(transaction_obj)
 
-# def sanitize_json_data(obj: Any) -> Any:
-#     """
-#     Convierte valores no serializables en JSON (como NaN, Infinity) a valores compatibles.
-#     También convierte numpy.int64/float64 a tipos Python nativos para serialización.
-#     """
-#     if isinstance(obj, dict):
-#         return {k: sanitize_json_data(v) for k, v in obj.items()}
-#     elif isinstance(obj, list):
-#         return [sanitize_json_data(item) for item in obj]
-#     elif isinstance(obj, (np.integer, np.int64)):
-#         return int(obj)
-#     elif isinstance(obj, (np.floating, np.float64)):
-#         num = float(obj)
-#         if math.isnan(num):
-#             return None
-#         elif math.isinf(num):
-#             return None  # o podrías usar str(num) para mantener "inf"/"-inf" como cadena
-#         else:
-#             return num
-#     elif isinstance(obj, (pd.Timestamp, pd._libs.tslibs.timestamps.Timestamp)):
-#         return obj.isoformat()
-#     elif pd.isna(obj):
-#         return None
-#     else:
-#         return obj
+def sanitize_json_data(obj: Any) -> Any:
+    """
+    Convierte valores no serializables en JSON (como NaN, Infinity) a valores compatibles.
+    También convierte numpy.int64/float64 a tipos Python nativos para serialización.
+    """
+    if isinstance(obj, dict):
+        return {k: sanitize_json_data(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_json_data(item) for item in obj]
+    elif isinstance(obj, (np.integer, np.int64)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64)):
+        num = float(obj)
+        if math.isnan(num):
+            return None
+        elif math.isinf(num):
+            return None  # o podrías usar str(num) para mantener "inf"/"-inf" como cadena
+        else:
+            return num
+    elif isinstance(obj, (pd.Timestamp, pd._libs.tslibs.timestamps.Timestamp)):
+        return obj.isoformat()
+    elif pd.isna(obj):
+        return None
+    else:
+        return obj
 
 @router.post("/upload-bank-report")
 async def upload_bank_report(
@@ -111,39 +111,36 @@ async def upload_bank_report(
 
         # Procesar el archivo según el ID del banco
         logger.info(f"Procesando archivo para banco: {bank_id}")
-        if bank_id == 'bancoestado':  # BancoEstado
-            logger.info("Iniciando extracción de datos para BancoEstado")
-            saldo, movimientos = extraer_datos_bancoestado(temp_file.name)
-        elif bank_id == 'bancochile':  # BancoChile
-            logger.info("Iniciando extracción de datos para BancoChile")
-            saldo, movimientos = extraer_datos_bancochile(temp_file.name)
-        elif bank_id == 'bancosantander':  # Santander
-            logger.info("Iniciando extracción de datos para Santander")
-            saldo, movimientos = extraer_datos_santander(temp_file.name)
-        elif bank_id == 3:  # BCI
-            logger.info("Iniciando extracción de datos para BCI")
-            saldo, movimientos = extraer_datos_bci(temp_file.name)
-        else:
-            logger.error(f"ID de banco no válido: {bank_id}")
-            raise HTTPException(
-                status_code=400, detail=f"ID de banco no válido: {bank_id}"
-            )
+        # if bank_id == 'bancoestado':  # BancoEstado
+        #     logger.info("Iniciando extracción de datos para BancoEstado")
+        #     saldo, movimientos = extraer_datos_bancoestado(temp_file.name)
+        # elif bank_id == 'bancochile':  # BancoChile
+        #     logger.info("Iniciando extracción de datos para BancoChile")
+        #     saldo, movimientos = extraer_datos_bancochile(temp_file.name)
+        # elif bank_id == 'bancosantander':  # Santander
+        #     logger.info("Iniciando extracción de datos para Santander")
+        #     saldo, movimientos = extraer_datos_santander(temp_file.name)
+        # elif bank_id == 3:  # BCI
+        #     logger.info("Iniciando extracción de datos para BCI")
+        #     saldo, movimientos = extraer_datos_bci(temp_file.name)
+        # else:
+        #     logger.error(f"ID de banco no válido: {bank_id}")
+        #     raise HTTPException(
+        #         status_code=400, detail=f"ID de banco no válido: {bank_id}"
+        #     )
+        movimientos = extraer_datos_bci(temp_file.name)
+        logger.info(f"Extracción completada:  transacciones={len(movimientos)}")
         
-        # logger.info(f"Extracción completada: saldo={saldo}, transacciones={len(movimientos)}")
+        # Sanitizar datos para evitar errores de serialización JSON
+        response_data = {
+            "bank_id": bank_id,
+            "transactions": movimientos
+        }
         
-        # # Sanitizar datos para evitar errores de serialización JSON
-        # response_data = {
-        #     "bank_id": bank_id,
-        #     "balance": saldo,
-        #     "transactions": movimientos
-        # }
-        
-        # logger.info("Sanitizando datos para respuesta JSON")
-        # sanitized_data = sanitize_json_data(response_data)
-        # logger.info(f"Procesamiento completado exitosamente. Retornando {len(sanitized_data['transactions'])} transacciones")
-        # return sanitized_data
-        return 'nill'
-        
+        logger.info("Sanitizando datos para respuesta JSON")
+        sanitized_data = sanitize_json_data(response_data)
+        logger.info(f"Procesamiento completado exitosamente. Retornando {len(sanitized_data['transactions'])} transacciones")
+        return sanitized_data        
     except Exception as e:
         logger.error(f"Error al procesar el archivo: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -512,10 +509,11 @@ def extraer_datos_bancochile_formato2(df):
                     data_df.columns = df.iloc[header_row]
                 else:
                     # Generar encabezados genéricos
-                    data_df.columns = [f"Col{i}" for i in range(data_df.shape[1])]
+                    logger.warning(f"Incompatibilidad en número de columnas. Usando nombres genéricos.")
+                    data_df.columns = [f"Column{i}" for i in range(len(data_df.columns))]
             else:
                 # Generar encabezados genéricos
-                data_df.columns = [f"Col{i}" for i in range(data_df.shape[1])]
+                data_df.columns = [f"Column{i}" for i in range(len(data_df.columns))]
             
             # Identificar columnas por posición si no hay encabezados claros
             col_fecha = data_df.columns[fecha_columna]
@@ -688,7 +686,7 @@ def extraer_datos_bancochile_analisis_estructural(df):
                 # Identificar columnas clave
                 col_fecha_str = f"Col{bloque.columns.get_loc(col_fecha)}"
                 
-                # Buscar columna de descripción (columna con más texto)
+                # Buscar columna de descripción (mayor longitud de texto)
                 col_desc = None
                 max_text_len = 0
                 
@@ -1075,128 +1073,156 @@ def extraer_datos_bci(archivo):
     try:
         logger.info(f"Iniciando procesamiento de archivo BCI: {archivo}")
         
+        # Log file extension
+        file_extension = os.path.splitext(archivo)[1]
+        logger.info(f"Extensión del archivo: \n{file_extension}")
+        
         # Cargar el archivo Excel
         xls = pd.ExcelFile(archivo)
         sheet_name = xls.sheet_names[0]
         df = pd.read_excel(xls, sheet_name=sheet_name)
 
-        logger.info(f"Procesando archivo BCI con forma: {df.shape}")
+        logger.info(f"Procesando archivo BCI con forma: \n{df.shape}")
         # # No hay saldo para BCI según requerimientos
-        # saldo_bci = 0
 
+        ## lista de encabezados según el banco
+        fecha_headers = [
+            "Fecha",
+            "Fecha Transacción"
+        ]
+            
+        descripcion_headers = [
+            "Descripción",
+            "Detalle"
+        ]
+
+        cargos_headers = [
+            "Cargos (CLP)",
+            "Cargo $",
+            "Monto cargo ($)",
+            "Cheques / Cargos $",
+        ]
+
+        abonos_headers = [
+            "Abonos (CLP)",
+            "Abono $",
+            "Monto abono ($)",
+            "Depósitos / Abonos $"
+        ]
+       
         # # Buscar columnas con información de movimientos
-        # header_row = None
-        # for i, row in df.iterrows():
-        #     row_str = row.to_string().lower()
-        #     if (
-        #         "fecha" in row_str
-        #         and any(term in row_str for term in ["transacción", "transaccion", "detalle", "descripción"])
-        #         and any(term in row_str for term in ["cargo", "débito", "abono", "crédito", "monto"])
-        #     ):
-        #         header_row = i
-        #         break
+        header_row = None
+        for i, row in df.iterrows():
+            row_str = row.to_string().lower()
+            # Verificar si la fila contiene encabezados de interés
+            if any(header.lower() in row_str for header in fecha_headers + descripcion_headers + cargos_headers + abonos_headers):
+                # Encontrar la fila de encabezado
+                logger.info(f"Encontrados posibles encabezados en fila {i}: {row_str}")
+                
+                header_row = i
+                break
 
-        # if header_row is not None:
-        #     df_movimientos = df.iloc[header_row + 1:].copy()
-        #     df_movimientos.columns = df.iloc[header_row]
+        logger.info(f"Fila de encabezado encontrada: {header_row}")
+        if header_row is not None:
+            df_movimientos = df.iloc[header_row + 1:].copy()
+            df_movimientos.columns = df.iloc[header_row]
             
-        #     # Mapear las columnas necesarias
-        #     column_mapping = {
-        #         "Fecha": ["Fecha", "Fecha Transacción", "FECHA"],
-        #         "Descripción": ["Descripción", "DESCRIPCION", "Detalle", "Glosa"],
-        #         "Cargo": ["Cargo", "CARGO", "Débito", "Monto Débito"],
-        #         "Abono": ["Abono", "ABONO", "Crédito", "Monto Crédito"],
-        #         "Monto": ["Monto", "MONTO", "Valor"]
-        #     }
+            # Mapear las columnas necesarias
+            column_mapping = {
+                "Fecha": fecha_headers,
+                "Descripción": descripcion_headers,
+                "Cargo": cargos_headers,
+                "Abono": abonos_headers,
+            }
             
-        #     # Buscar las columnas en el dataframe
-        #     found_columns = {}
-        #     for target_col, possible_names in column_mapping.items():
-        #         for col_name in df_movimientos.columns:
-        #             col_str = str(col_name).lower()
-        #             if any(possible.lower() in col_str for possible in possible_names):
-        #                 found_columns[target_col] = col_name
-        #                 break
+            # Buscar las columnas en el dataframe
+            found_columns = {}
+            for target_col, possible_names in column_mapping.items():
+                for col_name in df_movimientos.columns:
+                    col_str = str(col_name).lower()
+                    if any(possible.lower() in col_str for possible in possible_names):
+                        found_columns[target_col] = col_name
+                        break
             
-        #     # Verificar que tenemos las columnas mínimas necesarias
-        #     if "Fecha" in found_columns and "Descripción" in found_columns and any(k in found_columns for k in ["Cargo", "Abono", "Monto"]):
-        #         # Crear DataFrame con columnas estandarizadas
-        #         df_final = pd.DataFrame()
-        #         df_final["Fecha"] = df_movimientos[found_columns["Fecha"]]
-        #         df_final["Descripción"] = df_movimientos[found_columns["Descripción"]]
+            logger.info(f"Columnas encontradas: {found_columns}")
+            # Verificar que tenemos las columnas mínimas necesarias
+            if "Fecha" in found_columns and "Descripción" in found_columns and ("Cargo" in found_columns or "Abono" in found_columns):
+                # Crear DataFrame con columnas estandarizadas
+                df_final = pd.DataFrame()
+                df_final["Fecha"] = df_movimientos[found_columns["Fecha"]]
+                df_final["Descripción"] = df_movimientos[found_columns["Descripción"]]
                 
-        #         # Inicializar columnas numéricas
-        #         df_final["Cargo"] = 0
-        #         df_final["Abono"] = 0
+                # Inicializar columnas numéricas
+                df_final["Cargo"] = 0
+                df_final["Abono"] = 0
                 
-        #         # Función para convertir strings con formato de moneda chilena a números
-        #         def parse_chilean_amount(value):
-        #             if pd.isna(value):
-        #                 return 0
+                # Función para convertir strings con formato de moneda chilena a números
+                def parse_chilean_amount(value):
+                    if pd.isna(value):
+                        return 0
                     
-        #             # Si ya es un número, devolverlo directamente
-        #             if isinstance(value, (int, float)):
-        #                 return value
+                    # Si ya es un número, devolverlo directamente
+                    if isinstance(value, (int, float)):
+                        return value
                     
-        #             # Convertir a string si no lo es
-        #             value_str = str(value)
+                    # Convertir a string si no lo es
+                    value_str = str(value)
                     
-        #             # Reemplazar puntos (separadores de miles) y comas (separadores decimales)
-        #             # En Chile: 1.234,56 = 1234.56 en formato inglés
-        #             cleaned_value = value_str.replace('.', '').replace(',', '.')
+                    # Reemplazar puntos (separadores de miles) y comas (separadores decimales)
+                    # En Chile: 1.234,56 = 1234.56 en formato inglés
+                    cleaned_value = value_str.replace('.', '').replace(',', '.')
                     
-        #             try:
-        #                 return float(cleaned_value)
-        #             except ValueError:
-        #                 # Si hay error, intentar extraer solo dígitos y puntos/comas
-        #                 import re
-        #                 numeric_chars = re.sub(r'[^\d,.]', '', value_str)
-        #                 if numeric_chars:
-        #                     numeric_chars = numeric_chars.replace('.', '').replace(',', '.')
-        #                     try:
-        #                         return float(numeric_chars)
-        #                     except ValueError:
-        #                         return 0
-        #                 return 0
+                    try:
+                        return float(cleaned_value)
+                    except ValueError:
+                        # Si hay error, intentar extraer solo dígitos y puntos/comas
+                        import re
+                        numeric_chars = re.sub(r'[^\d,.]', '', value_str)
+                        if numeric_chars:
+                            numeric_chars = numeric_chars.replace('.', '').replace(',', '.')
+                            try:
+                                return float(numeric_chars)
+                            except ValueError:
+                                return 0
+                        return 0
                 
-        #         # Procesar columnas de montos con la nueva función
-        #         if "Cargo" in found_columns:
-        #             df_final["Cargo"] = df_movimientos[found_columns["Cargo"]].apply(parse_chilean_amount)
+                # Procesar columnas de montos con la nueva función
+                if "Cargo" in found_columns:
+                    df_final["Cargo"] = df_movimientos[found_columns["Cargo"]].apply(parse_chilean_amount)
                 
-        #         if "Abono" in found_columns:
-        #             df_final["Abono"] = df_movimientos[found_columns["Abono"]].apply(parse_chilean_amount)
+                if "Abono" in found_columns:
+                    df_final["Abono"] = df_movimientos[found_columns["Abono"]].apply(parse_chilean_amount)
                 
-        #         # Si hay una columna de monto que puede contener valores positivos y negativos
-        #         if "Monto" in found_columns:
-        #             montos = df_movimientos[found_columns["Monto"]].apply(parse_chilean_amount)
-        #             df_final["Cargo"] += montos.apply(lambda x: abs(x) if x < 0 else 0)
-        #             df_final["Abono"] += montos.apply(lambda x: x if x > 0 else 0)
+                # Si hay una columna de monto que puede contener valores positivos y negativos
+                if "Monto" in found_columns:
+                    montos = df_movimientos[found_columns["Monto"]].apply(parse_chilean_amount)
+                    df_final["Cargo"] += montos.apply(lambda x: abs(x) if x < 0 else 0)
+                    df_final["Abono"] += montos.apply(lambda x: x if x > 0 else 0)
                 
-        #         # Determinar el tipo de transacción
-        #         df_final["Tipo"] = "Gasto"
-        #         df_final.loc[df_final["Abono"] > 0, "Tipo"] = "Ingreso"
+                # Determinar el tipo de transacción
+                df_final["Tipo"] = "Gasto"
+                df_final.loc[df_final["Abono"] > 0, "Tipo"] = "Ingreso"
                 
-        #         # Calcular el monto final (positivo para ambos tipos)
-        #         df_final["Monto"] = df_final["Cargo"] + df_final["Abono"]
+                # Calcular el monto final (positivo para ambos tipos)
+                df_final["Monto"] = df_final["Cargo"] + df_final["Abono"]
                 
-        #         # Registrar algunos montos para verificación
-        #         logger.debug(f"Ejemplos de montos procesados: {df_final['Monto'].head().tolist()}")
+                # Registrar algunos montos para verificación
+                logger.debug(f"Ejemplos de montos procesados: {df_final['Monto'].head().tolist()}")
                 
-        #         # Filtrar filas con valores nulos y montos cero
-        #         df_final = df_final.dropna(subset=["Fecha", "Monto"])
-        #         df_final = df_final[df_final["Monto"] != 0]
+                # Filtrar filas con valores nulos y montos cero
+                df_final = df_final.dropna(subset=["Fecha", "Monto"])
+                df_final = df_final[df_final["Monto"] != 0]
                 
-        #         # Convertir a lista de diccionarios
-        #         movimientos_bci = df_final[["Fecha", "Descripción", "Monto", "Tipo"]].to_dict(orient="records")
-        #         logger.info(f"Extracción completada: movimientos={len(movimientos_bci)}")
-        #         if len(movimientos_bci) > 0:
-        #             logger.debug(f"Muestra de datos: {movimientos_bci[0]}")
-        #         return saldo_bci, movimientos_bci
-        #     else:
-        #         return saldo_bci, []
-        # else:
-        #     return saldo_bci, []
-        return 0,[]
+                # Convertir a lista de diccionarios
+                movimientos_bci = df_final[["Fecha", "Descripción", "Monto", "Tipo"]].to_dict(orient="records")
+                logger.info(f"Extracción completada: movimientos={len(movimientos_bci)}")
+                if len(movimientos_bci) > 0:
+                    logger.debug(f"Muestra de datos: {movimientos_bci[0]}")
+                return  movimientos_bci
+            else:
+                return  []
+        else:
+            return []
     except Exception as e:
         logger.error(f"Error al procesar archivo de BCI: {str(e)}", exc_info=True)
         return 0, []
