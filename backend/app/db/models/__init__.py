@@ -7,6 +7,7 @@ from .subcategory import Subcategory
 from .budget import Budget
 from .category import Category
 from .pattern import Pattern
+from .pattern_ignore import PatternIgnore
 
 __all__ = [
     "Transaction",
@@ -16,5 +17,6 @@ __all__ = [
     "Subcategory",
     "Budget",
     "Category",
-    "Pattern"
+    "Pattern",
+    "PatternIgnore",
 ]
