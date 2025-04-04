@@ -445,10 +445,8 @@ export default function ContableApp({ userId = 1 }) {
                   <td>{item.Tipo || "-"}</td>
                   <td>
                     <span className="category-tag" style={{ 
-                      backgroundColor: item.category_color || '#CCCCCC',
-                      color: item.category_color 
-                        ? getContrastColor(item.category_color) 
-                        : '#FF0000' // Red color for "Sin categoría"
+                      backgroundColor: item.category_color || getCategoryColor(item.category_name || "Sin categoría"),
+                      color: item.category_name ==='Sin categoría'? '#FF0000' :'black'// Red color for "Sin categoría"
                     }}>
                       {item.category_name || "Sin categoría"}
                     </span>
@@ -673,4 +671,16 @@ function getContrastColor(hexColor: string) {
   
   // Return black for bright colors, white for dark colors
   return luminance > 0.5 ? '#000000' : '#FFFFFF';
+}
+
+// Add this utility function to determine a color based on the category name
+function getCategoryColor(categoryName: string): string {
+  const colors: Record<string, string> = {
+    "Alimentos": "#FF5733",
+    "Transporte": "#33FF57",
+    "Entretenimiento": "#3357FF",
+    "Sin categoría": "#CCCCCC",
+    // Add more categories and their corresponding colors as needed
+  };
+  return colors[categoryName] || "#CCCCCC"; // Default to gray if no match
 }
