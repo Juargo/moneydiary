@@ -9,6 +9,7 @@ from app.db.models.subcategory import Subcategory as SubcategoryModel
 from app.db.models.pattern import Pattern as PatternModel
 from app.db.models.bank import Bank as BankModel
 from app.db.models.user_bank import UserBank as UserBankModel
+from app.db.models.pattern_ignore import PatternIgnore as PatternIgnoreModel
 
 
 @strawberry.type
@@ -74,6 +75,16 @@ class UserBank:
     bank_id: int = strawberry.field(name="bankId")
     balance: float
     description: Optional[str]
+    created_at: str = strawberry.field(name="createdAt")
+    updated_at: str = strawberry.field(name="updatedAt")
+
+@strawberry.type
+class PatternIgnore:
+    """ Tipo GraphQL para patrones a ignorar en transacciones """
+    id: int
+    exp_name: str = strawberry.field(name="expName")
+    description: str
+    user_id: int = strawberry.field(name="userId")
     created_at: str = strawberry.field(name="createdAt")
     updated_at: str = strawberry.field(name="updatedAt")
 
@@ -198,6 +209,22 @@ class Query:
                 updated_at=str(user_bank.updated_at)
             )
             for user_bank in user_banks
+        ]
+    
+    @strawberry.field(name="patternIgnores")
+    async def pattern_ignores(self, userId: int) -> List[PatternIgnore]:
+        """ Obtener todos los patrones a ignorar de un usuario """
+        pattern_ignores = await PatternIgnoreModel.filter(user_id=userId)
+        return [
+            PatternIgnore(
+                id=pattern_ignore.id,
+                exp_name=pattern_ignore.exp_name,
+                description=pattern_ignore.description,
+                user_id=pattern_ignore.user_id,
+                created_at=str(pattern_ignore.created_at),
+                updated_at=str(pattern_ignore.updated_at)
+            )
+            for pattern_ignore in pattern_ignores
         ]
 
 schema = strawberry.Schema(query=Query)
