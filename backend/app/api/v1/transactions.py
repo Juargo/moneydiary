@@ -374,9 +374,10 @@ async def categorizar_transacciones(transacciones, patrones_usuario):
         Lista de transacciones con categorías y subcategorías asignadas
     """
     import re
+    import unicodedata
     
     try:
-        logger.info(f"Iniciando categorización de {len(transacciones)} transacciones")
+        # logger.info(f"Iniciando categorización de {len(transacciones)} transacciones")
         
         # Preparar la estructura para transacciones categorizadas
         transacciones_categorizadas = []
@@ -384,9 +385,17 @@ async def categorizar_transacciones(transacciones, patrones_usuario):
         # Contador para estadísticas
         contador_categorizadas = 0
         
+        # Función para normalizar texto eliminando espacios y acentos
+        def normalize_text(text):
+            return ''.join(
+                c for c in unicodedata.normalize('NFD', text)
+                if unicodedata.category(c) != 'Mn'
+            ).replace(" ", "").lower()
+        
         # Procesar cada transacción
         for transaccion in transacciones:
             descripcion = transaccion["Descripción"].lower() if transaccion.get("Descripción") else ""
+            logger.debug(f"Procesando transacción: {transaccion}")
             transaccion_categorizada = transaccion.copy()
             
             # Valores predeterminados
@@ -398,26 +407,23 @@ async def categorizar_transacciones(transacciones, patrones_usuario):
             
             # Buscar coincidencias con patrones
             for categoria in patrones_usuario:
+                # logger.debug(f"Evaluando categoría: {categoria['category_name']} (ID: {categoria['category_id']})")
                 for subcategoria in categoria["subcategories"]:
+                    # logger.debug(f"Evaluando subcategoría: {subcategoria['subcategory_name']} (ID: {subcategoria['subcategory_id']})")
                     for patron in subcategoria["patterns"]:
                         pattern_text = patron["pattern_text"]
                         is_regex = patron["is_regex"]
+                        # logger.debug(f"Evaluando patrón: {pattern_text} (Regex: {is_regex})")
                         
-                        # Verificar si hay coincidencia
-                        coincide = False
-                        if is_regex:
-                            try:
-                                # Usar expresión regular
-                                if re.search(pattern_text, descripcion, re.IGNORECASE):
-                                    coincide = True
-                            except re.error:
-                                # Si hay error en la expresión regular, tratar como texto simple
-                                coincide = pattern_text.lower() in descripcion
-                        else:
-                            # Búsqueda de texto simple
-                            coincide = pattern_text.lower() in descripcion
+                        # Eliminar espacios y acentos para comparación
+                        normalized_pattern = normalize_text(pattern_text)
+                        normalized_description = normalize_text(descripcion)
                         
+                        # Verificar si hay coincidencia (solo búsqueda de texto simple)
+                        logger.debug(f"##### Buscando coincidencia con patrón: {normalized_pattern} ---> {normalized_description}")
+                        coincide = normalized_pattern in normalized_description
                         if coincide:
+                            logger.debug(f"Coincidencia encontrada con patrón simple: {pattern_text}")
                             # Asignar categoría y subcategoría
                             transaccion_categorizada["category_id"] = categoria["category_id"]
                             transaccion_categorizada["category_name"] = categoria["category_name"]
@@ -426,6 +432,7 @@ async def categorizar_transacciones(transacciones, patrones_usuario):
                             transaccion_categorizada["category_color"] = categoria["category_color"]
                             contador_categorizadas += 1
                             
+                            logger.debug(f"Transacción categorizada: {transaccion_categorizada}")
                             # Terminar búsqueda al encontrar coincidencia
                             break
                     
@@ -449,7 +456,7 @@ async def categorizar_transacciones(transacciones, patrones_usuario):
     except Exception as e:
         logger.error(f"Error al categorizar transacciones: {str(e)}", exc_info=True)
         # Devolver transacciones sin categorizar en caso de error
-        return transacciones
+        return []
 
 async def get_user_patterns(user_id: int = 1):
     """
