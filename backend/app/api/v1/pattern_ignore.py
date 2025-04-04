@@ -5,6 +5,7 @@ API endpoints for managing Pattern Ignore records
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
+from datetime import datetime
 from app.db.models.pattern_ignore import PatternIgnore
 from app.db.models.user import User
 
@@ -32,12 +33,16 @@ class PatternIgnoreResponse(BaseModel):
     id: int
     exp_name: str
     description: str
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         """Pydantic config"""
         orm_mode = True
+        # Ensure JSON serialization works correctly for datetime fields
+        json_encoders = {
+            datetime: lambda dt: dt.isoformat()
+        }
 
 
 async def get_default_user():
@@ -61,8 +66,8 @@ async def create_pattern_ignore(
 ):
     """Create a new pattern ignore"""
     pattern = await PatternIgnore.create(
-        **pattern_ignore.model_dump(),  # Use model_dump() instead of dict()
-        user=current_user  # Use user instead of user_id
+        **pattern_ignore.model_dump(),
+        user_id=current_user.id  # Use user_id instead of user
     )
     return await PatternIgnore.get(id=pattern.id)
 
