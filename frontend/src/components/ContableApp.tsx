@@ -339,6 +339,8 @@ export default function ContableApp({ userId = 1 }) {
     });
   };
 
+  const countUncategorizedTransactions = data.filter(item => !item.category_name || item.category_name === "Sin categoría").length;
+
   if (loading) return <div className="loading-container">Cargando datos...</div>;
   if (error) return <div className="error-container">Error: {error}</div>;
 
@@ -395,6 +397,7 @@ export default function ContableApp({ userId = 1 }) {
           <h3>Información del Reporte</h3>
           <p>Banco: {banks.find(b => b.id === selectedBankId)?.name || `ID: ${selectedBankId}`}</p>
           <p>Saldo: {formatAmount(balance)}</p>
+          <p>Transacciones sin categoría: {countUncategorizedTransactions}</p>
         </div>
       )}
       
