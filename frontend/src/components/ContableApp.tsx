@@ -446,7 +446,9 @@ export default function ContableApp({ userId = 1 }) {
                   <td>
                     <span className="category-tag" style={{ 
                       backgroundColor: item.category_color || '#CCCCCC',
-                      color: item.category_color ? getContrastColor(item.category_color) : '#000'
+                      color: item.category_color 
+                        ? getContrastColor(item.category_color) 
+                        : '#FF0000' // Red color for "Sin categoría"
                     }}>
                       {item.category_name || "Sin categoría"}
                     </span>
