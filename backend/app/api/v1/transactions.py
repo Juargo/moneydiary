@@ -87,6 +87,7 @@ async def upload_bank_report(
     - **bank_id**: ID del banco (bancoestado, bancochile, bancosantander, bancobci)
 
     Retorna el saldo contable y los movimientos extraídos del archivo, distinguiendo entre ingresos y gastos.
+    Las transacciones que coinciden con patrones a ignorar serán excluidas del procesamiento.
     """
     logger.info(f"Inicio de procesamiento de archivo bancario: {file.filename}, banco_id: {bank_id}")
     
@@ -109,12 +110,17 @@ async def upload_bank_report(
             f.write(contents)
         logger.info(f"Archivo guardado temporalmente en: {temp_file.name}")
 
+        # Obtener patrones a ignorar del usuario (ID=1 por defecto)
+        logger.info("Obteniendo patrones a ignorar para el procesamiento")
+        pattern_ignores = await get_user_pattern_ignores()
+        logger.info(f"Se encontraron {len(pattern_ignores)} patrones a ignorar")
+
         # Procesar el archivo según el ID del banco
         logger.info(f"Procesando archivo para banco: {bank_id}")
        
-        # Change: await the async function call
-        movimientos = await extraer_datos(temp_file.name)
-        logger.info(f"Extracción completada:  transacciones={len(movimientos)}")
+        # Pasar los patrones a ignorar a la función de extracción
+        movimientos = await extraer_datos(temp_file.name, pattern_ignores)
+        logger.info(f"Extracción completada: transacciones={len(movimientos)}")
         
         # Sanitizar datos para evitar errores de serialización JSON
         response_data = {
@@ -138,18 +144,24 @@ async def upload_bank_report(
         os.unlink(temp_file.name)
 
 
-async def extraer_datos(archivo):
+async def extraer_datos(archivo, pattern_ignores=None):
     """
     Extrae las transacciones de un archivo de banco y las clasifica usando patrones de usuario.
+    Filtra las transacciones que coinciden con patrones a ignorar.
     
     Args:
         archivo: Ruta al archivo a procesar
+        pattern_ignores: Lista de patrones a ignorar
         
     Returns:
-        Lista de transacciones categorizadas
+        Lista de transacciones categorizadas que no coinciden con patrones a ignorar
     """
     try:
         logger.info(f"Iniciando procesamiento de archivo: {archivo}")
+        
+        # Si no hay patrones a ignorar, inicializar como lista vacía
+        if pattern_ignores is None:
+            pattern_ignores = []
         
         # Log file extension
         file_extension = os.path.splitext(archivo)[1]
@@ -292,6 +304,42 @@ async def extraer_datos(archivo):
                 
                 # Convertir a lista de diccionarios para procesar patrones
                 movimientos = df_final[["Fecha", "Descripción", "Monto", "Tipo"]].to_dict(orient="records")
+                
+                # Filtrar transacciones que coinciden con patrones a ignorar
+                if pattern_ignores:
+                    movimientos_filtrados = []
+                    count_ignored = 0
+                    
+                    for movimiento in movimientos:
+                        descripcion = movimiento["Descripción"].lower() if "Descripción" in movimiento and movimiento["Descripción"] else ""
+                        
+                        # Verificar si la descripción coincide con algún patrón a ignorar
+                        should_ignore = False
+                        for pattern in pattern_ignores:
+                            pattern_exp = pattern["exp_name"]
+                            
+                            # Convertir el patrón con comodines a una expresión regular
+                            if "*" in pattern_exp:
+                                pattern_regex = pattern_exp.replace("*", ".*")
+                                import re
+                                if re.search(pattern_regex, descripcion, re.IGNORECASE):
+                                    logger.debug(f"Ignorando transacción que coincide con patrón '{pattern_exp}': {descripcion}")
+                                    should_ignore = True
+                                    count_ignored += 1
+                                    break
+                            # Si no tiene comodines, hacer comparación directa
+                            elif pattern_exp.lower() in descripcion:
+                                logger.debug(f"Ignorando transacción que coincide con patrón '{pattern_exp}': {descripcion}")
+                                should_ignore = True
+                                count_ignored += 1
+                                break
+                        
+                        # Si no debe ignorarse, añadir a la lista filtrada
+                        if not should_ignore:
+                            movimientos_filtrados.append(movimiento)
+                    
+                    logger.info(f"Se ignoraron {count_ignored} transacciones según patrones definidos")
+                    movimientos = movimientos_filtrados
                 
                 # Obtener patrones del usuario para clasificar las transacciones
                 user_patterns = await get_user_patterns()
@@ -503,6 +551,42 @@ async def get_user_patterns(user_id: int = 1):
         
     except Exception as e:
         logger.error(f"Error al obtener patrones del usuario {user_id}: {str(e)}", exc_info=True)
+        return []
+
+async def get_user_pattern_ignores(user_id: int = 1):
+    """
+    Obtiene todos los patrones a ignorar asociados a un usuario específico.
+    
+    Args:
+        user_id: ID del usuario, default=1
+    
+    Returns:
+        Lista de patrones a ignorar con sus detalles
+    """
+    try:
+        logger.info(f"Obteniendo patrones a ignorar para el usuario ID: {user_id}")
+        
+        from app.db.models.pattern_ignore import PatternIgnore
+        
+        # Obtener todos los patrones a ignorar del usuario
+        pattern_ignores = await PatternIgnore.filter(user_id=user_id).all()
+        
+        # Convertir a lista de diccionarios
+        result = []
+        for pattern in pattern_ignores:
+            result.append({
+                "id": pattern.id,
+                "exp_name": pattern.exp_name,
+                "description": pattern.description,
+                "created_at": pattern.created_at.isoformat() if pattern.created_at else None,
+                "updated_at": pattern.updated_at.isoformat() if pattern.updated_at else None
+            })
+        
+        logger.info(f"Se encontraron {len(result)} patrones a ignorar para el usuario {user_id}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error al obtener patrones a ignorar del usuario {user_id}: {str(e)}", exc_info=True)
         return []
 
 # Modelo para recibir transacciones en masa
