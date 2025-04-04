@@ -468,16 +468,15 @@ async def get_user_patterns(user_id: int = 1):
         logger.info(f"Obteniendo patrones para el usuario ID: {user_id}")
         
         # Consulta SQL que conecta budget -> categories -> subcategories -> patterns
+        # Removed the non-existent c.color field
         query = """
         SELECT 
             p.id AS pattern_id,
-            p.pattern AS pattern_text,
-            p.is_regex,
+            p.exp_name AS pattern_text,
             sc.id AS subcategory_id,
             sc.name AS subcategory_name,
             c.id AS category_id,
             c.name AS category_name,
-            c.color AS category_color,
             b.id AS budget_id,
             b.name AS budget_name
         FROM 
@@ -489,32 +488,44 @@ async def get_user_patterns(user_id: int = 1):
         JOIN 
             pattern p ON p.subcategory_id = sc.id
         WHERE 
-            b.user_id = :user_id
+            b.user_id = %s
         ORDER BY 
-            c.name, sc.name, p.pattern
+            c.name, sc.name
         """
         
         # Parámetros para la consulta
-        params = {"user_id": user_id}
+        params = [user_id]
         
         # Ejecutar la consulta
-        from tortoise.connections import connections
+        from tortoise import connections
         conn = connections.get("default")
         results = await conn.execute_query(query, params)
         
         # Organizar resultados en una estructura jerárquica
         categories = {}
         
-        for row in results[0]:
-            pattern_id, pattern_text, is_regex, subcategory_id, subcategory_name, \
-            category_id, category_name, category_color, budget_id, budget_name = row
+        # The results structure is different than expected
+        # results[0] is actually a list of dictionaries, not a list of tuples
+        logger.info(f"Resultados de la consulta: {results}")
+        
+        # Process the results, which are already in dictionary format
+        for row in results[1]:  # Use results[1] which contains the actual rows as dictionaries
+            # Access fields by name instead of unpacking
+            pattern_id = row['pattern_id']
+            pattern_text = row['pattern_text']
+            subcategory_id = row['subcategory_id']
+            subcategory_name = row['subcategory_name']
+            category_id = row['category_id']
+            category_name = row['category_name']
+            budget_id = row['budget_id']
+            budget_name = row['budget_name']
             
             # Crear categoría si no existe
             if category_id not in categories:
                 categories[category_id] = {
                     "category_id": category_id,
                     "category_name": category_name,
-                    "category_color": category_color,
+                    "category_color": "#CCCCCC",  # Default color since the field doesn't exist
                     "budget_id": budget_id,
                     "budget_name": budget_name,
                     "subcategories": {}
@@ -532,7 +543,7 @@ async def get_user_patterns(user_id: int = 1):
             categories[category_id]["subcategories"][subcategory_id]["patterns"].append({
                 "pattern_id": pattern_id,
                 "pattern_text": pattern_text,
-                "is_regex": bool(is_regex)
+                "is_regex": False  # Set a default value for is_regex since it's not in the query
             })
         
         # Convertir el diccionario a una lista para el resultado final
