@@ -41,6 +41,19 @@ const PATTERNS_QUERY = `
   }
 `;
 
+// Add new query for pattern ignores
+const PATTERN_IGNORES_QUERY = `
+  query GetPatternIgnores($userId: Int!) {
+    patternIgnores(userId: $userId) {
+      id
+      expName
+      description
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 // Fetch data from GraphQL API
 async function fetchGraphQL(query: string, variables: Record<string, any> = {}) {
   const response = await fetch('http://localhost:8000/graphql', {
@@ -67,6 +80,8 @@ const userId = 1;
 
 // Fetch all needed data
 let budgetData = [];
+let patternIgnores = [];
+
 try {
   // Fetch budgets
   const budgetsData = await fetchGraphQL(BUDGETS_QUERY, { userId });
@@ -117,6 +132,12 @@ try {
         categories
       });
     }
+  }
+  
+  // Fetch pattern ignores
+  const patternIgnoresData = await fetchGraphQL(PATTERN_IGNORES_QUERY, { userId });
+  if (patternIgnoresData && patternIgnoresData.patternIgnores) {
+    patternIgnores = patternIgnoresData.patternIgnores;
   }
 } catch (error) {
   console.error('Error fetching data:', error);
@@ -201,6 +222,24 @@ try {
       }
     ]
   }];
+  
+  // Mock data for pattern ignores
+  patternIgnores = [
+    {
+      id: 1,
+      expName: "TRANSFERENCIA*",
+      description: "Ignorar transferencias entre cuentas propias",
+      createdAt: "2023-06-01T10:00:00Z",
+      updatedAt: "2023-06-01T10:00:00Z"
+    },
+    {
+      id: 2,
+      expName: "*COMISION*",
+      description: "Ignorar comisiones bancarias",
+      createdAt: "2023-06-02T11:30:00Z",
+      updatedAt: "2023-06-02T11:30:00Z"
+    }
+  ];
 }
 
 // Calculate summary statistics for the entire budget
@@ -234,6 +273,168 @@ const totalRemaining = totalBudgeted - totalSpent;
       <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
         <h3 class="text-sm text-indigo-700 font-medium">Total Disponible</h3>
         <p class="text-2xl font-bold text-indigo-800">${totalRemaining.toFixed(2)}</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- New section for Pattern Ignores -->
+  <div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-semibold">Patrones a Ignorar</h2>
+      <button 
+        id="addPatternIgnoreBtn"
+        class="bg-secondary-600 hover:bg-secondary-700 text-white py-2 px-4 rounded-lg flex items-center"
+      >
+        <i class="fas fa-plus mr-2"></i> Nuevo Patrón a Ignorar
+      </button>
+    </div>
+    
+    <p class="text-sm text-gray-600 mb-4">
+      Los patrones a ignorar te permiten excluir ciertas transacciones del procesamiento automático. 
+      Útil para transferencias entre tus propias cuentas o cargos bancarios que no quieres categorizar.
+    </p>
+    
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patrón</th>
+            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+            <th class="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Creación</th>
+            <th class="py-2 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200" id="patternIgnoresTable">
+          {patternIgnores.length > 0 ? (
+            patternIgnores.map((pattern) => (
+              <tr>
+                <td class="py-3 px-4 text-sm font-medium text-gray-900">{pattern.expName}</td>
+                <td class="py-3 px-4 text-sm text-gray-500">{pattern.description}</td>
+                <td class="py-3 px-4 text-sm text-gray-500">{new Date(pattern.createdAt).toLocaleDateString()}</td>
+                <td class="py-3 px-4 text-right text-sm font-medium">
+                  <button 
+                    class="text-primary-600 hover:text-primary-900 mr-3 edit-pattern-ignore-btn" 
+                    data-pattern-id={pattern.id}
+                    data-pattern-name={pattern.expName}
+                    data-pattern-description={pattern.description}
+                  >
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button 
+                    class="text-red-600 hover:text-red-900 delete-pattern-ignore-btn" 
+                    data-pattern-id={pattern.id}
+                    data-pattern-name={pattern.expName}
+                  >
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colspan="4" class="py-4 px-4 text-sm text-gray-500 text-center">No hay patrones a ignorar definidos</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <!-- Modal for adding a new pattern ignore -->
+  <div id="patternIgnoreModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold" id="patternIgnoreModalTitle">Agregar Patrón a Ignorar</h3>
+        <button id="closePatternIgnoreModal" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form id="patternIgnoreForm">
+        <input type="hidden" id="patternIgnoreId" name="patternIgnoreId" value="">
+        
+        <div class="mb-4">
+          <label for="patternIgnoreExpression" class="block text-sm font-medium text-gray-700 mb-1">
+            Expresión del Patrón
+          </label>
+          <input 
+            type="text" 
+            id="patternIgnoreExpression" 
+            name="patternIgnoreExpression"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Ej: TRANSFERENCIA*, *COMISION*"
+            required
+          >
+          <p class="text-xs text-gray-500 mt-1">
+            Puedes usar * como comodín para hacer coincidir cualquier texto.
+          </p>
+        </div>
+        
+        <div class="mb-4">
+          <label for="patternIgnoreDescription" class="block text-sm font-medium text-gray-700 mb-1">
+            Descripción
+          </label>
+          <textarea 
+            id="patternIgnoreDescription" 
+            name="patternIgnoreDescription"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Escribe una breve descripción de este patrón"
+            rows="3"
+            required
+          ></textarea>
+        </div>
+        
+        <div class="flex justify-end gap-3">
+          <button 
+            type="button" 
+            id="cancelPatternIgnoreBtn"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="submit" 
+            class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Modal for confirming pattern ignore deletion -->
+  <div id="deletePatternIgnoreModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Eliminar Patrón a Ignorar</h3>
+        <button id="closeDeletePatternIgnoreModal" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div>
+        <p class="mb-4 text-gray-700">¿Estás seguro de que deseas eliminar este patrón a ignorar? Esta acción no se puede deshacer.</p>
+        <p class="mb-4 font-medium" id="deletePatternIgnoreName"></p>
+        
+        <input type="hidden" id="deletePatternIgnoreId">
+        
+        <div class="flex justify-end gap-3">
+          <button 
+            type="button" 
+            id="cancelDeletePatternIgnoreBtn"
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="button"
+            id="confirmDeletePatternIgnoreBtn" 
+            class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Eliminar
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -645,6 +846,9 @@ const totalRemaining = totalBudgeted - totalSpent;
     setupSubcategoryFunctionality();
     setupEditSubcategoryFunctionality();
     setupDeleteSubcategoryFunctionality();
+    
+    // Set up pattern ignore functionality
+    setupPatternIgnoreFunctionality();
   });
   
   function setupPatternFunctionality() {
@@ -1551,11 +1755,286 @@ const totalRemaining = totalBudgeted - totalSpent;
     }
   }
   
+  // Implementation of pattern ignore functionality
+  function setupPatternIgnoreFunctionality() {
+    const patternIgnoreModal = document.getElementById('patternIgnoreModal');
+    const patternIgnoreForm = document.getElementById('patternIgnoreForm') as HTMLFormElement;
+    const patternIgnoreIdInput = document.getElementById('patternIgnoreId') as HTMLInputElement;
+    const patternIgnoreExpressionInput = document.getElementById('patternIgnoreExpression') as HTMLInputElement;
+    const patternIgnoreDescriptionInput = document.getElementById('patternIgnoreDescription') as HTMLTextAreaElement;
+    const patternIgnoreModalTitle = document.getElementById('patternIgnoreModalTitle');
+    
+    const closePatternIgnoreModalBtn = document.getElementById('closePatternIgnoreModal');
+    const cancelPatternIgnoreBtn = document.getElementById('cancelPatternIgnoreBtn');
+    const addPatternIgnoreBtn = document.getElementById('addPatternIgnoreBtn');
+    
+    // Delete pattern ignore modal elements
+    const deletePatternIgnoreModal = document.getElementById('deletePatternIgnoreModal');
+    const deletePatternIgnoreId = document.getElementById('deletePatternIgnoreId') as HTMLInputElement;
+    const deletePatternIgnoreName = document.getElementById('deletePatternIgnoreName');
+    const closeDeletePatternIgnoreModalBtn = document.getElementById('closeDeletePatternIgnoreModal');
+    const cancelDeletePatternIgnoreBtn = document.getElementById('cancelDeletePatternIgnoreBtn');
+    const confirmDeletePatternIgnoreBtn = document.getElementById('confirmDeletePatternIgnoreBtn');
+    
+    // Add Pattern Ignore
+    if (addPatternIgnoreBtn) {
+      addPatternIgnoreBtn.addEventListener('click', () => {
+        // Reset form
+        patternIgnoreForm.reset();
+        patternIgnoreIdInput.value = '';
+        
+        // Update modal title
+        if (patternIgnoreModalTitle) {
+          patternIgnoreModalTitle.textContent = 'Agregar Patrón a Ignorar';
+        }
+        
+        // Show modal
+        if (patternIgnoreModal) {
+          patternIgnoreModal.classList.remove('hidden');
+        }
+      });
+    }
+    
+    // Close pattern ignore modal
+    if (closePatternIgnoreModalBtn) {
+      closePatternIgnoreModalBtn.addEventListener('click', () => {
+        if (patternIgnoreModal) {
+          patternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    if (cancelPatternIgnoreBtn) {
+      cancelPatternIgnoreBtn.addEventListener('click', () => {
+        if (patternIgnoreModal) {
+          patternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Click outside to close pattern ignore modal
+    if (patternIgnoreModal) {
+      patternIgnoreModal.addEventListener('click', (e) => {
+        if (e.target === patternIgnoreModal) {
+          patternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Close delete pattern ignore modal
+    if (closeDeletePatternIgnoreModalBtn) {
+      closeDeletePatternIgnoreModalBtn.addEventListener('click', () => {
+        if (deletePatternIgnoreModal) {
+          deletePatternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    if (cancelDeletePatternIgnoreBtn) {
+      cancelDeletePatternIgnoreBtn.addEventListener('click', () => {
+        if (deletePatternIgnoreModal) {
+          deletePatternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Click outside to close delete pattern ignore modal
+    if (deletePatternIgnoreModal) {
+      deletePatternIgnoreModal.addEventListener('click', (e) => {
+        if (e.target === deletePatternIgnoreModal) {
+          deletePatternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Handle form submission for pattern ignore
+    patternIgnoreForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const patternId = patternIgnoreIdInput.value;
+      const expName = patternIgnoreExpressionInput.value.trim();
+      const description = patternIgnoreDescriptionInput.value.trim();
+      
+      if (!expName || !description) {
+        alert('Por favor completa todos los campos requeridos');
+        return;
+      }
+      
+      try {
+        // Show loading state
+        const submitBtn = patternIgnoreForm.querySelector('button[type="submit"]');
+        if (!submitBtn) {
+          console.error('Submit button not found');
+          return;
+        }
+        const originalText = submitBtn.innerHTML;
+        (submitBtn as HTMLButtonElement).disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        
+        let response;
+        let patternIgnore;
+        
+        // Create or update pattern ignore
+        if (patternId) {
+          // Update existing pattern ignore
+          response = await fetch(`http://localhost:8000/api/v1/pattern-ignores/${patternId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              exp_name: expName,
+              description: description
+            }),
+          });
+        } else {
+          // Create new pattern ignore
+          response = await fetch('http://localhost:8000/api/v1/pattern-ignores/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              exp_name: expName,
+              description: description
+            }),
+          });
+        }
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Error al procesar el patrón a ignorar');
+        }
+        
+        patternIgnore = await response.json();
+        
+        // Refresh the page to show updated data
+        // In a real app you might update the DOM directly instead
+        window.location.reload();
+        
+        // Close the modal
+        if (patternIgnoreModal) {
+          patternIgnoreModal.classList.add('hidden');
+        }
+        
+        // Show success message
+        showNotification(`Patrón a ignorar ${patternId ? 'actualizado' : 'creado'} exitosamente`, 'success');
+      } catch (error) {
+        console.error('Error processing pattern ignore:', error);
+        showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al procesar el patrón a ignorar', 'error');
+      } finally {
+        // Restore button state
+        const submitBtn = patternIgnoreForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          (submitBtn as HTMLButtonElement).disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
+      }
+    });
+    
+    // Edit Pattern Ignore
+    document.querySelectorAll('.edit-pattern-ignore-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        const btn = e.currentTarget as HTMLButtonElement;
+        const patternId = btn.dataset.patternId;
+        const patternName = btn.dataset.patternName;
+        const patternDescription = btn.dataset.patternDescription;
+        
+        // Set form values
+        patternIgnoreIdInput.value = patternId || '';
+        patternIgnoreExpressionInput.value = patternName || '';
+        patternIgnoreDescriptionInput.value = patternDescription || '';
+        
+        // Update modal title
+        if (patternIgnoreModalTitle) {
+          patternIgnoreModalTitle.textContent = 'Editar Patrón a Ignorar';
+        }
+        
+        // Show modal
+        if (patternIgnoreModal) {
+          patternIgnoreModal.classList.remove('hidden');
+        }
+      });
+    });
+    
+    // Delete Pattern Ignore
+    document.querySelectorAll('.delete-pattern-ignore-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        const btn = e.currentTarget as HTMLButtonElement;
+        const patternId = btn.dataset.patternId;
+        const patternName = btn.dataset.patternName;
+        
+        // Set values for delete confirmation
+        deletePatternIgnoreId.value = patternId || '';
+        if (deletePatternIgnoreName) {
+          deletePatternIgnoreName.textContent = `"${patternName || ''}"`;
+        }
+        
+        // Show delete modal
+        if (deletePatternIgnoreModal) {
+          deletePatternIgnoreModal.classList.remove('hidden');
+        }
+      });
+    });
+    
+    // Handle delete confirmation
+    if (confirmDeletePatternIgnoreBtn) {
+      confirmDeletePatternIgnoreBtn.addEventListener('click', async () => {
+        const patternId = deletePatternIgnoreId.value;
+        
+        if (!patternId) {
+          console.error('Invalid pattern ID');
+          return;
+        }
+        
+        try {
+          // Show loading state
+          const originalText = confirmDeletePatternIgnoreBtn.innerHTML;
+          confirmDeletePatternIgnoreBtn.disabled = true;
+          confirmDeletePatternIgnoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+          
+          // Call the API to delete the pattern ignore
+          const response = await fetch(`http://localhost:8000/api/v1/pattern-ignores/${patternId}`, {
+            method: 'DELETE',
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Error al eliminar el patrón a ignorar');
+          }
+          
+          // Refresh the page to show updated data
+          // In a real app you might update the DOM directly instead
+          window.location.reload();
+          
+          // Close the modal
+          if (deletePatternIgnoreModal) {
+            deletePatternIgnoreModal.classList.add('hidden');
+          }
+          
+          // Show success message
+          showNotification('Patrón a ignorar eliminado exitosamente', 'success');
+        } catch (error) {
+          console.error('Error deleting pattern ignore:', error);
+          showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al eliminar el patrón a ignorar', 'error');
+        } finally {
+          // Restore button state
+          if (confirmDeletePatternIgnoreBtn) {
+            confirmDeletePatternIgnoreBtn.disabled = false;
+            confirmDeletePatternIgnoreBtn.innerHTML = originalText;
+          }
+        }
+      });
+    }
+  }
+  
   // Helper function to show notifications
   function showNotification(message, type = 'info') {
     // Simple notification - in a real app you'd use a toast library
     alert(message);
   }
 </script>
-```
-</copilot-edited-file>
