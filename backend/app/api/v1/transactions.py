@@ -625,3 +625,118 @@ class TransactionInput(BaseModel):
     banco_id: Optional[int] = None
     tipo: Optional[str] = None  # Agregamos el campo tipo como opcional
 
+# Modelo para bulk-transactions
+class BulkTransactionInput(BaseModel):
+    transaction_date: Union[str, date, datetime]
+    description: str
+    amount: float
+    type: str  # "Ingreso" o "Gasto"
+    user_bank_id: int
+    subcategory_id: int
+
+@router.post("/bulk-transactions")
+async def create_bulk_transactions(
+    transactions: List[BulkTransactionInput] = Body(...),
+):
+    """
+    Registra múltiples transacciones en la base de datos verificando duplicados.
+    
+    Args:
+        transactions: Lista de transacciones a registrar
+        
+    Returns:
+        Resumen de las transacciones procesadas, insertadas y duplicadas
+    """
+    try:
+        logger.info(f"Recibidas {len(transactions)} transacciones para inserción masiva")
+        
+        # Contadores para estadísticas
+        total_processed = len(transactions)
+        inserted_count = 0
+        duplicates_count = 0
+        duplicate_records = []
+        inserted_records = []
+        
+        # Procesar cada transacción
+        for transaction_data in transactions:
+            # Convertir fecha si es necesario
+            if isinstance(transaction_data.transaction_date, str):
+                try:
+                    transaction_date = datetime.fromisoformat(transaction_data.transaction_date.replace('Z', '+00:00'))
+                except ValueError:
+                    # Intentar otros formatos comunes
+                    try:
+                        transaction_date = datetime.strptime(transaction_data.transaction_date, "%Y-%m-%d")
+                    except ValueError:
+                        logger.warning(f"Formato de fecha inválido: {transaction_data.transaction_date}")
+                        continue
+            else:
+                transaction_date = transaction_data.transaction_date
+                
+            # Verificar si la transacción ya existe
+            # Comprobamos por fecha, descripción, monto, tipo, banco y subcategoría
+            existing_transaction = await Transaction.filter(
+                transaction_date=transaction_date,
+                description=transaction_data.description,
+                amount=transaction_data.amount,
+                type=transaction_data.type,
+                user_bank_id=transaction_data.user_bank_id,
+                subcategory_id=transaction_data.subcategory_id
+            ).first()
+            
+            if existing_transaction:
+                # La transacción ya existe
+                logger.debug(f"Transacción duplicada encontrada: {transaction_data.description} {transaction_data.amount}")
+                duplicates_count += 1
+                duplicate_records.append({
+                    "transaction_date": transaction_date.isoformat() if isinstance(transaction_date, datetime) else transaction_date,
+                    "description": transaction_data.description,
+                    "amount": float(transaction_data.amount),
+                    "type": transaction_data.type,
+                    "user_bank_id": transaction_data.user_bank_id,
+                    "subcategory_id": transaction_data.subcategory_id
+                })
+            else:
+                # La transacción no existe, insertarla
+                try:
+                    new_transaction = await Transaction.create(
+                        transaction_date=transaction_date,
+                        description=transaction_data.description,
+                        amount=transaction_data.amount,
+                        type=transaction_data.type,
+                        user_bank_id=transaction_data.user_bank_id,
+                        subcategory_id=transaction_data.subcategory_id
+                    )
+                    inserted_count += 1
+                    inserted_records.append({
+                        "id": new_transaction.id,
+                        "transaction_date": transaction_date.isoformat() if isinstance(transaction_date, datetime) else transaction_date,
+                        "description": transaction_data.description,
+                        "amount": float(transaction_data.amount),
+                        "type": transaction_data.type,
+                        "user_bank_id": transaction_data.user_bank_id,
+                        "subcategory_id": transaction_data.subcategory_id
+                    })
+                    logger.debug(f"Transacción insertada correctamente: ID={new_transaction.id}")
+                except Exception as e:
+                    logger.error(f"Error al insertar transacción {transaction_data.description}: {str(e)}", exc_info=True)
+        
+        # Preparar respuesta
+        response = {
+            "total_processed": total_processed,
+            "inserted_count": inserted_count,
+            "duplicates_count": duplicates_count,
+            "inserted_records": inserted_records,
+            "duplicate_records": duplicate_records
+        }
+        
+        logger.info(f"Procesamiento masivo completado. Insertadas: {inserted_count}, Duplicadas: {duplicates_count}")
+        return response
+    
+    except Exception as e:
+        logger.error(f"Error en la inserción masiva de transacciones: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error al procesar las transacciones: {str(e)}"
+        )
+
