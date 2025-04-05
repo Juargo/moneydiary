@@ -348,41 +348,55 @@ export default function ContableApp({ userId = 1 }) {
     <div className="contable-app">
       <div className="upload-section">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Subir Reporte Bancario</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Sube un archivo de tu banco para procesar las transacciones. Asegúrate de seleccionar el banco correcto y un archivo válido.
+        </p>
         <form id="upload-form" onSubmit={handleSubmit} className="space-y-4">
-          <div className="form-group">
-            <label htmlFor="bank-select" className="block text-sm font-medium text-gray-700 mb-1">Seleccionar Banco:</label>
-            <select 
-              id="bank-select" 
-              value={selectedBank} 
-              onChange={handleBankChange}
-              required
-              disabled={loadingBanks}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-            >
-              <option value="">-- Selecciona un banco --</option>
-              {loadingBanks ? (
-                <option value="" disabled>Cargando bancos...</option>
-              ) : (
-                banks.map(bank => (
-                  <option key={bank.id} value={bank.id.toString()}>
-                    {bank.name} {bank.balance ? `- Saldo: ${formatAmount(bank.balance)}` : ''}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="file-input" className="block text-sm font-medium text-gray-700 mb-1">Archivo de Reporte:</label>
-            <input 
-              id="file-input"
-              type="file" 
-              onChange={handleFileChange}
-              accept=".csv,.xls,.xlsx,.pdf"
-              required
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-            />
-            <p className="text-sm text-gray-500 mt-1">Formatos soportados: .csv, .xls, .xlsx, .pdf</p>
+          <div className="form-row flex flex-col md:flex-row gap-4">
+            <div className="form-group flex-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar Banco:</label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {loadingBanks ? (
+                  <p className="text-gray-500">Cargando bancos...</p>
+                ) : (
+                  banks.map(bank => (
+                    <div 
+                      key={bank.id} 
+                      className={`bank-option p-4 border rounded-lg cursor-pointer shadow-sm ${
+                        selectedBank === bank.id.toString() ? 'border-primary-500 bg-primary-50' : 'border-gray-300'
+                      }`}
+                      onClick={() => setSelectedBank(bank.id.toString())}
+                    >
+                      <h3 className="text-sm font-medium text-gray-800">{bank.name}</h3>
+                      {bank.balance && (
+                        <p className="text-sm text-gray-600">Saldo: {formatAmount(bank.balance)}</p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            
+            <div className="form-group flex-1">
+              <label htmlFor="file-input" className="block text-sm font-medium text-gray-700 mb-1">Archivo de Reporte:</label>
+              <div className="relative">
+                <input 
+                  id="file-input"
+                  type="file" 
+                  onChange={handleFileChange}
+                  accept=".csv,.xls,.xlsx,.pdf"
+                  required
+                  className="hidden"
+                />
+                <label 
+                  htmlFor="file-input" 
+                  className="block w-full cursor-pointer rounded-md border border-gray-300 bg-white py-2 px-4 text-sm text-gray-700 shadow-sm hover:bg-gray-50 focus-within:ring focus-within:ring-primary-200 focus-within:ring-opacity-50"
+                >
+                  {file ? file.name : "Seleccionar archivo"}
+                </label>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">Formatos soportados: .csv, .xls, .xlsx, .pdf</p>
+            </div>
           </div>
           
           <button 
@@ -650,6 +664,43 @@ export default function ContableApp({ userId = 1 }) {
         tr {
           transition: background-color 0.2s;
           border-left: 4px solid transparent;
+        }
+
+        .form-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+
+        .form-group label {
+          font-weight: 600;
+        }
+
+        .form-group input[type="file"] + label {
+          display: inline-block;
+          text-align: center;
+        }
+
+        .form-group input[type="file"]:focus + label {
+          outline: 2px solid #4a66d8;
+          outline-offset: 2px;
+        }
+
+        .form-group.flex-2 {
+          flex: 2;
+        }
+
+        .form-group.flex-1 {
+          flex: 1;
+        }
+
+        .bank-option {
+          transition: all 0.2s ease-in-out;
+        }
+
+        .bank-option:hover {
+          border-color: #4a66d8;
+          background-color: #f0f4ff;
         }
       `}</style>
     </div>
