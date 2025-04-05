@@ -78,18 +78,16 @@ def sanitize_json_data(obj: Any) -> Any:
 @router.post("/upload-bank-report")
 async def upload_bank_report(
     file: UploadFile = File(...),
-    bank_id: int = Form(...),
 ):
     """
     Recibe y procesa un archivo Excel de banco.
 
     - **file**: Archivo Excel del banco
-    - **bank_id**: ID del banco (bancoestado, bancochile, bancosantander, bancobci)
 
     Retorna el saldo contable y los movimientos extraídos del archivo, distinguiendo entre ingresos y gastos.
     Las transacciones que coinciden con patrones a ignorar serán excluidas del procesamiento.
     """
-    logger.info(f"Inicio de procesamiento de archivo bancario: {file.filename}, banco_id: {bank_id}")
+    logger.info(f"Inicio de procesamiento de archivo bancario: {file.filename},")
     
     # Verificar que el archivo es un Excel
     if not file.filename.endswith((".xls", ".xlsx")):
@@ -116,7 +114,6 @@ async def upload_bank_report(
         logger.info(f"Se encontraron {len(pattern_ignores)} patrones a ignorar")
 
         # Procesar el archivo según el ID del banco
-        logger.info(f"Procesando archivo para banco: {bank_id}")
        
         # Pasar los patrones a ignorar a la función de extracción
         movimientos = await extraer_datos(temp_file.name, pattern_ignores)
@@ -124,7 +121,6 @@ async def upload_bank_report(
         
         # Sanitizar datos para evitar errores de serialización JSON
         response_data = {
-            "bank_id": bank_id,
             "transactions": movimientos
         }
         

@@ -184,7 +184,6 @@ export default function ContableApp({ userId = 1 }) {
         };
       });
       
-      console.log('Bancos cargados:', enhancedBanks);
       setBanks(enhancedBanks);
       
     } catch (err) {
@@ -194,28 +193,73 @@ export default function ContableApp({ userId = 1 }) {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+  const processFileUpload = async (selectedFile: File) => {
+    if (!selectedFile) {
+      setUploadStatus('Por favor selecciona un archivo');
+      return;
+    }
+  
+    setUploadStatus('Subiendo reporte...');
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+  
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/transactions/upload-bank-report`, {
+        method: 'POST',
+        body: formData,
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Error al procesar el archivo');
+      }
+  
+      const result: BankReport = await response.json();
+      setUploadStatus('Reporte procesado correctamente');
+      
+      // Actualiza el estado con los datos del reporte
+      setData(result.transactions);
+      setBalance(result.balance);
+      setSelectedBankId(result.bank_id);
+      
+      // Mostrar tabla cuando hay datos del reporte
+      setShowTable(result.transactions.length > 0);
+  
+      // Limpiar el input file
+      setFile(null);
+      const fileInput = document.getElementById('file-input') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+    } catch (err: any) {
+      setUploadStatus(`Error: ${err.message}`);
     }
   };
-
-  const handleBankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedBank(e.target.value);
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      console.log('File selected:', selectedFile);
+      setFile(selectedFile);
+      setUploadStatus(null);
+      
+      // Procesar el archivo inmediatamente después de seleccionarlo
+      processFileUpload(selectedFile);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    if (!file || !selectedBank) {
-      setUploadStatus('Por favor selecciona un archivo y un banco');
+
+    // Verificar si el archivo está definido
+    if (!file) {
+      setUploadStatus('Por favor selecciona un archivo');
       return;
     }
+
+    console.log('Submitting form with file:', file);
 
     setUploadStatus('Subiendo reporte...');
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('bank_id', selectedBank);
 
     try {
       const response = await fetch(`http://localhost:8000/api/v1/transactions/upload-bank-report`, {
@@ -235,17 +279,27 @@ export default function ContableApp({ userId = 1 }) {
       setData(result.transactions);
       setBalance(result.balance);
       setSelectedBankId(result.bank_id);
-      setFile(null);
       
       // Mostrar tabla cuando hay datos del reporte
       setShowTable(result.transactions.length > 0);
 
-      // Resetear el formulario
-      const form = document.getElementById('upload-form') as HTMLFormElement;
-      if (form) form.reset();
+      // Limpiar el input file
+      setFile(null);
+      const fileInput = document.getElementById('file-input') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
     } catch (err: any) {
       setUploadStatus(`Error: ${err.message}`);
     }
+  };
+
+  // Cambiar el evento onChange para garantizar que `handleSubmit` se ejecute después de actualizar el estado
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileChange(e);
+    setTimeout(() => handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>), 0);
+  };
+
+  const handleBankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedBank(e.target.value);
   };
 
   const handleSaveTransactions = async () => {
@@ -351,7 +405,7 @@ export default function ContableApp({ userId = 1 }) {
         <p className="text-sm text-gray-600 mb-4">
           Sube un archivo de tu banco para procesar las transacciones. Asegúrate de seleccionar el banco correcto y un archivo válido.
         </p>
-        <form id="upload-form" onSubmit={handleSubmit} className="space-y-4">
+        <form id="upload-form" className="space-y-4">
           <div className="form-row flex flex-col md:flex-row gap-4">
             <div className="form-group flex-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar Banco:</label>
@@ -398,13 +452,6 @@ export default function ContableApp({ userId = 1 }) {
               <p className="text-sm text-gray-500 mt-1">Formatos soportados: .csv, .xls, .xlsx, .pdf</p>
             </div>
           </div>
-          
-          <button 
-            type="submit" 
-            className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg font-medium transition"
-          >
-            Procesar Reporte
-          </button>
         </form>
         
         {uploadStatus && (
