@@ -347,16 +347,17 @@ export default function ContableApp({ userId = 1 }) {
   return (
     <div className="contable-app">
       <div className="upload-section">
-        <h2>Subir Reporte Bancario</h2>
-        <form id="upload-form" onSubmit={handleSubmit}>
+        <h2 className="text-xl font-bold text-gray-800 mb-4">Subir Reporte Bancario</h2>
+        <form id="upload-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="form-group">
-            <label htmlFor="bank-select">Seleccionar Banco:</label>
+            <label htmlFor="bank-select" className="block text-sm font-medium text-gray-700 mb-1">Seleccionar Banco:</label>
             <select 
               id="bank-select" 
               value={selectedBank} 
               onChange={handleBankChange}
               required
               disabled={loadingBanks}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
             >
               <option value="">-- Selecciona un banco --</option>
               {loadingBanks ? (
@@ -372,21 +373,32 @@ export default function ContableApp({ userId = 1 }) {
           </div>
           
           <div className="form-group">
-            <label htmlFor="file-input">Archivo de Reporte:</label>
+            <label htmlFor="file-input" className="block text-sm font-medium text-gray-700 mb-1">Archivo de Reporte:</label>
             <input 
               id="file-input"
               type="file" 
               onChange={handleFileChange}
               accept=".csv,.xls,.xlsx,.pdf"
               required
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
             />
+            <p className="text-sm text-gray-500 mt-1">Formatos soportados: .csv, .xls, .xlsx, .pdf</p>
           </div>
           
-          <button type="submit" className="submit-button">Procesar Reporte</button>
+          <button 
+            type="submit" 
+            className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg font-medium transition"
+          >
+            Procesar Reporte
+          </button>
         </form>
         
         {uploadStatus && (
-          <div className={`upload-status ${uploadStatus.includes('Error') ? 'error' : ''}`}>
+          <div 
+            className={`mt-4 p-3 rounded-lg text-sm font-medium ${
+              uploadStatus.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+            }`}
+          >
             {uploadStatus}
           </div>
         )}
@@ -470,57 +482,42 @@ export default function ContableApp({ userId = 1 }) {
       
       <style>{`
         .upload-section {
-          background-color: #f0f0f0;
+          background-color: #f9fafb;
           padding: 1.5rem;
           border-radius: 8px;
+          border: 1px solid #e5e7eb;
           margin-bottom: 2rem;
         }
-        
+
         .form-group {
           margin-bottom: 1rem;
         }
-        
-        label {
-          display: block;
-          margin-bottom: 0.5rem;
-          font-weight: bold;
+
+        .form-group label {
+          font-weight: 600;
         }
-        
-        select, input[type="file"] {
-          width: 100%;
+
+        .form-group input, .form-group select {
           padding: 0.5rem;
-          border: 1px solid #ccc;
           border-radius: 4px;
-          margin-bottom: 0.5rem;
+          border: 1px solid #d1d5db;
+          transition: border-color 0.2s;
         }
-        
-        .submit-button {
-          background-color: #4a66d8;
-          color: white;
-          border: none;
-          padding: 0.6rem 1.2rem;
-          border-radius: 4px;
-          cursor: pointer;
-          font-weight: bold;
-          transition: background-color 0.2s;
+
+        .form-group input:focus, .form-group select:focus {
+          border-color: #4a66d8;
+          outline: none;
         }
-        
-        .submit-button:hover {
-          background-color: #3a56c8;
+
+        .form-group p {
+          font-size: 0.875rem;
+          color: #6b7280;
         }
-        
-        .upload-status {
-          margin-top: 1rem;
-          padding: 0.5rem;
-          background-color: #e8f5e9;
-          border-radius: 4px;
+
+        button {
+          font-weight: 600;
         }
-        
-        .upload-status.error {
-          background-color: #ffebee;
-          color: #c62828;
-        }
-        
+
         .transactions-header {
           display: flex;
           justify-content: space-between;
