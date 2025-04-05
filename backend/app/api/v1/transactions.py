@@ -203,11 +203,24 @@ async def extraer_datos(archivo, pattern_ignores=None):
         header_row = None
         for i, row in df.iterrows():
             row_str = row.to_string().lower()
-            # Verificar si la fila contiene encabezados de interés
-            if any(header.lower() in row_str for header in fecha_headers + descripcion_headers + cargos_headers + abonos_headers):
-                # Encontrar la fila de encabezado
+            
+            # Verificar que hay al menos una coincidencia en cada lista de encabezados
+            fecha_match = any(header.lower() in row_str for header in fecha_headers)
+            descripcion_match = any(header.lower() in row_str for header in descripcion_headers)
+            cargos_match = any(header.lower() in row_str for header in cargos_headers)
+            abonos_match = any(header.lower() in row_str for header in abonos_headers)
+            
+            # Contar el total de coincidencias
+            total_matches = sum([
+                fecha_match,
+                descripcion_match,
+                cargos_match,
+                abonos_match
+            ])
+            
+            # Verificar si cumple con el criterio mínimo
+            if total_matches >= 4:
                 logger.info(f"Encontrados posibles encabezados en fila {i}: {row_str}")
-                
                 header_row = i
                 break
 
