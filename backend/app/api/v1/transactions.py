@@ -867,6 +867,8 @@ async def get_budget_summary(
         pattern_to_subcategory = {}   # Mapeo de patrones a subcategorías
         
         # Procesar resultados de la jerarquía
+
+        logger.debug(f"Resultados de la jerarquía: {hierarchy_results[1]}")
         for row in hierarchy_results[1]:
             budget_id = row.get('budget_id')
             budget_name = row.get('budget_name')
@@ -928,6 +930,8 @@ async def get_budget_summary(
                             }
         
         # 4. Procesar transacciones y asignarlas a las subcategorías correspondientes
+
+        logger.debug(f"Resultados de transacciones: {transaction_results[1]}")
         for transaction in transaction_results[1]:
             subcategory_id = transaction.get('subcategory_id')
             amount = float(transaction.get('amount', 0))
@@ -941,8 +945,13 @@ async def get_budget_summary(
             
             # Si la subcategoría está en nuestra estructura, sumar el monto
             if subcategory_id in subcategory_to_category:
+                logger.debug(f"Procesando transacción: {transaction_id} - Monto: {amount} - Descripción: {description}")
+                logger.debug(f"Subcategoría encontrada: {subcategory_id} - Monto: {amount}")
+            
                 category_id = subcategory_to_category[subcategory_id]['category_id']
                 budget_id = subcategory_to_category[subcategory_id]['budget_id']
+
+                logger.debug(f"Categoría: {category_id} - Presupuesto: {budget_id}")
                 
                 # Sumar a la subcategoría
                 budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['total'] += amount
