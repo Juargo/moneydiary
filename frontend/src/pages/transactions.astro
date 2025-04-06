@@ -296,7 +296,7 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
               {formattedBudgetSummary.map((budget) => (
                 <div class="border border-gray-200 rounded-lg overflow-hidden">
                   <!-- Budget Accordion Header -->
-                  <div class="budget-header accordion-header flex items-center justify-between p-4 bg-gray-50 cursor-pointer" data-accordion="budget-{budget.id}">
+                  <div class="budget-header accordion-header flex items-center justify-between p-4 bg-gray-50 cursor-pointer" data-accordion={`budget-${budget.id}`}>
                     <div class="flex items-center">
                       <i class="fas fa-chevron-right text-gray-500 mr-2 transform transition-transform duration-200"></i>
                       <span class="font-medium">{budget.name}</span>
@@ -307,11 +307,11 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
                   </div>
                   
                   <!-- Budget Accordion Content -->
-                  <div class="budget-content accordion-content hidden p-4 pl-8" id="budget-{budget.id}">
+                  <div class="budget-content accordion-content hidden p-4 pl-8" id={`budget-${budget.id}`}>
                     {budget.categories.map((category) => (
                       <div class="border border-gray-200 rounded-lg overflow-hidden mb-3">
                         <!-- Category Accordion Header -->
-                        <div class="category-header accordion-header flex items-center justify-between p-3 bg-gray-50 cursor-pointer" data-accordion="category-{category.id}">
+                        <div class="category-header accordion-header flex items-center justify-between p-3 bg-gray-50 cursor-pointer" data-accordion={`category-${category.id}`}>
                           <div class="flex items-center">
                             <i class="fas fa-chevron-right text-gray-500 mr-2 transform transition-transform duration-200"></i>
                             <span class="font-medium">{category.name}</span>
@@ -322,11 +322,11 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
                         </div>
                         
                         <!-- Category Accordion Content -->
-                        <div class="category-content accordion-content hidden p-3 pl-8" id="category-{category.id}">
+                        <div class="category-content accordion-content hidden p-3 pl-8" id={`category-${category.id}`}>
                           {category.subcategories.map((subcategory) => (
                             <div class="border border-gray-200 rounded-lg overflow-hidden mb-2">
                               <!-- Subcategory Accordion Header -->
-                              <div class="subcategory-header accordion-header flex items-center justify-between p-2 bg-gray-50 cursor-pointer" data-accordion="subcategory-{subcategory.id}">
+                              <div class="subcategory-header accordion-header flex items-center justify-between p-2 bg-gray-50 cursor-pointer" data-accordion={`subcategory-${subcategory.id}`}>
                                 <div class="flex items-center">
                                   <i class="fas fa-chevron-right text-gray-500 mr-2 transform transition-transform duration-200"></i>
                                   <span class="font-medium">{subcategory.name}</span>
@@ -337,7 +337,7 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
                               </div>
                               
                               <!-- Subcategory Accordion Content (Patterns) -->
-                              <div class="subcategory-content accordion-content hidden p-2 pl-8" id="subcategory-{subcategory.id}">
+                              <div class="subcategory-content accordion-content hidden p-2 pl-8" id={`subcategory-${subcategory.id}`}>
                                 <table class="min-w-full divide-y divide-gray-200">
                                   <thead class="bg-gray-50">
                                     <tr>
@@ -430,23 +430,31 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
   
   // Accordion Functionality
   document.addEventListener('DOMContentLoaded', () => {
+    // Fixed accordion functionality
     const accordionHeaders = document.querySelectorAll('.accordion-header');
     
     accordionHeaders.forEach(header => {
-      header.addEventListener('click', () => {
+      header.addEventListener('click', (e) => {
+        // Prevent event bubbling to parent accordions
+        e.stopPropagation();
+        
         const icon = header.querySelector('i');
         const contentId = header.getAttribute('data-accordion');
         const content = document.getElementById(contentId);
         
         // Toggle the content visibility
-        if (content.classList.contains('hidden')) {
-          content.classList.remove('hidden');
-          content.classList.add('expanded');
-          icon.classList.add('rotate');
+        if (content) {
+          if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            content.classList.add('expanded');
+            icon.classList.add('rotate');
+          } else {
+            content.classList.add('hidden');
+            content.classList.remove('expanded');
+            icon.classList.remove('rotate');
+          }
         } else {
-          content.classList.add('hidden');
-          content.classList.remove('expanded');
-          icon.classList.remove('rotate');
+          console.error(`Accordion content with id ${contentId} not found`);
         }
       });
     });
