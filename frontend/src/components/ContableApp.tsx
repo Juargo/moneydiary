@@ -3,23 +3,28 @@ import { useState, useEffect } from 'react';
 const API_URL = 'http://localhost:8000'; 
 
 interface Transaction {
-  date: string;
+  transaction_date: string;
   description: string;
-  category?: string;
-  amount?: number;
-  Fecha?: string;
-  Descripción?: string;
-  Cargo?: number;
-  Abono?: number;
-  Monto?: number;
-  Tipo?: string;
-  "N° Operación"?: string;
-  // Add new categorization fields
-  category_id?: number | null;
-  category_name?: string;
-  subcategory_id?: number | null;
-  subcategory_name?: string;
-  category_color?: string;
+  amount: number;
+  type: string;
+  user_bank_id: number;
+  subcategory_id: number;
+}
+
+interface TransactionProcessed {
+  Fecha: string;
+  Descripción: string;
+  Monto: number;
+  Tipo: string;
+  Cargo: number;
+  Abono: number;
+  user_bank_id: number;
+  subcategory_id: number;
+  subcategory_name: string;
+  category_name: string;
+  category_color: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Bank {
@@ -37,7 +42,7 @@ interface BankReport {
 
 // Add a userId prop or use a default value (1 for demo)
 export default function ContableApp({ userId = 1 }) {
-  const [data, setData] = useState<Transaction[]>([]);
+  const [data, setData] = useState<TransactionProcessed[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
@@ -307,76 +312,76 @@ export default function ContableApp({ userId = 1 }) {
       setSaveStatus('No hay transacciones para guardar');
       return;
     }
-
+  
     setSavingTransactions(true);
     setSaveStatus('Guardando transacciones...');
-
+  
     try {
-      // Convertir el formato de las transacciones para el endpoint bulk-transactions
-      const transactionsToSave = data.map(item => {
-        // Determinar el tipo (Ingreso/Gasto) de la transacción
-        const tipo = item.Tipo || 'Gasto'; // Por defecto es gasto si no se especifica
-        
-        // Obtener el monto de la transacción
-        let monto;
-        if (item.Monto !== undefined) {
-          monto = item.Monto;
-        } else if (item.amount !== undefined) {
-          monto = item.amount;
-        } else if (tipo === 'Ingreso') {
-          monto = item.Abono || 0;
-        } else {
-          monto = item.Cargo || 0;
-        }
-        
-        // Ajustar el signo del monto según el tipo
-        // Para gastos: valores negativos, para ingresos: valores positivos
-        const montoAjustado = tipo === 'Gasto' 
-          ? -Math.abs(Number(monto)) 
-          : Math.abs(Number(monto));
-        
-        console.log(`Procesando transacción: ${item.Descripción || item.description}, Tipo: ${tipo}, Monto: ${montoAjustado}`);
-        
-        return {
-          fecha: item.Fecha || item.date,
-          descripcion: item.Descripción || item.description,
-          monto: montoAjustado,
-          categoria: "Sin clasificar",
-          banco_id: banks.find(b => b.name === selectedBank)?.id,
-          tipo: tipo
-        };
-      });
-
-      // Verificar que hay transacciones para guardar
-      if (transactionsToSave.length === 0) {
-        setSaveStatus('No hay transacciones válidas para guardar');
+      // Find the selected bank object
+      const selectedBankObj = banks.find(b => b.id.toString() === selectedBank);
+      
+      if (!selectedBankObj) {
+        setSaveStatus('Error: Selecciona un banco válido');
+        setSavingTransactions(false);
         return;
       }
-
-      const response = await fetch(`${API_URL}/bulk-transactions`, {
+      
+      // Format transactions according to the bulk-transactions endpoint requirements
+      const transactionsToSave = data.map(item => {
+        const {
+          Fecha,
+          Descripción,
+          Monto,
+          Tipo,
+          Cargo,
+          Abono,
+          subcategory_id = -1, // Default to 1 if not specified
+        } = item;
+        
+        // Format the date to YYYY-MM-DD format for the API
+        const formattedDate = formatDateForAPI(Fecha);
+        
+        return {
+          transaction_date: formattedDate,
+          description: Descripción,
+          amount: Monto || Cargo || Abono || 0,
+          type: Tipo || "Gasto", // Default to "Gasto" if not specified
+          user_bank_id: selectedBankObj.userBankId || selectedBankObj.id,
+          subcategory_id
+        };
+      });
+      
+      console.log('Saving transactions:', transactionsToSave);
+  
+      // Send the transactions to the backend
+      const response = await fetch(`${API_URL}/api/v1/transactions/bulk-transactions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(transactionsToSave),
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Error al guardar las transacciones');
       }
-
+  
       const result = await response.json();
-      setSaveStatus(`Transacciones guardadas: ${result.insertadas} de ${result.total_recibidas} (${result.duplicadas} duplicadas)`);
+      setSaveStatus(`Transacciones guardadas: ${result.inserted_count} de ${result.total_processed} (${result.duplicates_count} duplicadas)`);
       
-      // Opcional: Limpiar la tabla después de guardar exitosamente
-      if (result.insertadas > 0) {
+      // Clear the table after successfully saving if any were inserted
+      if (result.inserted_count > 0) {
         setData([]);
         setShowTable(false);
         setBalance(null);
+        
+        // Optional: refresh banks to show updated balances
+        fetchBanks();
       }
     } catch (err: any) {
       setSaveStatus(`Error: ${err.message}`);
+      console.error('Error saving transactions:', err);
     } finally {
       setSavingTransactions(false);
     }
@@ -515,9 +520,9 @@ export default function ContableApp({ userId = 1 }) {
                       : 'none'
                   }}
                 >
-                  <td>{item.Fecha || item.date}</td>
-                  <td>{item.Descripción || item.description}</td>
-                  <td>{formatAmount(item.Monto || item.amount || item.Cargo || item.Abono)}</td>
+                  <td>{item.Fecha }</td>
+                  <td>{item.Descripción }</td>
+                  <td>{formatAmount(item.Monto || item.Cargo || item.Abono)}</td>
                   <td>{item.Tipo || "-"}</td>
                   <td>
                     <span className="category-tag" style={{ 
@@ -781,4 +786,40 @@ function getCategoryColor(categoryName: string): string {
     // Add more categories and their corresponding colors as needed
   };
   return colors[categoryName] || "#CCCCCC"; // Default to gray if no match
+}
+
+// Add this utility function at the top level of the file, before the ContableApp component
+function formatDateForAPI(dateString: string): string {
+  // Handle different date formats that might come from bank reports
+  try {
+    // Try to parse the date
+    const dateParts = dateString.split(/[-/.]/);
+    
+    // Check if the date is in DD-MM-YYYY or similar format
+    if (dateParts.length === 3) {
+      // If first part is likely a day (1-31) and third part is likely a year (>= 1000)
+      if (parseInt(dateParts[0]) <= 31 && parseInt(dateParts[2]) >= 1000) {
+        // Convert DD-MM-YYYY to YYYY-MM-DD
+        return `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+      } 
+      // If already in YYYY-MM-DD format
+      else if (parseInt(dateParts[0]) >= 1000 && parseInt(dateParts[2]) <= 31) {
+        // Just ensure proper padding
+        return `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
+      }
+    }
+    
+    // If no specific format detected or parsing failed, try creating a date object
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      // Format as YYYY-MM-DD
+      return date.toISOString().split('T')[0];
+    }
+
+    // If all else fails, return the original string
+    return dateString;
+  } catch (e) {
+    console.error("Error formatting date:", e);
+    return dateString;
+  }
 }
