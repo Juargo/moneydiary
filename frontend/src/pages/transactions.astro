@@ -3,6 +3,10 @@ import DashboardLayout from '../layouts/DashboardLayout.astro';
 import ContableApp from '../components/ContableApp';
 import '../styles/global.css';
 
+// Get current month in YYYY-MM format for filtering
+const today = new Date();
+const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
 // Fetch transaction data from GraphQL API
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/graphql';
 const userId = 1; // In a real app, get this from authentication
@@ -45,6 +49,7 @@ try {
       // Format the date (comes as ISO string)
       const date = new Date(tx.transactionDate);
       const formattedDate = date.toISOString().split('T')[0];
+      const yearMonth = formattedDate.substring(0, 7); // Get YYYY-MM part for filtering
       
       // Determine if it's an expense based on the type
       const isExpense = tx.type === 'Gasto';
@@ -59,6 +64,7 @@ try {
       return {
         ...tx,
         date: formattedDate,
+        yearMonth, // Add the year-month for filtering
         isExpense,
         formattedAmount,
         // Use categoryName for the category display
@@ -75,12 +81,15 @@ try {
 // Get unique categories for the filter dropdown
 const categories = [...new Set(transactions.map(tx => tx.categoryName))];
 
-// Fetch budget summary data from REST API
+// Filter transactions for the current month by default
+let filteredTransactions = transactions.filter(tx => tx.yearMonth === currentYearMonth);
+
+// Fetch budget summary data from REST API for the current month
 const BUDGET_SUMMARY_URL = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '') || 'http://localhost:8000';
 let budgetSummary = [];
 
 try {
-  const summaryResponse = await fetch(`${BUDGET_SUMMARY_URL}/api/v1/transactions/budget-summary?user_id=${userId}`);
+  const summaryResponse = await fetch(`${BUDGET_SUMMARY_URL}/api/v1/transactions/budget-summary?user_id=${userId}&year_month=${currentYearMonth}`);
   if (summaryResponse.ok) {
     budgetSummary = await summaryResponse.json();
   } else {
@@ -165,7 +174,6 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
     <div class="block" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
       <div class="bg-white rounded-lg shadow">
         <div class="p-6 border-b border-gray-200">
-          <!-- Existing filters -->
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div class="flex gap-4 flex-wrap">
               <div class="w-full md:w-64">
@@ -174,12 +182,12 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <i class="fas fa-search text-gray-400"></i>
                   </div>
-                  <input type="text" class="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                  <input type="text" id="search-input" class="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
                 </div>
               </div>
               <div class="w-full md:w-40">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                <select class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                <select id="category-filter" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
                   <option value="">Todas</option>
                   {categories.map(category => (
                     <option value={category}>{category}</option>
@@ -188,29 +196,28 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
               </div>
               <div class="w-full md:w-40">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                <select class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                <select id="type-filter" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
                   <option value="">Todos</option>
                   <option value="Gasto">Gastos</option>
                   <option value="Ingreso">Ingresos</option>
                 </select>
               </div>
               <div class="w-full md:w-40">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                <input type="month" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Mes</label>
+                <input type="month" id="month-filter" value={currentYearMonth} class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
               </div>
             </div>
             <div class="flex gap-2">
-              <button class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100">
+              <button id="apply-filters" class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100">
                 <i class="fas fa-filter mr-2"></i> Filtrar
               </button>
-              <button class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100">
+              <button id="reset-filters" class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100">
                 <i class="fas fa-redo mr-2"></i> Resetear
               </button>
             </div>
           </div>
         </div>
         <div class="overflow-x-auto">
-          <!-- Existing transactions table -->
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
@@ -223,9 +230,9 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              {transactions.length > 0 ? (
-                transactions.map(tx => (
+            <tbody id="transactions-table" class="bg-white divide-y divide-gray-200">
+              {filteredTransactions.length > 0 ? (
+                filteredTransactions.map(tx => (
                   <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tx.description}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.categoryName}</td>
@@ -248,7 +255,7 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
               ) : (
                 <tr>
                   <td colspan="7" class="px-6 py-4 text-center text-gray-500">
-                    No se encontraron transacciones. {transactions.length === 0 && "Por favor, verifica la conexión con el API."}
+                    No se encontraron transacciones para el período seleccionado.
                   </td>
                 </tr>
               )}
@@ -256,28 +263,27 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
           </table>
         </div>
         <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-          <!-- Existing pagination -->
-          <div class="text-sm text-gray-700">
-            Mostrando <span class="font-medium">1</span> a <span class="font-medium">{transactions.length}</span> de <span class="font-medium">{transactions.length}</span> resultados
+          <div class="text-sm text-gray-700" id="pagination-info">
+            Mostrando <span class="font-medium">1</span> a <span class="font-medium">{filteredTransactions.length}</span> de <span class="font-medium">{filteredTransactions.length}</span> resultados
           </div>
           <div class="flex gap-2">
-            <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={transactions.length <= 10}>
+            <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={filteredTransactions.length <= 10}>
               Anterior
             </button>
             <button class="px-4 py-2 border border-gray-300 bg-primary-50 rounded-md text-sm font-medium text-primary-700 hover:bg-primary-100">
               1
             </button>
-            {transactions.length > 10 && (
+            {filteredTransactions.length > 10 && (
               <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
                 2
               </button>
             )}
-            {transactions.length > 20 && (
+            {filteredTransactions.length > 20 && (
               <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
                 3
               </button>
             )}
-            <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={transactions.length <= 10}>
+            <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={filteredTransactions.length <= 10}>
               Siguiente
             </button>
           </div>
@@ -458,5 +464,106 @@ const formattedBudgetSummary = budgetSummary.map(budget => ({
         }
       });
     });
+  });
+
+  // Filtering Functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    // Store all transactions data for client-side filtering
+    const allTransactions = [
+      // This will be populated from the server-side rendered data
+      ...Array.from(document.querySelectorAll('#transactions-table tr:not(.empty-row)')).map(row => {
+        return {
+          element: row,
+          description: row.cells[0].textContent.toLowerCase(),
+          category: row.cells[1].textContent.toLowerCase(),
+          subcategory: row.cells[2].textContent.toLowerCase(),
+          account: row.cells[3].textContent.toLowerCase(),
+          date: row.cells[4].textContent,
+          type: row.cells[5].classList.contains('text-red-600') ? 'Gasto' : 'Ingreso'
+        };
+      })
+    ];
+    
+    // Filter function
+    function applyFilters() {
+      const searchTerm = document.getElementById('search-input').value.toLowerCase();
+      const categoryFilter = document.getElementById('category-filter').value;
+      const typeFilter = document.getElementById('type-filter').value;
+      const monthFilter = document.getElementById('month-filter').value;
+      
+      // Get the transactions table and clear it
+      const table = document.getElementById('transactions-table');
+      
+      // Send a request to update both transactions and budget summary
+      if (monthFilter) {
+        // Reload the page with the new month parameter to refresh both tabs
+        window.location.href = `?month=${monthFilter}`;
+      }
+      
+      // Client-side filtering (as a fallback or for other filters)
+      let filteredResults = allTransactions.filter(tx => {
+        // Check if transaction matches all selected filters
+        return (!searchTerm || tx.description.includes(searchTerm) || 
+                tx.category.includes(searchTerm) || 
+                tx.subcategory.includes(searchTerm)) &&
+               (!categoryFilter || tx.category === categoryFilter.toLowerCase()) &&
+               (!typeFilter || tx.type === typeFilter);
+      });
+      
+      // Update pagination info
+      const paginationInfo = document.getElementById('pagination-info');
+      if (paginationInfo) {
+        paginationInfo.innerHTML = `Mostrando <span class="font-medium">1</span> a <span class="font-medium">${filteredResults.length}</span> de <span class="font-medium">${filteredResults.length}</span> resultados`;
+      }
+      
+      // Show/hide rows based on filter results
+      allTransactions.forEach(tx => {
+        if (filteredResults.includes(tx)) {
+          tx.element.style.display = '';
+        } else {
+          tx.element.style.display = 'none';
+        }
+      });
+      
+      // Show "no results" message if needed
+      const noResultsRow = table.querySelector('.empty-row');
+      if (filteredResults.length === 0) {
+        if (!noResultsRow) {
+          const newRow = document.createElement('tr');
+          newRow.className = 'empty-row';
+          newRow.innerHTML = `
+            <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+              No se encontraron transacciones que coincidan con los filtros.
+            </td>
+          `;
+          table.appendChild(newRow);
+        } else {
+          noResultsRow.style.display = '';
+        }
+      } else if (noResultsRow) {
+        noResultsRow.style.display = 'none';
+      }
+    }
+    
+    // Add event listeners for filtering
+    document.getElementById('apply-filters').addEventListener('click', applyFilters);
+    
+    // Reset filters
+    document.getElementById('reset-filters').addEventListener('click', () => {
+      document.getElementById('search-input').value = '';
+      document.getElementById('category-filter').value = '';
+      document.getElementById('type-filter').value = '';
+      
+      // Reset to current month instead of clearing
+      const today = new Date();
+      const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      document.getElementById('month-filter').value = currentYearMonth;
+      
+      // Apply the reset filters
+      applyFilters();
+    });
+    
+    // Also apply filters when month selection changes
+    document.getElementById('month-filter').addEventListener('change', applyFilters);
   });
 </script>

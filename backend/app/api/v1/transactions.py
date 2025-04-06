@@ -637,18 +637,40 @@ class BulkTransactionInput(BaseModel):
 @router.post("/bulk-transactions")
 async def create_bulk_transactions(
     transactions: List[BulkTransactionInput] = Body(...),
+    year_month: Optional[str] = Query(None, description="Filtrar por año y mes (formato: YYYY-MM). Por defecto, el mes actual.")
 ):
     """
     Registra múltiples transacciones en la base de datos verificando duplicados.
     
     Args:
         transactions: Lista de transacciones a registrar
+        year_month: Filtrar por año y mes (formato: YYYY-MM, ej: 2023-11)
         
     Returns:
         Resumen de las transacciones procesadas, insertadas y duplicadas
     """
     try:
         logger.info(f"Recibidas {len(transactions)} transacciones para inserción masiva")
+        
+        # Procesar el parámetro de año-mes
+        if year_month:
+            try:
+                year, month = map(int, year_month.split('-'))
+                # Validar el formato
+                if not (1 <= month <= 12 and 1000 <= year <= 9999):
+                    raise ValueError("Formato de mes inválido")
+            except ValueError as e:
+                logger.warning(f"Formato de año-mes inválido: {year_month}. {str(e)}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Formato de año-mes inválido: {year_month}. Use el formato YYYY-MM (ej: 2023-11)"
+                )
+        else:
+            # Usar el mes actual por defecto
+            current_date = datetime.now()
+            year, month = current_date.year, current_date.month
+        
+        logger.info(f"Procesando transacciones para el período: {year}-{month:02d}")
         
         # Contadores para estadísticas
         total_processed = len(transactions)
@@ -673,6 +695,13 @@ async def create_bulk_transactions(
             else:
                 transaction_date = transaction_data.transaction_date
                 
+            # Verificar si la fecha de la transacción está en el mes solicitado
+            # Solo si se especificó un mes
+            if year_month and isinstance(transaction_date, datetime):
+                if transaction_date.year != year or transaction_date.month != month:
+                    logger.debug(f"Transacción fuera del período solicitado: {transaction_date}")
+                    continue
+            
             # Verificar si la transacción ya existe
             # Comprobamos por fecha, descripción, monto, tipo, banco y subcategoría
             existing_transaction = await Transaction.filter(
@@ -727,10 +756,11 @@ async def create_bulk_transactions(
             "inserted_count": inserted_count,
             "duplicates_count": duplicates_count,
             "inserted_records": inserted_records,
-            "duplicate_records": duplicate_records
+            "duplicate_records": duplicate_records,
+            "period": f"{year}-{month:02d}"
         }
         
-        logger.info(f"Procesamiento masivo completado. Insertadas: {inserted_count}, Duplicadas: {duplicates_count}")
+        logger.info(f"Procesamiento masivo completado para {year}-{month:02d}. Insertadas: {inserted_count}, Duplicadas: {duplicates_count}")
         return response
     
     except Exception as e:
@@ -741,19 +771,41 @@ async def create_bulk_transactions(
         )
 
 @router.get("/budget-summary")
-async def get_budget_summary(user_id: int = Query(1, description="ID del usuario")):
+async def get_budget_summary(
+    user_id: int = Query(1, description="ID del usuario"),
+    year_month: Optional[str] = Query(None, description="Filtrar por año y mes (formato: YYYY-MM). Por defecto, el mes actual.")
+):
     """
     Obtiene un resumen jerárquico de presupuestos con totales de transacciones.
     
     Args:
         user_id: ID del usuario (por defecto: 1)
+        year_month: Filtrar por año y mes (formato: YYYY-MM, ej: 2023-11)
         
     Returns:
         Estructura jerárquica con presupuestos, categorías, subcategorías y patrones,
         incluyendo los montos totales de transacciones en cada nivel.
     """
     try:
-        logger.info(f"Generando resumen de presupuesto para el usuario ID: {user_id}")
+        # Procesar el parámetro de año-mes
+        if year_month:
+            try:
+                year, month = map(int, year_month.split('-'))
+                # Validar el formato
+                if not (1 <= month <= 12 and 1000 <= year <= 9999):
+                    raise ValueError("Formato de mes inválido")
+            except ValueError as e:
+                logger.warning(f"Formato de año-mes inválido: {year_month}. {str(e)}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Formato de año-mes inválido: {year_month}. Use el formato YYYY-MM (ej: 2023-11)"
+                )
+        else:
+            # Usar el mes actual por defecto
+            current_date = datetime.now()
+            year, month = current_date.year, current_date.month
+        
+        logger.info(f"Generando resumen de presupuesto para el usuario ID: {user_id}, período: {year}-{month:02d}")
         
         # 1. Obtener la estructura jerárquica de presupuestos
         # Consulta SQL para obtener presupuesto -> categorías -> subcategorías -> patrones
@@ -781,27 +833,32 @@ async def get_budget_summary(user_id: int = Query(1, description="ID del usuario
             b.id, c.id, sc.id, p.id
         """
         
-        # 2. Obtener todas las transacciones del usuario
+        # 2. Obtener las transacciones del usuario para el mes específico
         transactions_query = """
         SELECT 
             t.id AS transaction_id,
             t.amount AS amount,
             t.type AS type,
             t.subcategory_id AS subcategory_id,
-            t.description AS description
+            t.description AS description,
+            t.transaction_date AS transaction_date
         FROM 
             transaction t
         JOIN 
             user_bank ub ON t.user_bank_id = ub.id
         WHERE 
             ub.user_id = %s
+            AND EXTRACT(YEAR FROM t.transaction_date) = %s
+            AND EXTRACT(MONTH FROM t.transaction_date) = %s
         """
         
         # Ejecutar las consultas
         from tortoise import connections
         conn = connections.get("default")
         hierarchy_results = await conn.execute_query(hierarchy_query, [user_id])
-        transaction_results = await conn.execute_query(transactions_query, [user_id])
+        transaction_results = await conn.execute_query(transactions_query, [user_id, year, month])
+        
+        logger.debug(f"Encontradas {len(transaction_results[1])} transacciones para el período {year}-{month:02d}")
         
         # 3. Organizar datos en estructuras para procesamiento
         # Crear estructuras para almacenar los datos
@@ -990,7 +1047,11 @@ async def get_budget_summary(user_id: int = Query(1, description="ID del usuario
         # Ordenar presupuestos por total (descendente)
         result.sort(key=lambda x: x['total'], reverse=True)
         
-        logger.info(f"Resumen de presupuesto generado exitosamente para el usuario {user_id}")
+        # Al final del proceso, añadir información del período al resultado
+        for i, budget_result in enumerate(result):
+            result[i]['period'] = f"{year}-{month:02d}"
+        
+        logger.info(f"Resumen de presupuesto generado exitosamente para el usuario {user_id}, período {year}-{month:02d}")
         return result
     
     except Exception as e:
