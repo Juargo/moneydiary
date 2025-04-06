@@ -1,7 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 const BudgetSummary = ({ budgetSummary }) => {
   const [expandedItems, setExpandedItems] = useState({});
+
+  // Sort all data by amount (total) in descending order
+  const sortedBudgetData = useMemo(() => {
+    // Create a deep copy to avoid modifying the original data
+    const sortedData = [...(budgetSummary || [])];
+    
+    // Sort budgets by total (highest to lowest)
+    sortedData.sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+    
+    // Sort categories within each budget
+    sortedData.forEach(budget => {
+      budget.categories.sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+      
+      // Sort subcategories within each category
+      budget.categories.forEach(category => {
+        category.subcategories.sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+        
+        // Sort patterns within each subcategory
+        category.subcategories.forEach(subcategory => {
+          subcategory.patterns.sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+        });
+      });
+    });
+    
+    return sortedData;
+  }, [budgetSummary]);
 
   const toggleAccordion = (type, id) => {
     setExpandedItems(prev => ({
@@ -19,9 +45,9 @@ const BudgetSummary = ({ budgetSummary }) => {
       <div className="p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Resumen de Presupuestos</h2>
         
-        {budgetSummary.length > 0 ? (
+        {sortedBudgetData.length > 0 ? (
           <div className="space-y-4">
-            {budgetSummary.map((budget) => (
+            {sortedBudgetData.map((budget) => (
               <div key={budget.id} className="border border-gray-200 rounded-lg overflow-hidden">
                 {/* Budget Accordion Header */}
                 <div 
