@@ -10,6 +10,7 @@ from app.db.models.pattern import Pattern as PatternModel
 from app.db.models.bank import Bank as BankModel
 from app.db.models.user_bank import UserBank as UserBankModel
 from app.db.models.pattern_ignore import PatternIgnore as PatternIgnoreModel
+from app.db.models.transaction import Transaction as TransactionModel, TransactionType
 
 
 @strawberry.type
@@ -87,6 +88,25 @@ class PatternIgnore:
     user_id: int = strawberry.field(name="userId")
     created_at: str = strawberry.field(name="createdAt")
     updated_at: str = strawberry.field(name="updatedAt")
+
+@strawberry.type
+class TransactionData:
+    """ Tipo GraphQL para transacciones con datos relacionados """
+    id: int
+    transaction_date: str = strawberry.field(name="transactionDate")
+    description: str
+    amount: float
+    type: str
+    user_bank_id: int = strawberry.field(name="userBankId")
+    subcategory_id: int = strawberry.field(name="subcategoryId")
+    created_at: str = strawberry.field(name="createdAt")
+    updated_at: str = strawberry.field(name="updatedAt")
+    
+    # Datos relacionados
+    user_bank_name: str = strawberry.field(name="userBankName")
+    bank_name: str = strawberry.field(name="bankName")
+    subcategory_name: str = strawberry.field(name="subcategoryName")
+    category_name: str = strawberry.field(name="categoryName")
 
 @strawberry.type
 class Query:
@@ -226,5 +246,45 @@ class Query:
             )
             for pattern_ignore in pattern_ignores
         ]
+        
+    @strawberry.field(name="userTransactions")
+    async def user_transactions(self, userId: int) -> List[TransactionData]:
+        """ Obtener todas las transacciones de un usuario con datos relacionados """
+        # Obtener las transacciones filtrando por los user_banks del usuario
+        user_banks = await UserBankModel.filter(user_id=userId)
+        user_bank_ids = [ub.id for ub in user_banks]
+        
+        transactions = await TransactionModel.filter(
+            user_bank_id__in=user_bank_ids
+        ).prefetch_related(
+            'user_bank', 
+            'user_bank__bank', 
+            'subcategory',
+            'subcategory__category'
+        )
+        
+        result = []
+        for transaction in transactions:
+            result.append(
+                TransactionData(
+                    id=transaction.id,
+                    transaction_date=str(transaction.transaction_date),
+                    description=transaction.description,
+                    amount=float(transaction.amount),
+                    type=transaction.type.value,
+                    user_bank_id=transaction.user_bank_id,
+                    subcategory_id=transaction.subcategory_id,
+                    created_at=str(transaction.created_at),
+                    updated_at=str(transaction.updated_at),
+                    
+                    # Datos relacionados
+                    user_bank_name=transaction.user_bank.description or f"Account {transaction.user_bank_id}",
+                    bank_name=transaction.user_bank.bank.name,
+                    subcategory_name=transaction.subcategory.name,
+                    category_name=transaction.subcategory.category.name
+                )
+            )
+        
+        return result
 
 schema = strawberry.Schema(query=Query)
