@@ -248,15 +248,47 @@ class Query:
         ]
         
     @strawberry.field(name="userTransactions")
-    async def user_transactions(self, userId: int) -> List[TransactionData]:
-        """ Obtener todas las transacciones de un usuario con datos relacionados """
+    async def user_transactions(
+        self, 
+        userId: int,
+        yearMonth: Optional[str] = None
+    ) -> List[TransactionData]:
+        """ 
+        Obtener todas las transacciones de un usuario con datos relacionados,
+        opcionalmente filtradas por mes
+        
+        Args:
+            userId: ID del usuario
+            yearMonth: Filtro opcional por año-mes en formato YYYY-MM (ej: 2023-11)
+        """
         # Obtener las transacciones filtrando por los user_banks del usuario
         user_banks = await UserBankModel.filter(user_id=userId)
         user_bank_ids = [ub.id for ub in user_banks]
         
-        transactions = await TransactionModel.filter(
+        # Construir la consulta base
+        query = TransactionModel.filter(
             user_bank_id__in=user_bank_ids
-        ).prefetch_related(
+        )
+        
+        # Aplicar filtro por mes si se especificó
+        if yearMonth:
+            try:
+                year, month = map(int, yearMonth.split('-'))
+                # Validar el formato de año-mes
+                if not (1 <= month <= 12 and 1000 <= year <= 9999):
+                    raise ValueError("Invalid month format")
+                
+                # Filtrar transacciones por año y mes
+                query = query.filter(
+                    transaction_date__year=year,
+                    transaction_date__month=month
+                )
+            except (ValueError, TypeError) as e:
+                print(f"Error parsing yearMonth parameter: {e}")
+                # Si hay error en el formato, ignorar el filtro pero loguear
+        
+        # Realizar la consulta con las relaciones necesarias
+        transactions = await query.prefetch_related(
             'user_bank', 
             'user_bank__bank', 
             'subcategory',
