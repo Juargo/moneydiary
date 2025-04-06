@@ -49,11 +49,11 @@ try {
       // Determine if it's an expense based on the type
       const isExpense = tx.type === 'Gasto';
       
-      // Format the amount with a sign and as currency
+      // Format the amount with a sign and as currency (without decimals)
       const sign = isExpense ? '-' : '+';
       const formattedAmount = `${sign}$${Math.abs(tx.amount).toLocaleString('es-ES', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
       })}`;
       
       return {
@@ -74,6 +74,49 @@ try {
 
 // Get unique categories for the filter dropdown
 const categories = [...new Set(transactions.map(tx => tx.categoryName))];
+
+// Fetch budget summary data from REST API
+const BUDGET_SUMMARY_URL = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '') || 'http://localhost:8000';
+let budgetSummary = [];
+
+try {
+  const summaryResponse = await fetch(`${BUDGET_SUMMARY_URL}/api/v1/transactions/budget-summary?user_id=${userId}`);
+  if (summaryResponse.ok) {
+    budgetSummary = await summaryResponse.json();
+  } else {
+    console.error('Error fetching budget summary:', await summaryResponse.text());
+  }
+} catch (error) {
+  console.error('Error fetching budget summary:', error);
+}
+
+// Format currency values for display
+function formatCurrency(amount) {
+  const isNegative = amount < 0;
+  const prefix = isNegative ? '-$' : '+$';
+  return `${prefix}${Math.abs(amount).toLocaleString('es-ES', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  })}`;
+}
+
+// Format budget summary data for easy rendering
+const formattedBudgetSummary = budgetSummary.map(budget => ({
+  ...budget,
+  formattedTotal: formatCurrency(budget.total),
+  categories: budget.categories.map(category => ({
+    ...category,
+    formattedTotal: formatCurrency(category.total),
+    subcategories: category.subcategories.map(subcategory => ({
+      ...subcategory,
+      formattedTotal: formatCurrency(subcategory.total),
+      patterns: subcategory.patterns.map(pattern => ({
+        ...pattern,
+        formattedTotal: formatCurrency(pattern.total)
+      }))
+    }))
+  }))
+}));
 ---
 
 <DashboardLayout title="Transacciones">
@@ -88,121 +131,324 @@ const categories = [...new Set(transactions.map(tx => tx.categoryName))];
     </div>
   </div>
   
-  <div class="bg-white rounded-lg shadow">
-    <div class="p-6 border-b border-gray-200">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex gap-4 flex-wrap">
-          <div class="w-full md:w-64">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
-            <div class="relative">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <i class="fas fa-search text-gray-400"></i>
+  <!-- Tab Navigation -->
+  <div class="mb-4 border-b border-gray-200">
+    <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="transactionTabs" role="tablist">
+      <li class="mr-2" role="presentation">
+        <button class="inline-block p-4 border-b-2 rounded-t-lg active" 
+                id="transactions-tab" 
+                data-tabs-target="#transactions" 
+                type="button" 
+                role="tab" 
+                aria-controls="transactions" 
+                aria-selected="true">
+          <i class="fas fa-list-ul mr-2"></i>Listado de Transacciones
+        </button>
+      </li>
+      <li class="mr-2" role="presentation">
+        <button class="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" 
+                id="budget-summary-tab" 
+                data-tabs-target="#budget-summary" 
+                type="button" 
+                role="tab" 
+                aria-controls="budget-summary" 
+                aria-selected="false">
+          <i class="fas fa-chart-pie mr-2"></i>Resumen Presupuestario
+        </button>
+      </li>
+    </ul>
+  </div>
+  
+  <!-- Tab Content -->
+  <div id="tabContent">
+    <!-- Transactions Tab -->
+    <div class="block" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
+      <div class="bg-white rounded-lg shadow">
+        <div class="p-6 border-b border-gray-200">
+          <!-- Existing filters -->
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex gap-4 flex-wrap">
+              <div class="w-full md:w-64">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                  </div>
+                  <input type="text" class="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                </div>
               </div>
-              <input type="text" class="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+              <div class="w-full md:w-40">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                <select class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                  <option value="">Todas</option>
+                  {categories.map(category => (
+                    <option value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
+              <div class="w-full md:w-40">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <select class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+                  <option value="">Todos</option>
+                  <option value="Gasto">Gastos</option>
+                  <option value="Ingreso">Ingresos</option>
+                </select>
+              </div>
+              <div class="w-full md:w-40">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                <input type="month" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-filter mr-2"></i> Filtrar
+              </button>
+              <button class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-redo mr-2"></i> Resetear
+              </button>
             </div>
           </div>
-          <div class="w-full md:w-40">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-            <select class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
-              <option value="">Todas</option>
-              {categories.map(category => (
-                <option value={category}>{category}</option>
-              ))}
-            </select>
-          </div>
-          <div class="w-full md:w-40">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <select class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
-              <option value="">Todos</option>
-              <option value="Gasto">Gastos</option>
-              <option value="Ingreso">Ingresos</option>
-            </select>
-          </div>
-          <div class="w-full md:w-40">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-            <input type="month" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50">
-          </div>
         </div>
-        <div class="flex gap-2">
-          <button class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100">
-            <i class="fas fa-filter mr-2"></i> Filtrar
-          </button>
-          <button class="border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100">
-            <i class="fas fa-redo mr-2"></i> Resetear
-          </button>
-        </div>
-      </div>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subcategoría</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuenta</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          {transactions.length > 0 ? (
-            transactions.map(tx => (
+        <div class="overflow-x-auto">
+          <!-- Existing transactions table -->
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
               <tr>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tx.description}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.categoryName}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.subcategoryName}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.userBankName} ({tx.bankName})</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.date}</td>
-                <td class={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${tx.isExpense ? 'text-red-600' : 'text-green-600'}`}>
-                  {tx.formattedAmount}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button class="text-primary-600 hover:text-primary-900 mr-3">
-                    <i class="fas fa-edit"></i>
-                  </button>
-                  <button class="text-red-600 hover:text-red-900">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </td>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subcategoría</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuenta</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colspan="7" class="px-6 py-4 text-center text-gray-500">
-                No se encontraron transacciones. {transactions.length === 0 && "Por favor, verifica la conexión con el API."}
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-    <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-      <div class="text-sm text-gray-700">
-        Mostrando <span class="font-medium">1</span> a <span class="font-medium">{transactions.length}</span> de <span class="font-medium">{transactions.length}</span> resultados
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              {transactions.length > 0 ? (
+                transactions.map(tx => (
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tx.description}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.categoryName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.subcategoryName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.userBankName} ({tx.bankName})</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tx.date}</td>
+                    <td class={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${tx.isExpense ? 'text-red-600' : 'text-green-600'}`}>
+                      {tx.formattedAmount}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button class="text-primary-600 hover:text-primary-900 mr-3">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="text-red-600 hover:text-red-900">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                    No se encontraron transacciones. {transactions.length === 0 && "Por favor, verifica la conexión con el API."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+          <!-- Existing pagination -->
+          <div class="text-sm text-gray-700">
+            Mostrando <span class="font-medium">1</span> a <span class="font-medium">{transactions.length}</span> de <span class="font-medium">{transactions.length}</span> resultados
+          </div>
+          <div class="flex gap-2">
+            <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={transactions.length <= 10}>
+              Anterior
+            </button>
+            <button class="px-4 py-2 border border-gray-300 bg-primary-50 rounded-md text-sm font-medium text-primary-700 hover:bg-primary-100">
+              1
+            </button>
+            {transactions.length > 10 && (
+              <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                2
+              </button>
+            )}
+            {transactions.length > 20 && (
+              <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                3
+              </button>
+            )}
+            <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={transactions.length <= 10}>
+              Siguiente
+            </button>
+          </div>
+        </div>
       </div>
-      <div class="flex gap-2">
-        <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={transactions.length <= 10}>
-          Anterior
-        </button>
-        <button class="px-4 py-2 border border-gray-300 bg-primary-50 rounded-md text-sm font-medium text-primary-700 hover:bg-primary-100">
-          1
-        </button>
-        {transactions.length > 10 && (
-          <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-            2
-          </button>
-        )}
-        {transactions.length > 20 && (
-          <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-            3
-          </button>
-        )}
-        <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={transactions.length <= 10}>
-          Siguiente
-        </button>
+    </div>
+    
+    <!-- Budget Summary Tab -->
+    <div class="hidden" id="budget-summary" role="tabpanel" aria-labelledby="budget-summary-tab">
+      <div class="bg-white rounded-lg shadow">
+        <div class="p-6">
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">Resumen de Presupuestos</h2>
+          
+          {formattedBudgetSummary.length > 0 ? (
+            <div class="space-y-4">
+              {formattedBudgetSummary.map((budget) => (
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                  <!-- Budget Accordion Header -->
+                  <div class="budget-header accordion-header flex items-center justify-between p-4 bg-gray-50 cursor-pointer" data-accordion="budget-{budget.id}">
+                    <div class="flex items-center">
+                      <i class="fas fa-chevron-right text-gray-500 mr-2 transform transition-transform duration-200"></i>
+                      <span class="font-medium">{budget.name}</span>
+                    </div>
+                    <div class={`font-semibold ${budget.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {budget.formattedTotal}
+                    </div>
+                  </div>
+                  
+                  <!-- Budget Accordion Content -->
+                  <div class="budget-content accordion-content hidden p-4 pl-8" id="budget-{budget.id}">
+                    {budget.categories.map((category) => (
+                      <div class="border border-gray-200 rounded-lg overflow-hidden mb-3">
+                        <!-- Category Accordion Header -->
+                        <div class="category-header accordion-header flex items-center justify-between p-3 bg-gray-50 cursor-pointer" data-accordion="category-{category.id}">
+                          <div class="flex items-center">
+                            <i class="fas fa-chevron-right text-gray-500 mr-2 transform transition-transform duration-200"></i>
+                            <span class="font-medium">{category.name}</span>
+                          </div>
+                          <div class={`font-semibold ${category.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {category.formattedTotal}
+                          </div>
+                        </div>
+                        
+                        <!-- Category Accordion Content -->
+                        <div class="category-content accordion-content hidden p-3 pl-8" id="category-{category.id}">
+                          {category.subcategories.map((subcategory) => (
+                            <div class="border border-gray-200 rounded-lg overflow-hidden mb-2">
+                              <!-- Subcategory Accordion Header -->
+                              <div class="subcategory-header accordion-header flex items-center justify-between p-2 bg-gray-50 cursor-pointer" data-accordion="subcategory-{subcategory.id}">
+                                <div class="flex items-center">
+                                  <i class="fas fa-chevron-right text-gray-500 mr-2 transform transition-transform duration-200"></i>
+                                  <span class="font-medium">{subcategory.name}</span>
+                                </div>
+                                <div class={`font-semibold ${subcategory.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                  {subcategory.formattedTotal}
+                                </div>
+                              </div>
+                              
+                              <!-- Subcategory Accordion Content (Patterns) -->
+                              <div class="subcategory-content accordion-content hidden p-2 pl-8" id="subcategory-{subcategory.id}">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                  <thead class="bg-gray-50">
+                                    <tr>
+                                      <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patrón</th>
+                                      <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Transacciones</th>
+                                      <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody class="bg-white divide-y divide-gray-200">
+                                    {subcategory.patterns.map((pattern) => (
+                                      <tr>
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{pattern.text}</td>
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-right">{pattern.transaction_count}</td>
+                                        <td class={`px-3 py-2 whitespace-nowrap text-sm font-medium text-right ${pattern.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                          {pattern.formattedTotal}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div class="text-center p-6 text-gray-500">
+              No hay datos de presupuesto disponibles. Por favor, verifica la conexión con el API.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   </div>
 </DashboardLayout>
+
+<style>
+  /* Tab styling */
+  #transactionTabs button.active {
+    border-bottom-color: #4F46E5;
+    color: #4F46E5;
+  }
+  
+  /* Accordion styles */
+  .accordion-header i.rotate {
+    transform: rotate(90deg);
+  }
+  
+  .accordion-content.expanded {
+    display: block;
+  }
+</style>
+
+<script>
+  // Tab Switching
+  const tabButtons = document.querySelectorAll('[role="tab"]');
+  const tabPanels = document.querySelectorAll('[role="tabpanel"]');
+  
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      // Hide all tab panels
+      tabPanels.forEach(panel => {
+        panel.classList.add('hidden');
+        panel.classList.remove('block');
+      });
+      
+      // Remove active state from all tab buttons
+      tabButtons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.classList.remove('border-primary-600');
+        btn.setAttribute('aria-selected', 'false');
+      });
+      
+      // Show the selected tab panel
+      const panelId = button.getAttribute('data-tabs-target');
+      const panel = document.querySelector(panelId);
+      panel.classList.remove('hidden');
+      panel.classList.add('block');
+      
+      // Set active state on the clicked button
+      button.classList.add('active');
+      button.setAttribute('aria-selected', 'true');
+    });
+  });
+  
+  // Accordion Functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const accordionHeaders = document.querySelectorAll('.accordion-header');
+    
+    accordionHeaders.forEach(header => {
+      header.addEventListener('click', () => {
+        const icon = header.querySelector('i');
+        const contentId = header.getAttribute('data-accordion');
+        const content = document.getElementById(contentId);
+        
+        // Toggle the content visibility
+        if (content.classList.contains('hidden')) {
+          content.classList.remove('hidden');
+          content.classList.add('expanded');
+          icon.classList.add('rotate');
+        } else {
+          content.classList.add('hidden');
+          content.classList.remove('expanded');
+          icon.classList.remove('rotate');
+        }
+      });
+    });
+  });
+</script>
