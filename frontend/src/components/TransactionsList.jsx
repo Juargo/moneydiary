@@ -48,31 +48,8 @@ const TransactionsList = ({ transactions }) => {
           </tbody>
         </table>
       </div>
-      <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-        <div className="text-sm text-gray-700">
-          Mostrando <span className="font-medium">1</span> a <span className="font-medium">{transactions.length}</span> de <span className="font-medium">{transactions.length}</span> resultados
-        </div>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={transactions.length <= 10}>
-            Anterior
-          </button>
-          <button className="px-4 py-2 border border-gray-300 bg-primary-50 rounded-md text-sm font-medium text-primary-700 hover:bg-primary-100">
-            1
-          </button>
-          {transactions.length > 10 && (
-            <button className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-              2
-            </button>
-          )}
-          {transactions.length > 20 && (
-            <button className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-              3
-            </button>
-          )}
-          <button className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" disabled={transactions.length <= 10}>
-            Siguiente
-          </button>
-        </div>
+      <div className="px-6 py-4 border-t border-gray-200 text-center text-sm text-gray-700">
+        Total: <span className="font-medium">{transactions.length}</span> transacciones
       </div>
     </div>
   );
