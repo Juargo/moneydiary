@@ -8,7 +8,7 @@ from tortoise.models import Model
 class PatternIgnore(Model):
     """ Model for Pattern Ignore """
     id = fields.IntField(pk=True)
-    exp_name = fields.CharField(max_length=255)
+    match_text = fields.CharField(max_length=255)
     description = fields.TextField()
     
     # Relation to User

@@ -934,7 +934,7 @@ const totalRemaining = totalBudgeted - totalSpent;
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            exp_name: expName,
+            match_text: expName,
             subcategory_id: subcategoryId
           }),
         });
@@ -976,7 +976,7 @@ const totalRemaining = totalBudgeted - totalSpent;
         const newPatternItem = document.createElement('li');
         newPatternItem.className = 'text-sm py-1 px-2 bg-gray-50 rounded flex justify-between items-center';
         newPatternItem.innerHTML = `
-          <span>${newPattern.exp_name}</span>
+          <span>${newPattern.match_text}</span>
           <div class="flex gap-2">
             <button class="text-primary-600 hover:text-primary-800 text-xs edit-pattern-btn" data-pattern-id="${newPattern.id}">
               <i class="fas fa-edit"></i>
@@ -1107,7 +1107,7 @@ const totalRemaining = totalBudgeted - totalSpent;
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            exp_name: expName
+            match_text: expName
           }),
         });
         
@@ -1123,7 +1123,7 @@ const totalRemaining = totalBudgeted - totalSpent;
         if (patternElement) {
           const patternTextElement = patternElement.querySelector('span');
           if (patternTextElement) {
-            patternTextElement.textContent = updatedPattern.exp_name;
+            patternTextElement.textContent = updatedPattern.match_text;
           }
         }
         
@@ -1883,7 +1883,7 @@ const totalRemaining = totalBudgeted - totalSpent;
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              exp_name: expName,
+              match_text: expName,
               description: description
             }),
           });
@@ -1895,7 +1895,7 @@ const totalRemaining = totalBudgeted - totalSpent;
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              exp_name: expName,
+              match_text: expName,
               description: description
             }),
           });

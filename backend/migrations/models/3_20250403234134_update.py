@@ -28,16 +28,16 @@ async def upgrade(db: BaseDBAsyncClient) -> str:
 ) CHARACTER SET utf8mb4 COMMENT='Model for Category ';
         CREATE TABLE IF NOT EXISTS `pattern` (
     `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    `exp_name` VARCHAR(255) NOT NULL COMMENT 'Pattern expression for identification',
+    `match_text` VARCHAR(255) NOT NULL COMMENT 'Pattern expression for identification',
     `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     `subcategory_id` INT NOT NULL,
-    UNIQUE KEY `uid_pattern_exp_nam_8294fa` (`exp_name`, `subcategory_id`),
+    UNIQUE KEY `uid_pattern_exp_nam_8294fa` (`match_text`, `subcategory_id`),
     CONSTRAINT `fk_pattern_subcateg_564e0b11` FOREIGN KEY (`subcategory_id`) REFERENCES `subcategory` (`id`) ON DELETE CASCADE
 ) CHARACTER SET utf8mb4 COMMENT='Model for identification patterns ';
         CREATE TABLE IF NOT EXISTS `pattern_ignore` (
     `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    `exp_name` VARCHAR(255) NOT NULL,
+    `match_text` VARCHAR(255) NOT NULL,
     `description` LONGTEXT NOT NULL,
     `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),

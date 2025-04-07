@@ -55,7 +55,7 @@ class Subcategory:
 class Pattern:
     """ Tipo GraphQL para patrones de transacciones """
     id: int
-    exp_name: str = strawberry.field(name="expName")
+    match_text: str = strawberry.field(name="expName")
     subcategory_id: int = strawberry.field(name="subcategoryId")
     created_at: str = strawberry.field(name="createdAt")
     updated_at: str = strawberry.field(name="updatedAt")
@@ -83,7 +83,7 @@ class UserBank:
 class PatternIgnore:
     """ Tipo GraphQL para patrones a ignorar en transacciones """
     id: int
-    exp_name: str = strawberry.field(name="expName")
+    match_text: str = strawberry.field(name="expName")
     description: str
     user_id: int = strawberry.field(name="userId")
     created_at: str = strawberry.field(name="createdAt")
@@ -192,7 +192,7 @@ class Query:
         return [
             Pattern(
                 id=pattern.id,
-                exp_name=pattern.exp_name,
+                match_text=pattern.match_text,
                 subcategory_id=pattern.subcategory_id,
                 created_at=str(pattern.created_at),
                 updated_at=str(pattern.updated_at)
@@ -238,7 +238,7 @@ class Query:
         return [
             PatternIgnore(
                 id=pattern_ignore.id,
-                exp_name=pattern_ignore.exp_name,
+                match_text=pattern_ignore.match_text,
                 description=pattern_ignore.description,
                 user_id=pattern_ignore.user_id,
                 created_at=str(pattern_ignore.created_at),

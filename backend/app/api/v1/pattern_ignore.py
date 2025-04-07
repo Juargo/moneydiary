@@ -18,20 +18,20 @@ router = APIRouter(
 
 class PatternIgnoreCreate(BaseModel):
     """Schema for creating a pattern ignore"""
-    exp_name: str
+    match_text: str
     description: str
 
 
 class PatternIgnoreUpdate(BaseModel):
     """Schema for updating a pattern ignore"""
-    exp_name: Optional[str] = None
+    match_text: Optional[str] = None
     description: Optional[str] = None
 
 
 class PatternIgnoreResponse(BaseModel):
     """Schema for pattern ignore response"""
     id: int
-    exp_name: str
+    match_text: str
     description: str
     created_at: datetime
     updated_at: datetime

@@ -325,7 +325,7 @@ async def extraer_datos(archivo, pattern_ignores=None):
                         # Verificar si la descripción coincide con algún patrón a ignorar
                         should_ignore = False
                         for pattern in pattern_ignores:
-                            pattern_exp = pattern["exp_name"]
+                            pattern_exp = pattern["match_text"]
                             
                             # Convertir el patrón con comodines a una expresión regular
                             if "*" in pattern_exp:
@@ -488,7 +488,7 @@ async def get_user_patterns(user_id: int = 1):
         query = """
         SELECT 
             p.id AS pattern_id,
-            p.exp_name AS pattern_text,
+            p.match_text AS pattern_text,
             sc.id AS subcategory_id,
             sc.name AS subcategory_name,
             c.id AS category_id,
@@ -603,7 +603,7 @@ async def get_user_pattern_ignores(user_id: int = 1):
         for pattern in pattern_ignores:
             result.append({
                 "id": pattern.id,
-                "exp_name": pattern.exp_name,
+                "match_text": pattern.match_text,
                 "description": pattern.description,
                 "created_at": pattern.created_at.isoformat() if pattern.created_at else None,
                 "updated_at": pattern.updated_at.isoformat() if pattern.updated_at else None
@@ -818,7 +818,7 @@ async def get_budget_summary(
             sc.id AS subcategory_id,
             sc.name AS subcategory_name,
             p.id AS pattern_id,
-            p.exp_name AS pattern_text
+            p.match_text AS pattern_text
         FROM 
             budget b
         LEFT JOIN 
