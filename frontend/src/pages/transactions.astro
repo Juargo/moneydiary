@@ -2,6 +2,7 @@
 import DashboardLayout from '../layouts/DashboardLayout.astro';
 import '../styles/global.css';
 import TransactionsManager from '../components/TransactionsManager.jsx';
+import ContableApp from '../components/ContableApp';
 
 // Check if month is specified in URL query params
 const url = new URL(Astro.request.url);
@@ -20,6 +21,7 @@ const BUDGET_SUMMARY_URL = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '
 ---
 
 <DashboardLayout title="Transacciones">
+  <ContableApp client:load />
   <div class="mb-6">
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold text-gray-800">Administra tus Transacciones</h1>
