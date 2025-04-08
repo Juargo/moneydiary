@@ -679,6 +679,10 @@ async def create_bulk_transactions(
         duplicate_records = []
         inserted_records = []
         
+        # Obtener conexión a la BD
+        from tortoise import connections
+        conn = connections.get("default")
+        
         # Procesar cada transacción
         for transaction_data in transactions:
             # Convertir fecha si es necesario
@@ -702,29 +706,49 @@ async def create_bulk_transactions(
                     logger.debug(f"Transacción fuera del período solicitado: {transaction_date}")
                     continue
             
-            # Verificar si la transacción ya existe
-            # Comprobamos por fecha, descripción, monto, tipo, banco y subcategoría
-            existing_transaction = await Transaction.filter(
-                transaction_date=transaction_date,
-                description=transaction_data.description,
-                amount=transaction_data.amount,
-                type=transaction_data.type,
-                user_bank_id=transaction_data.user_bank_id,
-                subcategory_id=transaction_data.subcategory_id
-            ).first()
+            # Verificar si la transacción ya existe usando la vista view_transaction_hierarchy
+            # Esto nos permite tener una verificación más completa que incluye la jerarquía
+            duplicate_check_query = """
+            SELECT * FROM view_transaction_hierarchy
+            WHERE transaction_date = %s
+            AND description = %s
+            AND amount = %s
+            AND user_bank_id = %s
+            AND subcategory_id = %s
+            """
             
-            if existing_transaction:
+            duplicate_params = [
+                transaction_date,
+                transaction_data.description,
+                transaction_data.amount,
+                transaction_data.user_bank_id,
+                transaction_data.subcategory_id
+            ]
+            
+            # Ejecutar consulta de duplicados
+            duplicate_results = await conn.execute_query(duplicate_check_query, duplicate_params)
+            
+            if duplicate_results[1]:
                 # La transacción ya existe
+                duplicate_record = duplicate_results[1][0]
                 logger.debug(f"Transacción duplicada encontrada: {transaction_data.description} {transaction_data.amount}")
                 duplicates_count += 1
-                duplicate_records.append({
+                
+                # Crear un registro enriquecido con datos de la jerarquía
+                duplicate_info = {
+                    "transaction_id": duplicate_record.get("transaction_id"),
                     "transaction_date": transaction_date.isoformat() if isinstance(transaction_date, datetime) else transaction_date,
                     "description": transaction_data.description,
                     "amount": float(transaction_data.amount),
                     "type": transaction_data.type,
                     "user_bank_id": transaction_data.user_bank_id,
-                    "subcategory_id": transaction_data.subcategory_id
-                })
+                    "subcategory_id": transaction_data.subcategory_id,
+                    "bank_name": duplicate_record.get("bank_name"),
+                    "category_name": duplicate_record.get("category_name"),
+                    "subcategory_name": duplicate_record.get("subcategory_name"),
+                    "budget_name": duplicate_record.get("budget_name")
+                }
+                duplicate_records.append(duplicate_info)
             else:
                 # La transacción no existe, insertarla
                 try:
@@ -737,7 +761,16 @@ async def create_bulk_transactions(
                         subcategory_id=transaction_data.subcategory_id
                     )
                     inserted_count += 1
-                    inserted_records.append({
+                    
+                    # Obtener información completa de la transacción desde la vista
+                    transaction_query = """
+                    SELECT * FROM view_transaction_hierarchy
+                    WHERE transaction_id = %s
+                    """
+                    transaction_result = await conn.execute_query(transaction_query, [new_transaction.id])
+                    
+                    # Preparar el registro enriquecido para la respuesta
+                    transaction_info = {
                         "id": new_transaction.id,
                         "transaction_date": transaction_date.isoformat() if isinstance(transaction_date, datetime) else transaction_date,
                         "description": transaction_data.description,
@@ -745,7 +778,19 @@ async def create_bulk_transactions(
                         "type": transaction_data.type,
                         "user_bank_id": transaction_data.user_bank_id,
                         "subcategory_id": transaction_data.subcategory_id
-                    })
+                    }
+                    
+                    # Añadir información adicional de la jerarquía si está disponible
+                    if transaction_result[1]:
+                        hierarchy_data = transaction_result[1][0]
+                        transaction_info.update({
+                            "bank_name": hierarchy_data.get("bank_name"),
+                            "category_name": hierarchy_data.get("category_name"),
+                            "subcategory_name": hierarchy_data.get("subcategory_name"),
+                            "budget_name": hierarchy_data.get("budget_name")
+                        })
+                    
+                    inserted_records.append(transaction_info)
                     logger.debug(f"Transacción insertada correctamente: ID={new_transaction.id}")
                 except Exception as e:
                     logger.error(f"Error al insertar transacción {transaction_data.description}: {str(e)}", exc_info=True)
