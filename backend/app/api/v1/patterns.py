@@ -10,12 +10,12 @@ router = APIRouter(prefix="/patterns", tags=["patterns"])
 
 # Pydantic model for pattern creation
 class PatternCreate(BaseModel):
-    exp_name: str
+    match_text: str
     subcategory_id: int
 
-# Pydantic model for pattern update - only update exp_name now
+# Pydantic model for pattern update - only update match_text now
 class PatternUpdate(BaseModel):
-    exp_name: Optional[str] = None
+    match_text: Optional[str] = None
     
 @router.post("/", response_model=dict)
 async def create_pattern(pattern: PatternCreate):
@@ -26,13 +26,13 @@ async def create_pattern(pattern: PatternCreate):
         
         # Create pattern
         new_pattern = await Pattern.create(
-            exp_name=pattern.exp_name,
+            match_text=pattern.match_text,
             subcategory=subcategory
         )
         
         return {
             "id": new_pattern.id,
-            "exp_name": new_pattern.exp_name,
+            "match_text": new_pattern.match_text,
             "subcategory_id": new_pattern.subcategory_id,
             "message": "Pattern created successfully"
         }
@@ -44,7 +44,7 @@ async def create_pattern(pattern: PatternCreate):
     except IntegrityError:
         raise HTTPException(
             status_code=400, 
-            detail=f"Pattern with expression '{pattern.exp_name}' already exists for this subcategory"
+            detail=f"Pattern with expression '{pattern.match_text}' already exists for this subcategory"
         )
     except Exception as e:
         raise HTTPException(
@@ -59,16 +59,16 @@ async def update_pattern(pattern_id: int, pattern_data: PatternUpdate):
         # Get the pattern
         pattern = await Pattern.get(id=pattern_id)
         
-        # Update exp_name if provided
-        if pattern_data.exp_name is not None:
-            pattern.exp_name = pattern_data.exp_name
+        # Update match_text if provided
+        if pattern_data.match_text is not None:
+            pattern.match_text = pattern_data.match_text
         
         # Save the changes
         await pattern.save()
         
         return {
             "id": pattern.id,
-            "exp_name": pattern.exp_name,
+            "match_text": pattern.match_text,
             "subcategory_id": pattern.subcategory_id,
             "message": "Pattern updated successfully"
         }
@@ -80,7 +80,7 @@ async def update_pattern(pattern_id: int, pattern_data: PatternUpdate):
     except IntegrityError:
         raise HTTPException(
             status_code=400,
-            detail=f"Pattern with expression '{pattern_data.exp_name}' already exists for this subcategory"
+            detail=f"Pattern with expression '{pattern_data.match_text}' already exists for this subcategory"
         )
     except Exception as e:
         raise HTTPException(

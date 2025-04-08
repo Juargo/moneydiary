@@ -24,7 +24,7 @@ async def seed_patterns():
         for subcategory in subcategories:
             # Verificar si ya existe el pattern para esta subcategoría
             existing_pattern = await Pattern.get_or_none(
-                exp_name="baseexp",
+                match_text="baseexp",
                 subcategory=subcategory
             )
             
@@ -34,7 +34,7 @@ async def seed_patterns():
             
             # Crear el pattern
             await Pattern.create(
-                exp_name="baseexp",
+                match_text="baseexp",
                 subcategory=subcategory
             )
             logger.info(f"Pattern 'baseexp' creado para la subcategoría '{subcategory.name}'")

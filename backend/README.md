@@ -23,7 +23,7 @@ Creates a new pattern and associates it with a subcategory.
 - **Request Body**:
   ```json
   {
-    "exp_name": "string",
+    "match_text": "string",
     "subcategory_id": integer
   }
   ```
@@ -34,7 +34,7 @@ Creates a new pattern and associates it with a subcategory.
     ```json
     {
       "id": integer,
-      "exp_name": "string",
+      "match_text": "string",
       "subcategory_id": integer,
       "message": "Pattern created successfully"
     }
@@ -46,7 +46,7 @@ Creates a new pattern and associates it with a subcategory.
     OR
     
     - **Code**: 400
-    - **Content**: `{ "detail": "Pattern with expression '{exp_name}' already exists for this subcategory" }`
+    - **Content**: `{ "detail": "Pattern with expression '{match_text}' already exists for this subcategory" }`
     
     OR
     
@@ -59,10 +59,10 @@ Creates a new pattern and associates it with a subcategory.
 # Using curl
 curl -X POST http://localhost:8000/api/v1/patterns/ \
   -H "Content-Type: application/json" \
-  -d '{"exp_name": "NETFLIX*", "subcategory_id": 5}'
+  -d '{"match_text": "NETFLIX*", "subcategory_id": 5}'
 
 # Using httpie
-http POST http://localhost:8000/api/v1/patterns/ exp_name="NETFLIX*" subcategory_id=5
+http POST http://localhost:8000/api/v1/patterns/ match_text="NETFLIX*" subcategory_id=5
 ```
 
 **Example Response**:
@@ -70,7 +70,7 @@ http POST http://localhost:8000/api/v1/patterns/ exp_name="NETFLIX*" subcategory
 ```json
 {
   "id": 42,
-  "exp_name": "NETFLIX*",
+  "match_text": "NETFLIX*",
   "subcategory_id": 5,
   "message": "Pattern created successfully"
 }
@@ -87,7 +87,7 @@ Updates an existing pattern's expression name.
 - **Request Body**:
   ```json
   {
-    "exp_name": "string"  // optional
+    "match_text": "string"  // optional
   }
   ```
 - **Response**: 
@@ -97,7 +97,7 @@ Updates an existing pattern's expression name.
     ```json
     {
       "id": integer,
-      "exp_name": "string",
+      "match_text": "string",
       "subcategory_id": integer,
       "message": "Pattern updated successfully"
     }
@@ -109,7 +109,7 @@ Updates an existing pattern's expression name.
     OR
     
     - **Code**: 400
-    - **Content**: `{ "detail": "Pattern with expression '{exp_name}' already exists for this subcategory" }`
+    - **Content**: `{ "detail": "Pattern with expression '{match_text}' already exists for this subcategory" }`
     
     OR
     
@@ -122,10 +122,10 @@ Updates an existing pattern's expression name.
 # Using curl
 curl -X PATCH http://localhost:8000/api/v1/patterns/42 \
   -H "Content-Type: application/json" \
-  -d '{"exp_name": "NETFLIX PREMIUM*"}'
+  -d '{"match_text": "NETFLIX PREMIUM*"}'
 
 # Using httpie
-http PATCH http://localhost:8000/api/v1/patterns/42 exp_name="NETFLIX PREMIUM*"
+http PATCH http://localhost:8000/api/v1/patterns/42 match_text="NETFLIX PREMIUM*"
 ```
 
 **Example Response**:
@@ -133,7 +133,7 @@ http PATCH http://localhost:8000/api/v1/patterns/42 exp_name="NETFLIX PREMIUM*"
 ```json
 {
   "id": 42,
-  "exp_name": "NETFLIX PREMIUM*",
+  "match_text": "NETFLIX PREMIUM*",
   "subcategory_id": 5,
   "message": "Pattern updated successfully"
 }

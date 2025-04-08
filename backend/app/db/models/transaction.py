@@ -25,6 +25,7 @@ class Transaction(Model):
     # Relaciones
     user_bank = fields.ForeignKeyField('models.UserBank', related_name='transaction')
     subcategory = fields.ForeignKeyField('models.Subcategory', related_name='transaction')
+    pattern = fields.ForeignKeyField('models.Pattern', related_name='transactions', null=True)
 
     # Campos de auditoría
     created_at = fields.DatetimeField(auto_now_add=True)
