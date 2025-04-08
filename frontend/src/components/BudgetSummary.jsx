@@ -46,16 +46,16 @@ const BudgetSummary = ({ budgetSummary }) => {
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Resumen de Presupuestos</h2>
         
         {sortedBudgetData.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-2 font-mono">
             {sortedBudgetData.map((budget) => (
-              <div key={budget.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                {/* Budget Accordion Header */}
+              <div key={budget.id} className="border-l-2 border-gray-200 pl-2">
+                {/* Budget (Root folder) */}
                 <div 
-                  className="flex items-center justify-between p-4 bg-gray-50 cursor-pointer" 
+                  className="flex items-center justify-between py-1 cursor-pointer hover:bg-gray-50" 
                   onClick={() => toggleAccordion('budget', budget.id)}
                 >
                   <div className="flex items-center">
-                    <i className={`fas fa-chevron-right text-gray-500 mr-2 transform transition-transform duration-200 ${isExpanded('budget', budget.id) ? 'rotate-90' : ''}`}></i>
+                    <i className={`${isExpanded('budget', budget.id) ? 'fas fa-folder-open text-yellow-500' : 'fas fa-folder text-yellow-400'} mr-2`}></i>
                     <span className="font-medium">{budget.name}</span>
                   </div>
                   <div className={`font-semibold ${budget.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -63,64 +63,58 @@ const BudgetSummary = ({ budgetSummary }) => {
                   </div>
                 </div>
                 
-                {/* Budget Accordion Content */}
-                <div className={`p-4 pl-8 ${isExpanded('budget', budget.id) ? 'block' : 'hidden'}`}>
+                {/* Budget Content (Categories) */}
+                <div className={`pl-6 ${isExpanded('budget', budget.id) ? 'block' : 'hidden'}`}>
                   {budget.categories.map((category) => (
-                    <div key={category.id} className="border border-gray-200 rounded-lg overflow-hidden mb-3">
-                      {/* Category Accordion Header */}
+                    <div key={category.id} className="border-l-2 border-gray-200 pl-2 mt-1">
+                      {/* Category (Subfolder) */}
                       <div 
-                        className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer" 
+                        className="flex items-center justify-between py-1 cursor-pointer hover:bg-gray-50" 
                         onClick={() => toggleAccordion('category', category.id)}
                       >
                         <div className="flex items-center">
-                          <i className={`fas fa-chevron-right text-gray-500 mr-2 transform transition-transform duration-200 ${isExpanded('category', category.id) ? 'rotate-90' : ''}`}></i>
-                          <span className="font-medium">{category.name}</span>
+                          <i className={`${isExpanded('category', category.id) ? 'fas fa-folder-open text-blue-400' : 'fas fa-folder text-blue-300'} mr-2`}></i>
+                          <span>{category.name}</span>
                         </div>
                         <div className={`font-semibold ${category.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
                           {category.formattedTotal}
                         </div>
                       </div>
                       
-                      {/* Category Accordion Content */}
-                      <div className={`p-3 pl-8 ${isExpanded('category', category.id) ? 'block' : 'hidden'}`}>
+                      {/* Category Content (Subcategories) */}
+                      <div className={`pl-6 ${isExpanded('category', category.id) ? 'block' : 'hidden'}`}>
                         {category.subcategories.map((subcategory) => (
-                          <div key={subcategory.id} className="border border-gray-200 rounded-lg overflow-hidden mb-2">
-                            {/* Subcategory Accordion Header */}
+                          <div key={subcategory.id} className="border-l-2 border-gray-200 pl-2 mt-1">
+                            {/* Subcategory (Nested subfolder) */}
                             <div 
-                              className="flex items-center justify-between p-2 bg-gray-50 cursor-pointer" 
+                              className="flex items-center justify-between py-1 cursor-pointer hover:bg-gray-50" 
                               onClick={() => toggleAccordion('subcategory', subcategory.id)}
                             >
                               <div className="flex items-center">
-                                <i className={`fas fa-chevron-right text-gray-500 mr-2 transform transition-transform duration-200 ${isExpanded('subcategory', subcategory.id) ? 'rotate-90' : ''}`}></i>
-                                <span className="font-medium">{subcategory.name}</span>
+                                <i className={`${isExpanded('subcategory', subcategory.id) ? 'fas fa-folder-open text-green-400' : 'fas fa-folder text-green-300'} mr-2`}></i>
+                                <span>{subcategory.name}</span>
                               </div>
                               <div className={`font-semibold ${subcategory.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
                                 {subcategory.formattedTotal}
                               </div>
                             </div>
                             
-                            {/* Subcategory Accordion Content (Patterns) */}
-                            <div className={`p-2 pl-8 ${isExpanded('subcategory', subcategory.id) ? 'block' : 'hidden'}`}>
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                  <tr>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patrón</th>
-                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Transacciones</th>
-                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                  {subcategory.patterns.map((pattern) => (
-                                    <tr key={pattern.id}>
-                                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">{pattern.text}</td>
-                                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-right">{pattern.transaction_count}</td>
-                                      <td className={`px-3 py-2 whitespace-nowrap text-sm font-medium text-right ${pattern.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                        {pattern.formattedTotal}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                            {/* Subcategory Content (Patterns as files) */}
+                            <div className={`pl-6 ${isExpanded('subcategory', subcategory.id) ? 'block' : 'hidden'}`}>
+                              {subcategory.patterns.map((pattern) => (
+                                <div key={pattern.id} className="flex items-center justify-between py-1 hover:bg-gray-50">
+                                  <div className="flex items-center">
+                                    <i className="fas fa-file-alt text-gray-400 mr-2"></i>
+                                    <span className="text-sm">{pattern.text}</span>
+                                  </div>
+                                  <div className="flex items-center">
+                                    <span className="text-xs text-gray-500 mr-3">{pattern.transaction_count} transacciones</span>
+                                    <span className={`text-sm font-medium ${pattern.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                      {pattern.formattedTotal}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         ))}
