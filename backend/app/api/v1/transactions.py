@@ -852,69 +852,52 @@ async def get_budget_summary(
         
         logger.info(f"Generando resumen de presupuesto para el usuario ID: {user_id}, período: {year}-{month:02d}")
         
-        # 1. Obtener la estructura jerárquica de presupuestos
-        # Consulta SQL para obtener presupuesto -> categorías -> subcategorías -> patrones
-        hierarchy_query = """
-        SELECT 
-            b.id AS budget_id,
-            b.name AS budget_name,
-            c.id AS category_id,
-            c.name AS category_name,
-            sc.id AS subcategory_id,
-            sc.name AS subcategory_name,
-            p.id AS pattern_id,
-            p.match_text AS pattern_text
-        FROM 
-            budget b
-        LEFT JOIN 
-            category c ON c.budget_id = b.id
-        LEFT JOIN 
-            subcategory sc ON sc.category_id = c.id
-        LEFT JOIN 
-            pattern p ON p.subcategory_id = sc.id
-        WHERE 
-            b.user_id = %s
-        ORDER BY 
-            b.id, c.id, sc.id, p.id
-        """
-        
-        # 2. Obtener las transacciones del usuario para el mes específico
-        transactions_query = """
-        SELECT 
-            t.id AS transaction_id,
-            t.amount AS amount,
-            t.type AS type,
-            t.subcategory_id AS subcategory_id,
-            t.description AS description,
-            t.transaction_date AS transaction_date
-        FROM 
-            transaction t
-        JOIN 
-            user_bank ub ON t.user_bank_id = ub.id
-        WHERE 
-            ub.user_id = %s
-            AND EXTRACT(YEAR FROM t.transaction_date) = %s
-            AND EXTRACT(MONTH FROM t.transaction_date) = %s
-        """
-        
-        # Ejecutar las consultas
+        # Obtener conexión a la BD
         from tortoise import connections
         conn = connections.get("default")
-        hierarchy_results = await conn.execute_query(hierarchy_query, [user_id])
-        transaction_results = await conn.execute_query(transactions_query, [user_id, year, month])
         
-        logger.debug(f"Encontradas {len(transaction_results[1])} transacciones para el período {year}-{month:02d}")
+        # 1. Obtener la estructura jerárquica completa usando la vista view_transaction_hierarchy
+        # Asegurar que todas las columnas están correctamente cualificadas para evitar ambigüedad
+        hierarchy_query = """
+        SELECT 
+            v.budget_id,
+            v.budget_name,
+            v.category_id,
+            v.category_name,
+            v.subcategory_id,
+            v.subcategory_name,
+            v.pattern_id,
+            v.pattern_text,
+            v.transaction_id,
+            v.transaction_description AS description,
+            v.amount,
+            t.type AS transaction_type
+        FROM 
+            view_transaction_hierarchy v
+        JOIN
+            transaction t ON t.id = v.transaction_id
+        WHERE 
+            v.user_id = %s
+            AND EXTRACT(YEAR FROM v.transaction_date) = %s
+            AND EXTRACT(MONTH FROM v.transaction_date) = %s
+        ORDER BY 
+            v.budget_id, v.category_id, v.subcategory_id, v.pattern_id
+        """
         
-        # 3. Organizar datos en estructuras para procesamiento
-        # Crear estructuras para almacenar los datos
+        # Ejecutar consulta unificada
+        params = [user_id, year, month]
+        logger.debug(f"Ejecutando consulta con parámetros: {params}")
+        query_results = await conn.execute_query(hierarchy_query, params)
+        
+        logger.debug(f"Encontrados {len(query_results[1])} registros en la vista de jerarquía de transacciones")
+        
+        # 2. Crear estructuras para almacenar los datos
         budgets = {}
-        subcategory_to_category = {}  # Mapeo de subcategorías a categorías
-        pattern_to_subcategory = {}   # Mapeo de patrones a subcategorías
+        transaction_processed = set()  # Conjunto para evitar procesar transacciones duplicadas
         
-        # Procesar resultados de la jerarquía
-
-        logger.debug(f"Resultados de la jerarquía: {hierarchy_results[1]}")
-        for row in hierarchy_results[1]:
+        # 3. Procesar resultados y organizarlos en la estructura jerárquica
+        for row in query_results[1]:
+            # Extraer datos del registro
             budget_id = row.get('budget_id')
             budget_name = row.get('budget_name')
             category_id = row.get('category_id')
@@ -923,9 +906,21 @@ async def get_budget_summary(
             subcategory_name = row.get('subcategory_name')
             pattern_id = row.get('pattern_id')
             pattern_text = row.get('pattern_text')
+            transaction_id = row.get('transaction_id')
+            description = row.get('description')
+            amount = float(row.get('amount', 0))
+            transaction_type = row.get('transaction_type')
             
+            # Convertir a valor negativo si es un gasto
+            if transaction_type == 'Gasto':
+                amount = -abs(amount)
+            
+            # Evitar registros sin información de presupuesto
+            if not budget_id or not category_id or not subcategory_id:
+                continue
+                
             # Inicializar presupuesto si no existe
-            if budget_id and budget_id not in budgets:
+            if budget_id not in budgets:
                 budgets[budget_id] = {
                     'id': budget_id,
                     'name': budget_name,
@@ -934,121 +929,59 @@ async def get_budget_summary(
                 }
             
             # Inicializar categoría si no existe
-            if category_id and budget_id:
-                if category_id not in budgets[budget_id]['categories']:
-                    budgets[budget_id]['categories'][category_id] = {
-                        'id': category_id,
-                        'name': category_name,
-                        'total': 0.0,
-                        'subcategories': {}
-                    }
+            if category_id not in budgets[budget_id]['categories']:
+                budgets[budget_id]['categories'][category_id] = {
+                    'id': category_id,
+                    'name': category_name,
+                    'total': 0.0,
+                    'subcategories': {}
+                }
                 
-                # Inicializar subcategoría si no existe
-                if subcategory_id:
-                    subcategory_to_category[subcategory_id] = {
-                        'category_id': category_id,
-                        'budget_id': budget_id
-                    }
-                    
-                    if subcategory_id not in budgets[budget_id]['categories'][category_id]['subcategories']:
-                        budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id] = {
-                            'id': subcategory_id,
-                            'name': subcategory_name,
-                            'total': 0.0,
-                            'patterns': {}
-                        }
-                    
-                    # Inicializar patrón si no existe
-                    if pattern_id:
-                        pattern_to_subcategory[pattern_id] = {
-                            'subcategory_id': subcategory_id,
-                            'category_id': category_id,
-                            'budget_id': budget_id
-                        }
-                        
-                        if pattern_id not in budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['patterns']:
-                            budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['patterns'][pattern_id] = {
-                                'id': pattern_id,
-                                'text': pattern_text,
-                                'total': 0.0,
-                                'transactions': []
-                            }
-        
-        # 4. Procesar transacciones y asignarlas a las subcategorías correspondientes
-
-        logger.debug(f"Resultados de transacciones: {transaction_results[1]}")
-        for transaction in transaction_results[1]:
-            subcategory_id = transaction.get('subcategory_id')
-            amount = float(transaction.get('amount', 0))
-            transaction_type = transaction.get('type')
-            transaction_id = transaction.get('transaction_id')
-            description = transaction.get('description')
+            # Inicializar subcategoría si no existe
+            if subcategory_id not in budgets[budget_id]['categories'][category_id]['subcategories']:
+                budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id] = {
+                    'id': subcategory_id,
+                    'name': subcategory_name,
+                    'total': 0.0,
+                    'patterns': {}
+                }
             
-            # Ajustar el monto si es un gasto (hacerlo negativo)
-            if transaction_type == 'Gasto':
-                amount = -abs(amount)
+            # Definir patrón: si no hay pattern_id, usar "sin_patron_{subcategory_id}"
+            current_pattern_id = pattern_id if pattern_id else f"sin_patron_{subcategory_id}"
+            current_pattern_text = pattern_text if pattern_text else "Sin patrón específico"
             
-            # Si la subcategoría está en nuestra estructura, sumar el monto
-            if subcategory_id in subcategory_to_category:
-                logger.debug(f"Procesando transacción: {transaction_id} - Monto: {amount} - Descripción: {description}")
-                logger.debug(f"Subcategoría encontrada: {subcategory_id} - Monto: {amount}")
+            # Inicializar patrón si no existe
+            if current_pattern_id not in budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['patterns']:
+                budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['patterns'][current_pattern_id] = {
+                    'id': current_pattern_id,
+                    'text': current_pattern_text,
+                    'total': 0.0,
+                    'transactions': []
+                }
             
-                category_id = subcategory_to_category[subcategory_id]['category_id']
-                budget_id = subcategory_to_category[subcategory_id]['budget_id']
-
-                logger.debug(f"Categoría: {category_id} - Presupuesto: {budget_id}")
+            # Procesar transacción si existe y no ha sido procesada antes
+            if transaction_id and transaction_id not in transaction_processed:
+                transaction_processed.add(transaction_id)
                 
-                # Sumar a la subcategoría
-                budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['total'] += amount
-                
-                # Crear una entrada para la transacción en la subcategoría
+                # Crear objeto de transacción con el monto ajustado para gastos
                 transaction_data = {
                     'id': transaction_id,
-                    'amount': amount,
+                    'amount': amount,  # Ya ajustado (negativo para gastos)
                     'description': description,
                     'type': transaction_type
                 }
                 
-                # También agregamos a "Sin patrón específico" para transacciones que no coinciden con patrones
-                pattern_match_found = False
+                # Agregar transacción al patrón
+                pattern = budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['patterns'][current_pattern_id]
+                pattern['transactions'].append(transaction_data)
+                pattern['total'] += amount
                 
-                # Checkear si alguno de los patrones de la subcategoría coincide con la descripción
-                for pattern_id, pattern_info in budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['patterns'].items():
-                    pattern_text = pattern_info['text'].lower()
-                    
-                    # Verificar si el texto del patrón está en la descripción
-                    if pattern_text and pattern_text in description.lower():
-                        # Sumar al patrón específico
-                        pattern_info['total'] += amount
-                        pattern_info['transactions'].append(transaction_data)
-                        pattern_match_found = True
-                
-                # Si no coincide con ningún patrón, crear una entrada "Sin patrón específico"
-                if not pattern_match_found:
-                    no_pattern_id = f"no_pattern_{subcategory_id}"
-                    if no_pattern_id not in budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['patterns']:
-                        budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['patterns'][no_pattern_id] = {
-                            'id': no_pattern_id,
-                            'text': "Sin patrón específico",
-                            'total': 0.0,
-                            'transactions': []
-                        }
-                    
-                    budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['patterns'][no_pattern_id]['total'] += amount
-                    budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['patterns'][no_pattern_id]['transactions'].append(transaction_data)
+                # Actualizar totales en la jerarquía
+                budgets[budget_id]['categories'][category_id]['subcategories'][subcategory_id]['total'] += amount
+                budgets[budget_id]['categories'][category_id]['total'] += amount
+                budgets[budget_id]['total'] += amount
         
-        # 5. Propagar totales hacia arriba en la jerarquía
-        # De subcategorías a categorías, y de categorías a presupuestos
-        for budget_id, budget in budgets.items():
-            for category_id, category in budget['categories'].items():
-                for subcategory_id, subcategory in category['subcategories'].items():
-                    # Sumar el total de la subcategoría a la categoría
-                    category['total'] += subcategory['total']
-                
-                # Sumar el total de la categoría al presupuesto
-                budget['total'] += category['total']
-        
-        # 6. Convertir los diccionarios a listas para el formato final
+        # 4. Convertir diccionarios a listas para el formato final de respuesta
         result = []
         for budget_id, budget in budgets.items():
             budget_result = {
@@ -1101,9 +1034,9 @@ async def get_budget_summary(
         # Ordenar presupuestos por total (descendente)
         result.sort(key=lambda x: x['total'], reverse=True)
         
-        # Al final del proceso, añadir información del período al resultado
-        for i, budget_result in enumerate(result):
-            result[i]['period'] = f"{year}-{month:02d}"
+        # Añadir información del período al resultado
+        for budget_result in result:
+            budget_result['period'] = f"{year}-{month:02d}"
         
         logger.info(f"Resumen de presupuesto generado exitosamente para el usuario {user_id}, período {year}-{month:02d}")
         return result
