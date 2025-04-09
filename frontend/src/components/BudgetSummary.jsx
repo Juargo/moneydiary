@@ -117,7 +117,10 @@ const BudgetSummary = ({ budgetSummary }) => {
                     <div
                       key={budget.id}
                       className={`h-full ${color} relative group flex items-center justify-center`}
-                      style={{ width: `${Math.min(widthPercent, 100)}%` }}
+                      style={{ 
+                        width: `${Math.min(widthPercent, 100)}%`,
+                        minWidth: widthPercent > 0 ? '1%' : '0' // Ensure small segments are still visible
+                      }}
                     >
                       {/* Amount text inside the bar */}
                       {widthPercent > 5 && (
@@ -131,15 +134,7 @@ const BudgetSummary = ({ budgetSummary }) => {
                         {budget.name}: {formatCurrency(budget.budget_amount)} ({Math.round((budget.budget_amount / aggregateData.totalLimit) * 100)}% del límite)
                       </div>
                       
-                      {/* Optional: Add a utilized indicator inside each budget bar - make it lighter */}
-                      {budget.total > 0 && (
-                        <div 
-                          className="absolute top-0 left-0 h-full bg-white bg-opacity-20"
-                          style={{ 
-                            width: `${Math.min(100, (budget.total / budget.budget_amount) * 100)}%` 
-                          }}
-                        ></div>
-                      )}
+                      {/* No more semi-transparent overlay - let the full color show */}
                     </div>
                   );
                 })}
