@@ -37,19 +37,21 @@ const BudgetSummary = ({ budgetSummary }) => {
     let totalSpent = 0;
     let totalBudgetAmount = 0;
     
-    // Get spending data per budget
-    const budgets = budgetSummary.map(budget => {
-      totalSpent += Math.abs(budget.total || 0);
-      totalBudgetAmount += (budget.budget_amount || 0);
-      
-      return {
-        id: budget.id,
-        name: budget.name,
-        total: Math.abs(budget.total || 0),
-        budget_amount: budget.budget_amount || 0,
-        color: getBudgetColor(budget.id) // Helper function to assign colors
-      };
-    });
+    // Filter out the "Ingresos" budget and get spending data for others
+    const budgets = budgetSummary
+      .filter(budget => budget.name.toLowerCase() !== 'ingresos')
+      .map(budget => {
+        totalSpent += Math.abs(budget.total || 0);
+        totalBudgetAmount += (budget.budget_amount || 0);
+        
+        return {
+          id: budget.id,
+          name: budget.name,
+          total: Math.abs(budget.total || 0),
+          budget_amount: budget.budget_amount || 0,
+          color: getBudgetColor(budget.id) // Helper function to assign colors
+        };
+      });
     
     return { totalSpent, budgets, totalLimit, totalBudgetAmount };
   }, [budgetSummary]);
@@ -96,6 +98,7 @@ const BudgetSummary = ({ budgetSummary }) => {
             <span className="text-sm font-semibold">
               {formatCurrency(aggregateData.totalBudgetAmount)} / {formatCurrency(aggregateData.totalLimit)}
               {' '}({Math.round((aggregateData.totalBudgetAmount / aggregateData.totalLimit) * 100)}% del límite)
+              <span className="text-xs text-gray-500 ml-2">(Excluye Ingresos)</span>
             </span>
           </div>
           
