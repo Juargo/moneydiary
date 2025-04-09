@@ -35,19 +35,23 @@ const BudgetSummary = ({ budgetSummary }) => {
     
     const totalLimit = 2000000; // Fixed limit of 2,000,000 CLP
     let totalSpent = 0;
+    let totalBudgetAmount = 0;
     
     // Get spending data per budget
     const budgets = budgetSummary.map(budget => {
       totalSpent += Math.abs(budget.total || 0);
+      totalBudgetAmount += (budget.budget_amount || 0);
+      
       return {
         id: budget.id,
         name: budget.name,
         total: Math.abs(budget.total || 0),
+        budget_amount: budget.budget_amount || 0,
         color: getBudgetColor(budget.id) // Helper function to assign colors
       };
     });
     
-    return { totalSpent, budgets, totalLimit };
+    return { totalSpent, budgets, totalLimit, totalBudgetAmount };
   }, [budgetSummary]);
 
   // Helper function to get a color for each budget
@@ -88,10 +92,10 @@ const BudgetSummary = ({ budgetSummary }) => {
         {/* Overall Budget Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="text-md font-bold">Distribución General de Gastos</h3>
+            <h3 className="text-md font-bold">Distribución General de Presupuestos</h3>
             <span className="text-sm font-semibold">
-              {formatCurrency(aggregateData.totalSpent)} / {formatCurrency(aggregateData.totalLimit)}
-              {' '}({Math.round((aggregateData.totalSpent / aggregateData.totalLimit) * 100)}%)
+              {formatCurrency(aggregateData.totalBudgetAmount)} / {formatCurrency(aggregateData.totalLimit)}
+              {' '}({Math.round((aggregateData.totalBudgetAmount / aggregateData.totalLimit) * 100)}% del límite)
             </span>
           </div>
           
@@ -102,18 +106,35 @@ const BudgetSummary = ({ budgetSummary }) => {
               <div className="h-full flex">
                 {aggregateData.budgets.map((budget, index) => {
                   // Calculate the width as percentage of the total limit
-                  const widthPercent = (budget.total / aggregateData.totalLimit) * 100;
+                  const widthPercent = (budget.budget_amount / aggregateData.totalLimit) * 100;
                   
                   return (
                     <div
                       key={budget.id}
-                      className={`h-full ${budget.color} relative group`}
+                      className={`h-full ${budget.color} relative group flex items-center justify-center`}
                       style={{ width: `${Math.min(widthPercent, 100)}%` }}
                     >
+                      {/* Amount text inside the bar */}
+                      {widthPercent > 5 && (
+                        <span className="text-xs text-white font-medium z-10 truncate px-1">
+                          {formatCurrency(budget.budget_amount)}
+                        </span>
+                      )}
+                      
                       {/* Tooltip on hover */}
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        {budget.name}: {formatCurrency(budget.total)} ({Math.round((budget.total / aggregateData.totalLimit) * 100)}%)
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
+                        {budget.name}: {formatCurrency(budget.budget_amount)} ({Math.round((budget.budget_amount / aggregateData.totalLimit) * 100)}% del límite)
                       </div>
+                      
+                      {/* Optional: Add a utilized indicator inside each budget bar */}
+                      {budget.total > 0 && (
+                        <div 
+                          className="absolute top-0 left-0 h-full bg-black bg-opacity-30"
+                          style={{ 
+                            width: `${Math.min(100, (budget.total / budget.budget_amount) * 100)}%` 
+                          }}
+                        ></div>
+                      )}
                     </div>
                   );
                 })}
@@ -132,7 +153,7 @@ const BudgetSummary = ({ budgetSummary }) => {
             {aggregateData.budgets.map((budget) => (
               <div key={budget.id} className="flex items-center">
                 <div className={`w-4 h-4 rounded ${budget.color} mr-1`}></div>
-                <span className="text-xs">{budget.name}</span>
+                <span className="text-xs">{budget.name} ({Math.round((budget.budget_amount / aggregateData.totalLimit) * 100)}%)</span>
               </div>
             ))}
           </div>
