@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 
 const BudgetSummary = ({ budgetSummary }) => {
+  console.log('BudgetSummary', budgetSummary);
   const [expandedItems, setExpandedItems] = useState({});
 
   // Sort all data by amount (total) in descending order
