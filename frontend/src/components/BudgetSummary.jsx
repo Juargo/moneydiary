@@ -36,35 +36,28 @@ const BudgetSummary = ({ budgetSummary }) => {
     
     const totalLimit = 2000000; // Fixed limit of 2,000,000 CLP
     let totalSpent = 0;
-    let totalBudgetAmount = 0;
     
     // Filter out the "Ingresos" budget and prepare budget data
     const budgets = budgetSummary
       .filter(budget => budget.name.toLowerCase() !== 'ingresos')
       .map(budget => {
-        // Calculate the total budget amount from subcategories
-        let budgetTotal = 0;
-        let totalBudgetSpent = 0;
-        
-        // Sum up all subcategory budget amounts and actual spending
-        budget.categories.forEach(category => {
-          category.subcategories.forEach(subcategory => {
-            budgetTotal += (subcategory.subcategory_budget_amount || 0);
-            totalBudgetSpent += Math.abs(subcategory.total || 0);
-          });
-        });
+        // Use the budget_amount directly from the API response
+        const budgetTotal = budget.budget_amount || 0;
+        let totalBudgetSpent = Math.abs(budget.total || 0);
         
         totalSpent += totalBudgetSpent;
-        totalBudgetAmount += budgetTotal; // Add to the overall budget amount
         
         return {
           id: budget.id,
           name: budget.name,
-          total: totalBudgetSpent, // Use the sum of all subcategory totals
-          budget_amount: budgetTotal, // Use the sum of all subcategory budget amounts
+          total: totalBudgetSpent,
+          budget_amount: budgetTotal, // Use the budget_amount field directly
           color: getBudgetColor(budget.id)
         };
       });
+    
+    // Calculate total budget amount by summing all budget amounts
+    const totalBudgetAmount = budgets.reduce((sum, budget) => sum + budget.budget_amount, 0);
     
     return { totalSpent, budgets, totalLimit, totalBudgetAmount };
   }, [budgetSummary]);
@@ -207,7 +200,7 @@ const BudgetSummary = ({ budgetSummary }) => {
                       <span className="font-medium">{budget.name}</span>
                     </div>
                     <div className={`font-semibold ${budget.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {budget.formattedTotal}
+                      {formatCurrency(budget.total)}
                     </div>
                   </div>
                   
@@ -217,7 +210,7 @@ const BudgetSummary = ({ budgetSummary }) => {
                       <div className="flex mb-2 items-center justify-between">
                         <div>
                           <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-yellow-600 bg-yellow-200">
-                            Presupuesto Total
+                            Presupuesto Total: {formatCurrency(budget.budget_amount)}
                           </span>
                         </div>
                         <div className="text-right">
@@ -266,7 +259,7 @@ const BudgetSummary = ({ budgetSummary }) => {
                             <span>{category.name}</span>
                           </div>
                           <div className={`font-semibold ${category.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {category.formattedTotal}
+                            {formatCurrency(category.total)}
                           </div>
                         </div>
                         
@@ -276,7 +269,7 @@ const BudgetSummary = ({ budgetSummary }) => {
                             <div className="flex mb-2 items-center justify-between">
                               <div>
                                 <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                                  Categoría
+                                  Categoría: {formatCurrency(category.category_budget_amount)}
                                 </span>
                               </div>
                               <div className="text-right">
@@ -325,7 +318,7 @@ const BudgetSummary = ({ budgetSummary }) => {
                                   <span>{subcategory.name}</span>
                                 </div>
                                 <div className={`font-semibold ${subcategory.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                  {subcategory.formattedTotal}
+                                  {formatCurrency(subcategory.total)}
                                 </div>
                               </div>
                               
