@@ -3,7 +3,7 @@ import TransactionsList from './TransactionsList';
 import BudgetSummary from './BudgetSummary';
 
 const TransactionsManager = ({ userId, apiUrl, budgetSummaryUrl, initialMonth }) => {
-  const [activeTab, setActiveTab] = useState('transactions');
+  const [activeTab, setActiveTab] = useState('budget-summary');
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [transactions, setTransactions] = useState([]);
   const [budgetSummary, setBudgetSummary] = useState([]);
