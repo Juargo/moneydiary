@@ -29,6 +29,48 @@ const BudgetSummary = ({ budgetSummary }) => {
     return sortedData;
   }, [budgetSummary]);
 
+  // Calculate aggregate data for the overall budget visualization
+  const aggregateData = useMemo(() => {
+    if (!budgetSummary || budgetSummary.length === 0) return { totalSpent: 0, budgets: [] };
+    
+    const totalLimit = 2000000; // Fixed limit of 2,000,000 CLP
+    let totalSpent = 0;
+    
+    // Get spending data per budget
+    const budgets = budgetSummary.map(budget => {
+      totalSpent += Math.abs(budget.total || 0);
+      return {
+        id: budget.id,
+        name: budget.name,
+        total: Math.abs(budget.total || 0),
+        color: getBudgetColor(budget.id) // Helper function to assign colors
+      };
+    });
+    
+    return { totalSpent, budgets, totalLimit };
+  }, [budgetSummary]);
+
+  // Helper function to get a color for each budget
+  function getBudgetColor(budgetId) {
+    // Array of distinct colors for budgets
+    const colors = [
+      'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500', 
+      'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500'
+    ];
+    
+    // Use the budgetId to deterministically select a color
+    return colors[budgetId % colors.length];
+  }
+
+  // Format currency values
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(value);
+  };
+
   const toggleAccordion = (type, id) => {
     setExpandedItems(prev => ({
       ...prev,
@@ -43,6 +85,59 @@ const BudgetSummary = ({ budgetSummary }) => {
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-6">
+        {/* Overall Budget Progress Bar */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-md font-bold">Distribución General de Gastos</h3>
+            <span className="text-sm font-semibold">
+              {formatCurrency(aggregateData.totalSpent)} / {formatCurrency(aggregateData.totalLimit)}
+              {' '}({Math.round((aggregateData.totalSpent / aggregateData.totalLimit) * 100)}%)
+            </span>
+          </div>
+          
+          <div className="relative">
+            {/* Main progress bar background */}
+            <div className="h-8 bg-gray-200 rounded-lg overflow-hidden">
+              {/* Stacked budget segments */}
+              <div className="h-full flex">
+                {aggregateData.budgets.map((budget, index) => {
+                  // Calculate the width as percentage of the total limit
+                  const widthPercent = (budget.total / aggregateData.totalLimit) * 100;
+                  
+                  return (
+                    <div
+                      key={budget.id}
+                      className={`h-full ${budget.color} relative group`}
+                      style={{ width: `${Math.min(widthPercent, 100)}%` }}
+                    >
+                      {/* Tooltip on hover */}
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                        {budget.name}: {formatCurrency(budget.total)} ({Math.round((budget.total / aggregateData.totalLimit) * 100)}%)
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Limit marker */}
+            <div className="absolute top-0 right-0 bottom-0 flex items-center">
+              <div className="h-full w-0.5 bg-black"></div>
+              <span className="text-xs font-semibold ml-1 bg-white px-1 rounded">Límite</span>
+            </div>
+          </div>
+          
+          {/* Legend */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {aggregateData.budgets.map((budget) => (
+              <div key={budget.id} className="flex items-center">
+                <div className={`w-4 h-4 rounded ${budget.color} mr-1`}></div>
+                <span className="text-xs">{budget.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Resumen de Presupuestos</h2>
         
         {sortedBudgetData.length > 0 ? (
