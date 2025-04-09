@@ -58,10 +58,11 @@ const BudgetSummary = ({ budgetSummary }) => {
 
   // Helper function to get a color for each budget
   function getBudgetColor(budgetId) {
-    // Array of distinct colors for budgets
+    // Array of distinct colors for budgets - using more vibrant colors
     const colors = [
-      'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500', 
-      'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500'
+      'bg-blue-500', 'bg-green-500', 'bg-yellow-400', 'bg-red-500', 
+      'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500',
+      'bg-teal-500', 'bg-lime-500', 'bg-cyan-500', 'bg-rose-500'
     ];
     
     // Use the budgetId to deterministically select a color
@@ -110,16 +111,17 @@ const BudgetSummary = ({ budgetSummary }) => {
                 {aggregateData.budgets.map((budget, index) => {
                   // Calculate the width as percentage of the total limit
                   const widthPercent = (budget.budget_amount / aggregateData.totalLimit) * 100;
+                  const color = budget.color;
                   
                   return (
                     <div
                       key={budget.id}
-                      className={`h-full ${budget.color} relative group flex items-center justify-center`}
+                      className={`h-full ${color} relative group flex items-center justify-center`}
                       style={{ width: `${Math.min(widthPercent, 100)}%` }}
                     >
                       {/* Amount text inside the bar */}
                       {widthPercent > 5 && (
-                        <span className="text-xs text-white font-medium z-10 truncate px-1">
+                        <span className="text-xs text-white font-medium z-10 truncate px-1 drop-shadow-md">
                           {formatCurrency(budget.budget_amount)}
                         </span>
                       )}
@@ -129,10 +131,10 @@ const BudgetSummary = ({ budgetSummary }) => {
                         {budget.name}: {formatCurrency(budget.budget_amount)} ({Math.round((budget.budget_amount / aggregateData.totalLimit) * 100)}% del límite)
                       </div>
                       
-                      {/* Optional: Add a utilized indicator inside each budget bar */}
+                      {/* Optional: Add a utilized indicator inside each budget bar - make it lighter */}
                       {budget.total > 0 && (
                         <div 
-                          className="absolute top-0 left-0 h-full bg-black bg-opacity-30"
+                          className="absolute top-0 left-0 h-full bg-white bg-opacity-20"
                           style={{ 
                             width: `${Math.min(100, (budget.total / budget.budget_amount) * 100)}%` 
                           }}
@@ -155,7 +157,7 @@ const BudgetSummary = ({ budgetSummary }) => {
           <div className="mt-4 flex flex-wrap gap-2">
             {aggregateData.budgets.map((budget) => (
               <div key={budget.id} className="flex items-center">
-                <div className={`w-4 h-4 rounded ${budget.color} mr-1`}></div>
+                <div className={`w-4 h-4 rounded ${budget.color} mr-1 border border-gray-300`}></div>
                 <span className="text-xs">{budget.name} ({Math.round((budget.budget_amount / aggregateData.totalLimit) * 100)}%)</span>
               </div>
             ))}
