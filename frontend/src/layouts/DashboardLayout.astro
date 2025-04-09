@@ -15,71 +15,105 @@ const { title } = Astro.props;
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   </head>
   <body class="bg-gray-100">
-    <div class="min-h-screen flex">
-      <!-- Sidebar -->
-      <aside class="w-64 bg-blue-800 text-white shadow-lg">
-        <div class="p-6 border-b border-blue-700">
-          <h1 class="text-2xl font-bold">MoneyDiary</h1>
-        </div>
-        <nav class="mt-4">
-          <ul class="space-y-1">
-            <li>
-              <a href="/" class="block px-6 py-3 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
-                <i class="fas fa-home w-5 mr-3 text-blue-300"></i> Dashboard
-              </a>
-            </li>
-            <li>
-              <a href="/transactions" class="block px-6 py-3 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
-                <i class="fas fa-exchange-alt w-5 mr-3 text-blue-300"></i> Transacciones
-              </a>
-            </li>
-            <li>
-              <a href="/budget" class="block px-6 py-3 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
-                <i class="fas fa-chart-pie w-5 mr-3 text-blue-300"></i> Presupuestos
-              </a>
-            </li>
-            <li>
-              <a href="/reports" class="block px-6 py-3 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
-                <i class="fas fa-chart-line w-5 mr-3 text-blue-300"></i> Informes
-              </a>
-            </li>
-            <li>
-              <a href="/settings" class="block px-6 py-3 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
-                <i class="fas fa-cog w-5 mr-3 text-blue-300"></i> Configuración
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </aside>
-
-      <!-- Main Content -->
-      <div class="flex-1">
-        <!-- Header -->
-        <header class="bg-white shadow">
-          <div class="flex items-center justify-between p-4">
-            <div>
-              <h2 class="text-lg font-semibold">{title}</h2>
+    <div class="min-h-screen flex flex-col">
+      <!-- Top Navigation Bar -->
+      <nav class="bg-blue-800 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+          <div class="flex justify-between items-center h-16">
+            <!-- Logo -->
+            <div class="flex items-center">
+              <h1 class="text-2xl font-bold">MoneyDiary</h1>
             </div>
+            
+            <!-- Navigation Links -->
+            <div class="hidden md:flex space-x-4">
+              <a href="/" class="px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
+                <i class="fas fa-home w-5 mr-1 text-blue-300"></i> Dashboard
+              </a>
+              <a href="/transactions" class="px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
+                <i class="fas fa-exchange-alt w-5 mr-1 text-blue-300"></i> Transacciones
+              </a>
+              <a href="/budget" class="px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
+                <i class="fas fa-chart-pie w-5 mr-1 text-blue-300"></i> Presupuestos
+              </a>
+              <a href="/reports" class="px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
+                <i class="fas fa-chart-line w-5 mr-1 text-blue-300"></i> Informes
+              </a>
+              <a href="/settings" class="px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
+                <i class="fas fa-cog w-5 mr-1 text-blue-300"></i> Configuración
+              </a>
+            </div>
+            
+            <!-- User Menu -->
             <div class="flex items-center">
               <div class="relative mr-4">
-                <i class="fas fa-bell text-gray-500"></i>
+                <i class="fas fa-bell text-blue-300"></i>
                 <span class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-4 w-4 flex items-center justify-center text-xs">3</span>
               </div>
               <div class="flex items-center">
-                <div class="bg-gray-300 rounded-full h-8 w-8 flex items-center justify-center">
-                  <i class="fas fa-user text-gray-600"></i>
+                <div class="bg-blue-700 rounded-full h-8 w-8 flex items-center justify-center">
+                  <i class="fas fa-user text-blue-300"></i>
                 </div>
                 <span class="ml-2">Usuario</span>
               </div>
+              <!-- Mobile Menu Button -->
+              <div class="ml-4 md:hidden">
+                <button type="button" class="text-white hover:text-blue-300">
+                  <i class="fas fa-bars"></i>
+                </button>
+              </div>
             </div>
+          </div>
+          
+          <!-- Mobile Navigation Menu (Hidden by default) -->
+          <div class="hidden md:hidden" id="mobile-menu">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+              <a href="/" class="block px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
+                <i class="fas fa-home w-5 mr-3 text-blue-300"></i> Dashboard
+              </a>
+              <a href="/transactions" class="block px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
+                <i class="fas fa-exchange-alt w-5 mr-3 text-blue-300"></i> Transacciones
+              </a>
+              <a href="/budget" class="block px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
+                <i class="fas fa-chart-pie w-5 mr-3 text-blue-300"></i> Presupuestos
+              </a>
+              <a href="/reports" class="block px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
+                <i class="fas fa-chart-line w-5 mr-3 text-blue-300"></i> Informes
+              </a>
+              <a href="/settings" class="block px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
+                <i class="fas fa-cog w-5 mr-3 text-blue-300"></i> Configuración
+              </a>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Main Content -->
+      <div class="flex-1">
+        <!-- Page Title Header -->
+        <header class="bg-white shadow">
+          <div class="container mx-auto px-4 py-4">
+            <h2 class="text-lg font-semibold">{title}</h2>
           </div>
         </header>
 
         <!-- Page Content -->
-        <main class="p-6">
+        <main class="container mx-auto px-4 py-6">
           <slot />
         </main>
       </div>
     </div>
+    
+    <script>
+      // Mobile menu toggle
+      const mobileMenuButton = document.querySelector('button');
+      const mobileMenu = document.getElementById('mobile-menu');
+      
+      if (mobileMenuButton && mobileMenu) {
+        mobileMenuButton.addEventListener('click', () => {
+          mobileMenu.classList.toggle('hidden');
+        });
+      }
+    </script>
   </body>
 </html>
