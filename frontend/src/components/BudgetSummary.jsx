@@ -183,8 +183,8 @@ const BudgetSummary = ({ budgetSummary }) => {
                     </div>
                   </div>
                   
-                  {/* Progress bar for budget */}
-                  {budget.budget_amount > 0 && (
+                  {/* Progress bar for budget - hide for "Ingresos" budget */}
+                  {budget.budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
                     <div className="mt-1 relative pt-1">
                       <div className="flex mb-2 items-center justify-between">
                         <div>
@@ -242,8 +242,8 @@ const BudgetSummary = ({ budgetSummary }) => {
                           </div>
                         </div>
                         
-                        {/* Progress bar for category */}
-                        {category.category_budget_amount > 0 && (
+                        {/* Progress bar for category - hide for "Ingresos" budget */}
+                        {category.category_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
                           <div className="mt-1 relative pt-1">
                             <div className="flex mb-2 items-center justify-between">
                               <div>
@@ -301,8 +301,8 @@ const BudgetSummary = ({ budgetSummary }) => {
                                 </div>
                               </div>
                               
-                              {/* Progress bar for subcategory */}
-                              {subcategory.subcategory_budget_amount > 0 && (
+                              {/* Progress bar for subcategory - hide for "Ingresos" budget */}
+                              {subcategory.subcategory_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
                                 <div className="mt-1 relative pt-1">
                                   <div className="flex mb-2 items-center justify-between">
                                     <div>
