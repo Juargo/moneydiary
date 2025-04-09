@@ -31,25 +31,37 @@ const BudgetSummary = ({ budgetSummary }) => {
 
   // Calculate aggregate data for the overall budget visualization
   const aggregateData = useMemo(() => {
-    if (!budgetSummary || budgetSummary.length === 0) return { totalSpent: 0, budgets: [] };
+    if (!budgetSummary || budgetSummary.length === 0) return { totalSpent: 0, budgets: [], totalLimit: 2000000, totalBudgetAmount: 0 };
     
     const totalLimit = 2000000; // Fixed limit of 2,000,000 CLP
     let totalSpent = 0;
     let totalBudgetAmount = 0;
     
-    // Filter out the "Ingresos" budget and get spending data for others
+    // Filter out the "Ingresos" budget and prepare budget data
     const budgets = budgetSummary
       .filter(budget => budget.name.toLowerCase() !== 'ingresos')
       .map(budget => {
-        totalSpent += Math.abs(budget.total || 0);
-        totalBudgetAmount += (budget.budget_amount || 0);
+        // Calculate the total budget amount from subcategories
+        let budgetTotal = 0;
+        let totalBudgetSpent = 0;
+        
+        // Sum up all subcategory budget amounts and actual spending
+        budget.categories.forEach(category => {
+          category.subcategories.forEach(subcategory => {
+            budgetTotal += (subcategory.subcategory_budget_amount || 0);
+            totalBudgetSpent += Math.abs(subcategory.total || 0);
+          });
+        });
+        
+        totalSpent += totalBudgetSpent;
+        totalBudgetAmount += budgetTotal; // Add to the overall budget amount
         
         return {
           id: budget.id,
           name: budget.name,
-          total: Math.abs(budget.total || 0),
-          budget_amount: budget.budget_amount || 0,
-          color: getBudgetColor(budget.id) // Helper function to assign colors
+          total: totalBudgetSpent, // Use the sum of all subcategory totals
+          budget_amount: budgetTotal, // Use the sum of all subcategory budget amounts
+          color: getBudgetColor(budget.id)
         };
       });
     
@@ -109,9 +121,18 @@ const BudgetSummary = ({ budgetSummary }) => {
               {/* Stacked budget segments */}
               <div className="h-full flex">
                 {aggregateData.budgets.map((budget, index) => {
-                  // Calculate the width as percentage of the total limit
+                  // Calculate the width as percentage of the total limit based on budget_amount
                   const widthPercent = (budget.budget_amount / aggregateData.totalLimit) * 100;
                   const color = budget.color;
+                  
+                  // Calculate spending percentage relative to this budget's allocation
+                  const spendingPercent = budget.budget_amount > 0 
+                    ? Math.min(100, (budget.total / budget.budget_amount) * 100) 
+                    : 0;
+                  
+                  // Get the corresponding darker color class by extracting the color base
+                  const colorBase = color.replace('bg-', '').split('-')[0]; // Extract base color name
+                  const darkerColorClass = `bg-${colorBase}-600`; // Use darker shade
                   
                   return (
                     <div
@@ -122,19 +143,26 @@ const BudgetSummary = ({ budgetSummary }) => {
                         minWidth: widthPercent > 0 ? '1%' : '0' // Ensure small segments are still visible
                       }}
                     >
-                      {/* Amount text inside the bar */}
+                      {/* Amount text inside the bar - show the budget_amount */}
                       {widthPercent > 5 && (
                         <span className="text-xs text-white font-medium z-10 truncate px-1 drop-shadow-md">
                           {formatCurrency(budget.budget_amount)}
                         </span>
                       )}
                       
-                      {/* Tooltip on hover */}
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
-                        {budget.name}: {formatCurrency(budget.budget_amount)} ({Math.round((budget.budget_amount / aggregateData.totalLimit) * 100)}% del límite)
-                      </div>
+                      {/* Spending indicator inside the bar - using same color family but darker */}
+                      <div 
+                        className={`absolute left-0 top-0 h-2 ${darkerColorClass} bg-opacity-70 z-5`}
+                        style={{ width: `${spendingPercent}%` }}
+                      ></div>
                       
-                      {/* No more semi-transparent overlay - let the full color show */}
+                      {/* Tooltip on hover - show both the budget amount and actual spending */}
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
+                        <div>{budget.name}:</div>
+                        <div>Presupuesto: {formatCurrency(budget.budget_amount)}</div>
+                        <div>Gastado: {formatCurrency(budget.total)} ({Math.round(spendingPercent)}%)</div>
+                        <div>({Math.round((budget.budget_amount / aggregateData.totalLimit) * 100)}% del límite)</div>
+                      </div>
                     </div>
                   );
                 })}
@@ -153,7 +181,9 @@ const BudgetSummary = ({ budgetSummary }) => {
             {aggregateData.budgets.map((budget) => (
               <div key={budget.id} className="flex items-center">
                 <div className={`w-4 h-4 rounded ${budget.color} mr-1 border border-gray-300`}></div>
-                <span className="text-xs">{budget.name} ({Math.round((budget.budget_amount / aggregateData.totalLimit) * 100)}%)</span>
+                <span className="text-xs">
+                  {budget.name} ({Math.round((budget.budget_amount / aggregateData.totalLimit) * 100)}% - {Math.round(budget.total / budget.budget_amount * 100)}% usado)
+                </span>
               </div>
             ))}
           </div>
