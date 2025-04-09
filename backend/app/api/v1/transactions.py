@@ -866,6 +866,8 @@ async def get_budget_summary(
             v.category_name,
             v.subcategory_id,
             v.subcategory_name,
+            v.subcategory_budget_amount,
+            v.category_budget_amount,
             v.budget_amount,
             v.pattern_id,
             v.pattern_text,
@@ -905,7 +907,9 @@ async def get_budget_summary(
             category_name = row.get('category_name')
             subcategory_id = row.get('subcategory_id')
             subcategory_name = row.get('subcategory_name')
-            budget_amount = float(row.get('budget_amount', 0))  # Obtener el budget_amount de la vista
+            subcategory_budget_amount = float(row.get('subcategory_budget_amount', 0))
+            category_budget_amount = float(row.get('category_budget_amount', 0))
+            budget_amount = float(row.get('budget_amount', 0))
             pattern_id = row.get('pattern_id')
             pattern_text = row.get('pattern_text')
             transaction_id = row.get('transaction_id')
@@ -927,6 +931,7 @@ async def get_budget_summary(
                     'id': budget_id,
                     'name': budget_name,
                     'total': 0.0,
+                    'budget_amount': budget_amount,  # Usar el valor directamente de la vista
                     'categories': {}
                 }
             
@@ -936,6 +941,7 @@ async def get_budget_summary(
                     'id': category_id,
                     'name': category_name,
                     'total': 0.0,
+                    'category_budget_amount': category_budget_amount,  # Usar el valor directamente de la vista
                     'subcategories': {}
                 }
                 
@@ -945,7 +951,7 @@ async def get_budget_summary(
                     'id': subcategory_id,
                     'name': subcategory_name,
                     'total': 0.0,
-                    'budget_amount': budget_amount,  # Almacenar budget_amount internamente con el mismo nombre
+                    'subcategory_budget_amount': subcategory_budget_amount,  # Usar el valor directamente de la vista
                     'patterns': {}
                 }
             
@@ -987,33 +993,22 @@ async def get_budget_summary(
         # 4. Convertir diccionarios a listas para el formato final de respuesta
         result = []
         for budget_id, budget in budgets.items():
-            # Inicializar el budget_result básico
+            # Usar directamente el budget_amount de la vista
             budget_result = {
                 'id': budget['id'],
                 'name': budget['name'],
                 'total': budget['total'],
+                'budget_amount': budget['budget_amount'],  # Usar el valor de la vista sin recalcular
                 'categories': []
             }
             
-            # Variable para almacenar la suma de category_budget_amount
-            total_budget_amount = 0
-            
             # Agregar categorías
             for category_id, category in budget['categories'].items():
-                # Calcular el total del presupuesto de la categoría sumando los presupuestos de todas sus subcategorías
-                category_budget_amount = sum(
-                    subcategory['budget_amount'] 
-                    for subcategory in category['subcategories'].values()
-                )
-                
-                # Acumular para el budget_amount total
-                total_budget_amount += category_budget_amount
-                
                 category_result = {
                     'id': category['id'],
                     'name': category['name'],
                     'total': category['total'],
-                    'category_budget_amount': category_budget_amount,  # Agregar el presupuesto total de la categoría
+                    'category_budget_amount': category['category_budget_amount'],  # Usar el valor de la vista sin recalcular
                     'subcategories': []
                 }
                 
@@ -1023,7 +1018,7 @@ async def get_budget_summary(
                         'id': subcategory['id'],
                         'name': subcategory['name'],
                         'total': subcategory['total'],
-                        'subcategory_budget_amount': subcategory['budget_amount'],  # Renombrar a subcategory_budget_amount en la respuesta
+                        'subcategory_budget_amount': subcategory['subcategory_budget_amount'],
                         'patterns': []
                     }
                     
@@ -1044,9 +1039,6 @@ async def get_budget_summary(
                 # Ordenar subcategorías por total (descendente)
                 category_result['subcategories'].sort(key=lambda x: x['total'], reverse=True)
                 budget_result['categories'].append(category_result)
-            
-            # Añadir el budget_amount calculado al budget_result
-            budget_result['budget_amount'] = total_budget_amount
             
             # Ordenar categorías por total (descendente)
             budget_result['categories'].sort(key=lambda x: x['total'], reverse=True)
