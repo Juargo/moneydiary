@@ -15,7 +15,6 @@ const currentYearMonth = queryMonth || `${today.getFullYear()}-${String(today.ge
 // Set up the data that will be passed to the React component
 const userId = 1; // In a real app, get this from authentication
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/graphql';
-const BUDGET_SUMMARY_URL = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '') || 'http://localhost:8000';
 
 // Pass these variables to the client-side component
 ---
@@ -36,7 +35,6 @@ const BUDGET_SUMMARY_URL = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '
     client:load
     userId={userId} 
     apiUrl={API_URL}
-    budgetSummaryUrl={BUDGET_SUMMARY_URL}
     initialMonth={currentYearMonth}
   />
 </DashboardLayout>

@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import TransactionsList from './TransactionsList';
-import BudgetSummary from './BudgetSummary';
 
-const TransactionsManager = ({ userId, apiUrl, budgetSummaryUrl, initialMonth }) => {
-  const [activeTab, setActiveTab] = useState('budget-summary');
+const TransactionsManager = ({ userId, apiUrl, initialMonth }) => {
   const [currentMonth, setCurrentMonth] = useState(initialMonth);
   const [transactions, setTransactions] = useState([]);
-  const [budgetSummary, setBudgetSummary] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [displayPeriod, setDisplayPeriod] = useState(initialMonth);
 
@@ -83,55 +80,11 @@ const TransactionsManager = ({ userId, apiUrl, budgetSummaryUrl, initialMonth })
     }
   };
 
-  // Fetch budget summary data
-  const fetchBudgetSummary = async (yearMonth) => {
-    try {
-      const summaryResponse = await fetch(`${budgetSummaryUrl}/api/v1/transactions/budget-summary?user_id=${userId}&year_month=${yearMonth}`);
-      if (summaryResponse.ok) {
-        const data = await summaryResponse.json();
-        
-        // Format the budget summary data
-        const formattedData = data.map(budget => ({
-          ...budget,
-          formattedTotal: formatCurrency(budget.total),
-          categories: budget.categories.map(category => ({
-            ...category,
-            formattedTotal: formatCurrency(category.total),
-            subcategories: category.subcategories.map(subcategory => ({
-              ...subcategory,
-              formattedTotal: formatCurrency(subcategory.total),
-              patterns: subcategory.patterns.map(pattern => ({
-                ...pattern,
-                formattedTotal: formatCurrency(pattern.total)
-              }))
-            }))
-          }))
-        }));
-        
-        setBudgetSummary(formattedData);
-        
-        // Update the display period if available
-        if (data.length > 0 && data[0].period) {
-          setDisplayPeriod(data[0].period);
-        }
-      } else {
-        console.error('Error fetching budget summary:', await summaryResponse.text());
-        setBudgetSummary([]);
-      }
-    } catch (error) {
-      console.error('Error fetching budget summary:', error);
-      setBudgetSummary([]);
-    }
-  };
-
   // Load data when month changes
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([
-        fetchTransactions(currentMonth),
-        fetchBudgetSummary(currentMonth)
-      ]);
+      await fetchTransactions(currentMonth);
       setIsLoading(false);
     };
     
@@ -151,7 +104,7 @@ const TransactionsManager = ({ userId, apiUrl, budgetSummaryUrl, initialMonth })
 
   return (
     <div>
-      {/* Month Filter - Common for both tabs */}
+      {/* Month Filter */}
       <div className="bg-white rounded-lg shadow p-4 mb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="w-full md:w-64">
@@ -180,35 +133,9 @@ const TransactionsManager = ({ userId, apiUrl, budgetSummaryUrl, initialMonth })
         </div>
       )}
       
-      {/* Tab Navigation */}
-      <div className="mb-4 border-b border-gray-200">
-        <ul className="flex flex-wrap -mb-px text-sm font-medium text-center">
-          <li className="mr-2">
-            <button 
-              className={`inline-block p-4 border-b-2 rounded-t-lg ${activeTab === 'transactions' ? 'border-primary-600 text-primary-600' : 'border-transparent hover:text-gray-600 hover:border-gray-300'}`}
-              onClick={() => setActiveTab('transactions')}
-            >
-              <i className="fas fa-list-ul mr-2"></i>Listado de Transacciones
-            </button>
-          </li>
-          <li className="mr-2">
-            <button 
-              className={`inline-block p-4 border-b-2 rounded-t-lg ${activeTab === 'budget-summary' ? 'border-primary-600 text-primary-600' : 'border-transparent hover:text-gray-600 hover:border-gray-300'}`}
-              onClick={() => setActiveTab('budget-summary')}
-            >
-              <i className="fas fa-chart-pie mr-2"></i>Resumen Presupuestario
-            </button>
-          </li>
-        </ul>
-      </div>
-      
-      {/* Tab Content */}
+      {/* Transactions List */}
       <div>
-        {activeTab === 'transactions' ? (
-          <TransactionsList transactions={transactions} />
-        ) : (
-          <BudgetSummary budgetSummary={budgetSummary} />
-        )}
+        <TransactionsList transactions={transactions} />
       </div>
     </div>
   );

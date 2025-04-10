@@ -1,9 +1,19 @@
 ---
+import DashboardBudgetSummary from "../components/DashboardBudgetSummary";
+
 interface Props {
   title: string;
 }
 
 const { title } = Astro.props;
+
+// Get current month in YYYY-MM format for the budget summary
+const currentMonth = new Date().toISOString().substring(0, 7);
+// Set the user ID for the budget summary
+const userId = 1; // Replace with actual user ID from your auth system
+// Set the API URL for the budget summary
+const budgetSummaryUrl = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '') || 'http://localhost:8000';
+
 ---
 
 <!DOCTYPE html>
@@ -99,7 +109,20 @@ const { title } = Astro.props;
 
         <!-- Page Content -->
         <main class="container mx-auto px-4 py-6">
+          <!-- Budget Summary Dashboard Widget -->
+          {title === "Dashboard" && (
+            <div class="mt-8">
+              <h3 class="text-xl font-semibold mb-4">Resumen Presupuestario</h3>
+              <DashboardBudgetSummary 
+                client:load 
+                userId={userId} 
+                budgetSummaryUrl={budgetSummaryUrl}
+                initialMonth={currentMonth}
+              />
+            </div>
+          )}
           <slot />
+
         </main>
       </div>
     </div>
