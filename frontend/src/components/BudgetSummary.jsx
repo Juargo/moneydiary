@@ -64,11 +64,11 @@ const BudgetSummary = ({ budgetSummary }) => {
 
   // Helper function to get a color for each budget
   function getBudgetColor(budgetId) {
-    // Array of distinct colors for budgets - using more vibrant colors
+    // Array of distinct pastel colors for budgets
     const colors = [
-      'bg-blue-500', 'bg-green-500', 'bg-yellow-400', 'bg-red-500', 
-      'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500',
-      'bg-teal-500', 'bg-lime-500', 'bg-cyan-500', 'bg-rose-500'
+      'bg-blue-400', 'bg-green-400', 'bg-yellow-400', 'bg-red-400', 
+      'bg-purple-400', 'bg-pink-400', 'bg-indigo-400', 'bg-orange-400',
+      'bg-teal-400', 'bg-lime-400', 'bg-cyan-400', 'bg-rose-400'
     ];
     
     // Use the budgetId to deterministically select a color
@@ -126,7 +126,7 @@ const BudgetSummary = ({ budgetSummary }) => {
                   
                   // Get the corresponding darker color class by extracting the color base
                   const colorBase = color.replace('bg-', '').split('-')[0]; // Extract base color name
-                  const darkerColorClass = `bg-${colorBase}-600`; // Use darker shade
+                  const darkerColorClass = `bg-${colorBase}-500`; // Use shade 500 instead of 600
                   
                   return (
                     <div
