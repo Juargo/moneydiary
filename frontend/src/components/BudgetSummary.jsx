@@ -59,7 +59,18 @@ const BudgetSummary = ({ budgetSummary }) => {
     // Calculate total budget amount by summing all budget amounts
     const totalBudgetAmount = budgets.reduce((sum, budget) => sum + budget.budget_amount, 0);
     
-    return { totalSpent, budgets, totalLimit, totalBudgetAmount };
+    // Calculate the difference between total limit and budget amount
+    const difference = totalLimit - totalBudgetAmount;
+    const hasSavings = difference >= 0;
+    
+    return { 
+      totalSpent, 
+      budgets, 
+      totalLimit, 
+      totalBudgetAmount,
+      difference,
+      hasSavings
+    };
   }, [budgetSummary]);
 
   // Helper function to get a color for each budget
@@ -107,6 +118,50 @@ const BudgetSummary = ({ budgetSummary }) => {
               {' '}({Math.round((aggregateData.totalBudgetAmount / aggregateData.totalLimit) * 100)}% del límite)
               <span className="text-xs text-gray-500 ml-2">(Excluye Ingresos)</span>
             </span>
+          </div>
+          
+          {/* Enhanced and Fixed Savings/Deficit indicator */}
+          <div 
+            className={`mb-4 p-4 rounded-lg border-2 ${aggregateData.hasSavings ? 'bg-green-100 border-green-300' : 'bg-red-100 border-red-400'}`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <i className={`fas ${aggregateData.hasSavings ? 'fa-piggy-bank text-green-600' : 'fa-exclamation-triangle text-red-600'} text-xl mr-3`}></i>
+                <span className="font-bold text-lg">
+                  {aggregateData.hasSavings ? 'Ahorro Potencial:' : 'Déficit Presupuestario:'}
+                </span>
+              </div>
+              <span className={`font-bold text-xl ${aggregateData.hasSavings ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(Math.abs(aggregateData.difference))}
+              </span>
+            </div>
+            
+            <div className="mt-3 text-sm">
+              <p className={`${aggregateData.hasSavings ? 'text-green-700' : 'text-red-700'} font-medium`}>
+                {aggregateData.hasSavings 
+                  ? `Tienes un excedente de ${formatCurrency(aggregateData.difference)} que podrías destinar al ahorro.`
+                  : `Te estás excediendo del límite mensual de ${formatCurrency(aggregateData.totalLimit)} por ${formatCurrency(Math.abs(aggregateData.difference))}.`
+                }
+              </p>
+            </div>
+            
+            {/* Always show the breakdown for clarity */}
+            <div className="mt-3 flex flex-col bg-white rounded p-2 border border-gray-200">
+              <div className="flex justify-between text-sm font-medium">
+                <span>Límite total:</span>
+                <span className="font-bold">{formatCurrency(aggregateData.totalLimit)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-medium mt-1 pt-1 border-t border-gray-100">
+                <span>Total presupuestado:</span>
+                <span className="font-bold">{formatCurrency(aggregateData.totalBudgetAmount)}</span>
+              </div>
+              <div className={`flex justify-between text-sm font-bold mt-1 pt-1 border-t ${aggregateData.hasSavings ? 'border-green-200' : 'border-red-200'}`}>
+                <span>{aggregateData.hasSavings ? 'Ahorro:' : 'Exceso:'}</span>
+                <span className={aggregateData.hasSavings ? 'text-green-600' : 'text-red-600'}>
+                  {aggregateData.hasSavings ? '+' : '-'}{formatCurrency(Math.abs(aggregateData.difference))}
+                </span>
+              </div>
+            </div>
           </div>
           
           <div className="relative">
