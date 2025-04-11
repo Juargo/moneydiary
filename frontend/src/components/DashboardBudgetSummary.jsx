@@ -24,11 +24,13 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
       const graphqlEndpoint = `${budgetSummaryUrl}/graphql`;
       
       const query = `
-        query {
-              banks {
+       query GetUserBanks($userId: Int!) {
+              userBanks(userId: $userId) {
                 id
-                name
+                userId
+                bankId
                 balance
+                description
                 createdAt
                 updatedAt
               }
@@ -159,21 +161,14 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
             {userBanks.map(bank => (
               <div key={bank.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center">
                 <div className="flex-shrink-0 mr-3">
-                  {bank.bank.logo ? (
-                    <img 
-                      src={bank.bank.logo} 
-                      alt={bank.bank.name} 
-                      className="w-10 h-10 object-contain"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 bg-blue-100 flex items-center justify-center rounded-full">
-                      <i className="fas fa-university text-blue-500"></i>
-                    </div>
-                  )}
+                  {/* Use fallback icon since bank details aren't available */}
+                  <div className="w-10 h-10 bg-blue-100 flex items-center justify-center rounded-full">
+                    <i className="fas fa-university text-blue-500"></i>
+                  </div>
                 </div>
                 <div className="flex-1">
-                  <div className="font-medium text-sm">{bank.name}</div>
-                  <div className="text-xs text-gray-500">{bank.bank.name}</div>
+                  <div className="font-medium text-sm">{bank.description || `Cuenta ${bank.id}`}</div>
+                  <div className="text-xs text-gray-500">ID: {bank.bankId || 'N/A'}</div>
                   <div className={`font-bold ${bank.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {bank.formattedBalance}
                   </div>
