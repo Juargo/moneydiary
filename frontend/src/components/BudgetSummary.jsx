@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 
-const BudgetSummary = ({ budgetSummary }) => {
-  console.log('BudgetSummary', budgetSummary);
+const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
   const [expandedItems, setExpandedItems] = useState({});
 
   // Sort all data by amount (total) in descending order
@@ -109,6 +108,24 @@ const BudgetSummary = ({ budgetSummary }) => {
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-6">
+        {/* Display total available balance if provided */}
+        {totalAvailableBalance !== undefined && (
+          <div className={`mb-4 p-3 rounded-lg border border-gray-300 
+                          ${totalAvailableBalance >= 0 ? 'bg-blue-50' : 'bg-yellow-50'}`}>
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="font-medium text-gray-700">Dinero Disponible Actualmente:</span>
+                <p className="text-sm text-gray-600 mt-1">
+                  Este es el balance total de todas tus cuentas bancarias registradas.
+                </p>
+              </div>
+              <div className={`text-xl font-bold ${totalAvailableBalance >= 0 ? 'text-blue-600' : 'text-yellow-600'}`}>
+                {formatCurrency(totalAvailableBalance)}
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Overall Budget Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">

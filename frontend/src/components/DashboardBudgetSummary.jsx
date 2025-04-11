@@ -5,6 +5,7 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
   const [currentMonth, setCurrentMonth] = useState(initialMonth || new Date().toISOString().substring(0, 7));
   const [budgetSummary, setBudgetSummary] = useState([]);
   const [userBanks, setUserBanks] = useState([]);
+  const [totalBalance, setTotalBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [displayPeriod, setDisplayPeriod] = useState(initialMonth || new Date().toISOString().substring(0, 7));
 
@@ -56,15 +57,23 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
           ...bank,
           formattedBalance: formatCurrency(bank.balance || 0)
         }));
+        
+        // Calculate the total balance from all banks
+        const calculatedTotalBalance = formattedBanks.reduce((sum, bank) => sum + (Number(bank.balance) || 0), 0);
+        
         setUserBanks(formattedBanks);
+        setTotalBalance(calculatedTotalBalance);
         console.log('User banks loaded:', formattedBanks);
+        console.log('Total balance:', calculatedTotalBalance);
       } else {
         console.error('Error fetching user banks:', result.errors);
         setUserBanks([]);
+        setTotalBalance(0);
       }
     } catch (error) {
       console.error('Error fetching user banks:', error);
       setUserBanks([]);
+      setTotalBalance(0);
     }
   };
 
@@ -156,7 +165,20 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
       {/* User Banks Summary */}
       {userBanks.length > 0 && (
         <div className="bg-white rounded-lg shadow p-4 mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">Tus Cuentas Bancarias</h3>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-lg font-semibold text-gray-800">Tus Cuentas Bancarias</h3>
+            <div className="text-right">
+              <div className="text-sm text-gray-600">Balance Total</div>
+              <div className={`text-lg font-bold ${totalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {new Intl.NumberFormat('es-CL', {
+                  style: 'currency',
+                  currency: 'CLP',
+                  minimumFractionDigits: 0
+                }).format(totalBalance)}
+              </div>
+            </div>
+          </div>
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {userBanks.map(bank => (
               <div key={bank.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center">
@@ -191,7 +213,7 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
       
       {/* Budget Summary */}
       <div>
-        <BudgetSummary budgetSummary={budgetSummary} />
+        <BudgetSummary budgetSummary={budgetSummary} totalAvailableBalance={totalBalance} />
       </div>
     </div>
   );
