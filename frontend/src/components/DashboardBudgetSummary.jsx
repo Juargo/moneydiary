@@ -8,6 +8,10 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
   const [totalBalance, setTotalBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [displayPeriod, setDisplayPeriod] = useState(initialMonth || new Date().toISOString().substring(0, 7));
+  const [incomeTotal, setIncomeTotal] = useState(0);
+  const [expensesTotal, setExpensesTotal] = useState(0);
+  const [theoreticalBalance, setTheoreticalBalance] = useState(0);
+  const [balanceDifference, setBalanceDifference] = useState(0);
 
   // Function to format currency values
   const formatCurrency = (amount) => {
@@ -107,6 +111,31 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
         
         setBudgetSummary(formattedData);
         
+        // Calculate income and expense totals
+        let income = 0;
+        let expenses = 0;
+        
+        data.budgets.forEach(budget => {
+          if (budget.name === "Ingresos") {
+            income = budget.total || 0;
+          } else {
+            // Sum up all other budgets as expenses
+            expenses += budget.total || 0;
+          }
+        });
+        
+        const calculatedTheoreticalBalance = income - -expenses;
+        
+        setIncomeTotal(income);
+        setExpensesTotal(expenses);
+        setTheoreticalBalance(calculatedTheoreticalBalance);
+        
+        // Calculate difference with actual bank balances
+        const difference = totalBalance - calculatedTheoreticalBalance;
+        setBalanceDifference(difference);
+        
+        console.log('Income:', income, 'Expenses:', expenses, 'Theoretical Balance:', calculatedTheoreticalBalance, 'Actual Balance:', totalBalance, 'Difference:', difference);
+        
         // Update the display period if available
         if (data.length > 0 && data[0].period) {
           setDisplayPeriod(data[0].period);
@@ -114,10 +143,18 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
       } else {
         console.error('Error fetching budget summary:', await summaryResponse.text());
         setBudgetSummary([]);
+        setIncomeTotal(0);
+        setExpensesTotal(0);
+        setTheoreticalBalance(0);
+        setBalanceDifference(0);
       }
     } catch (error) {
       console.error('Error fetching budget summary:', error);
       setBudgetSummary([]);
+      setIncomeTotal(0);
+      setExpensesTotal(0);
+      setTheoreticalBalance(0);
+      setBalanceDifference(0);
     } finally {
       setIsLoading(false);
     }
@@ -127,15 +164,19 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([
-        fetchBudgetSummary(currentMonth),
-        fetchUserBanks()
-      ]);
+      await fetchUserBanks();
+      await fetchBudgetSummary(currentMonth);
       setIsLoading(false);
     };
     
     loadData();
   }, [currentMonth, userId]);
+
+  // Recalculate balance difference when bank total or theoretical balance changes
+  useEffect(() => {
+    const difference = totalBalance - theoreticalBalance;
+    setBalanceDifference(difference);
+  }, [totalBalance, theoreticalBalance]);
 
   // Handle month change
   const handleMonthChange = (event) => {
@@ -179,6 +220,70 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
                 }).format(totalBalance)}
               </div>
             </div>
+          </div>
+          
+          {/* Balance Comparison Section */}
+          <div className="mb-4 border-t border-gray-200 pt-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="bg-blue-50 p-2 rounded">
+                <div className="text-gray-600">Ingresos Presupuestados</div>
+                <div className="font-bold text-green-600">
+                  {new Intl.NumberFormat('es-CL', {
+                    style: 'currency',
+                    currency: 'CLP',
+                    minimumFractionDigits: 0
+                  }).format(incomeTotal)}
+                </div>
+              </div>
+              <div className="bg-blue-50 p-2 rounded">
+                <div className="text-gray-600">Gastos Presupuestados</div>
+                <div className="font-bold text-red-600">
+                  {new Intl.NumberFormat('es-CL', {
+                    style: 'currency',
+                    currency: 'CLP',
+                    minimumFractionDigits: 0
+                  }).format(expensesTotal)}
+                </div>
+              </div>
+              <div className="bg-blue-50 p-2 rounded">
+                <div className="text-gray-600">Balance Teórico</div>
+                <div className={`font-bold ${theoreticalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {new Intl.NumberFormat('es-CL', {
+                    style: 'currency',
+                    currency: 'CLP',
+                    minimumFractionDigits: 0
+                  }).format(theoreticalBalance)}
+                </div>
+              </div>
+            </div>
+            
+            {/* Display difference if it exists */}
+            {Math.abs(balanceDifference) > 0 && (
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center">
+                  <div className="mr-2 text-yellow-500">
+                    <i className="fas fa-exclamation-triangle"></i>
+                  </div>
+                  <div>
+                    <div className="font-medium">Diferencia Detectada</div>
+                    <div className="text-sm">
+                      El balance de tus cuentas 
+                      <span className={`font-bold ${balanceDifference > 0 ? ' text-green-600' : ' text-red-600'}`}>
+                        {' '}{balanceDifference > 0 ? 'excede' : 'es menor que'}{' '}
+                      </span>
+                      el balance teórico por:
+                      <span className={`ml-1 font-bold ${balanceDifference > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {new Intl.NumberFormat('es-CL', {
+                          style: 'currency',
+                          currency: 'CLP',
+                          minimumFractionDigits: 0
+                        }).format(Math.abs(balanceDifference))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
