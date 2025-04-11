@@ -830,6 +830,7 @@ async def get_budget_summary(
     Returns:
         Estructura jerárquica con presupuestos, categorías, subcategorías y patrones,
         incluyendo los montos totales de transacciones en cada nivel.
+        También incluye la transacción de sueldo (Zweicom) del mes anterior.
     """
     try:
         # Procesar el parámetro de año-mes
@@ -852,10 +853,74 @@ async def get_budget_summary(
         
         logger.info(f"Generando resumen de presupuesto para el usuario ID: {user_id}, período: {year}-{month:02d}")
         
+        # Calcular el mes anterior para buscar el sueldo
+        prev_month = month - 1
+        prev_year = year
+        if prev_month == 0:
+            prev_month = 12
+            prev_year = year - 1
+        
+        logger.info(f"Buscando sueldo del mes anterior: {prev_year}-{prev_month:02d}")
+        
         # Obtener conexión a la BD
         from tortoise import connections
         conn = connections.get("default")
         
+        # Consulta para obtener el sueldo del mes anterior (tipo Ingreso, subcategoría Zweicom)
+        # Corregir la consulta eliminando el campo user_bank_id que no existe en la vista
+        salary_query = """
+        SELECT 
+            t.id AS transaction_id,
+            t.transaction_date,
+            t.description,
+            t.amount,
+            t.type,
+            v.subcategory_name,
+            v.category_name,
+            v.budget_name,
+            t.user_bank_id,
+            ub.description AS bank_name
+        FROM 
+            transaction t
+        JOIN
+            view_transaction_hierarchy v ON t.id = v.transaction_id
+        LEFT JOIN
+            user_bank ub ON t.user_bank_id = ub.id
+        WHERE 
+            v.user_id = %s
+            AND EXTRACT(YEAR FROM t.transaction_date) = %s
+            AND EXTRACT(MONTH FROM t.transaction_date) = %s
+            AND t.type = 'Ingreso'
+            AND v.subcategory_name = 'Zweicom'
+        ORDER BY 
+            t.transaction_date DESC
+        LIMIT 1
+        """
+        
+        # Ejecutar consulta para obtener el sueldo del mes anterior
+        salary_params = [user_id, prev_year, prev_month]
+        salary_result = await conn.execute_query(salary_query, salary_params)
+        
+        # Variable para almacenar la transacción del sueldo del mes anterior
+        previous_month_salary = None
+        
+        if salary_result[1]:
+            previous_month_salary = {
+                'id': salary_result[1][0]['transaction_id'],
+                'transaction_date': salary_result[1][0]['transaction_date'].isoformat() if isinstance(salary_result[1][0]['transaction_date'], datetime) else salary_result[1][0]['transaction_date'],
+                'description': salary_result[1][0]['description'],
+                'amount': float(salary_result[1][0]['amount']),
+                'type': salary_result[1][0]['type'],
+                'subcategory_name': salary_result[1][0]['subcategory_name'],
+                'category_name': salary_result[1][0]['category_name'],
+                'budget_name': salary_result[1][0]['budget_name'],
+                'user_bank_id': salary_result[1][0]['user_bank_id'],
+                'bank_name': salary_result[1][0]['bank_name']
+            }
+            logger.info(f"Sueldo del mes anterior encontrado: {previous_month_salary['description']}, monto: {previous_month_salary['amount']}")
+        else:
+            logger.warning(f"No se encontró sueldo del mes anterior para el período {prev_year}-{prev_month:02d}")
+
         # 1. Obtener la estructura jerárquica completa usando la vista view_transaction_hierarchy
         # Asegurar que todas las columnas están correctamente cualificadas para evitar ambigüedad
         hierarchy_query = """
@@ -898,6 +963,9 @@ async def get_budget_summary(
         budgets = {}
         transaction_processed = set()  # Conjunto para evitar procesar transacciones duplicadas
         
+        # Variable para almacenar la transacción de sueldo del mes actual (a excluir)
+        current_month_salary = None
+        
         # 3. Procesar resultados y organizarlos en la estructura jerárquica
         for row in query_results[1]:
             # Extraer datos del registro
@@ -916,6 +984,18 @@ async def get_budget_summary(
             description = row.get('description')
             amount = float(row.get('amount', 0))
             transaction_type = row.get('transaction_type')
+            
+            # Identificar si esta transacción es el sueldo del mes actual
+            if (transaction_type == 'Ingreso' and subcategory_name == 'Zweicom'):
+                current_month_salary = {
+                    'id': transaction_id,
+                    'description': description,
+                    'amount': amount,
+                    'type': transaction_type,
+                    'subcategory_name': subcategory_name
+                }
+                logger.info(f"Sueldo del mes actual encontrado (será excluido): {description}, monto: {amount}")
+                continue  # Saltar la transacción del sueldo del mes actual
             
             # Convertir a valor negativo si es un gasto
             if transaction_type == 'Gasto':
@@ -990,39 +1070,222 @@ async def get_budget_summary(
                 budgets[budget_id]['categories'][category_id]['total'] += amount
                 budgets[budget_id]['total'] += amount
         
+        # Agregar el sueldo del mes anterior a la estructura de presupuestos
+        if previous_month_salary:
+            # Obtener los valores reales de la transacción del salario para armar la estructura
+            salary_budget_name = previous_month_salary['budget_name']
+            salary_category_name = previous_month_salary['category_name']
+            salary_subcategory_name = previous_month_salary['subcategory_name']
+            
+            # Buscar el presupuesto por nombre, o usar el ID real si está disponible
+            salary_budget_id = None
+            
+            # Intentar usar el ID real del presupuesto asociado al salario (si existe en la vista)
+            salary_query = """
+            SELECT 
+                sc.id AS subcategory_id,
+                c.id AS category_id,
+                b.id AS budget_id
+            FROM 
+                subcategory sc
+            JOIN 
+                category c ON sc.category_id = c.id
+            JOIN 
+                budget b ON c.budget_id = b.id
+            WHERE 
+                sc.name = %s
+                AND c.name = %s
+                AND b.name = %s
+                AND b.user_id = %s
+            LIMIT 1
+            """
+            
+            salary_structure_params = [
+                salary_subcategory_name,
+                salary_category_name,
+                salary_budget_name,
+                user_id
+            ]
+            
+            try:
+                salary_structure_result = await conn.execute_query(salary_query, salary_structure_params)
+                
+                if salary_structure_result[1]:
+                    # Usar los IDs reales de la estructura
+                    real_budget_id = salary_structure_result[1][0]['budget_id']
+                    real_category_id = salary_structure_result[1][0]['category_id']
+                    real_subcategory_id = salary_structure_result[1][0]['subcategory_id']
+                    
+                    logger.info(f"Usando IDs reales para el sueldo: budget={real_budget_id}, category={real_category_id}, subcategory={real_subcategory_id}")
+                    
+                    # Usar los IDs reales para insertar el salario en la estructura correcta
+                    salary_budget_id = real_budget_id
+                    salary_category_id = real_category_id
+                    salary_subcategory_id = real_subcategory_id
+                    
+                    # Inicializar la estructura si no existe
+                    if salary_budget_id not in budgets:
+                        budgets[salary_budget_id] = {
+                            'id': salary_budget_id,
+                            'name': salary_budget_name,
+                            'total': 0.0,
+                            'budget_amount': 0.0,  # Se actualizará con los valores reales si están disponibles
+                            'categories': {}
+                        }
+                    
+                    if salary_category_id not in budgets[salary_budget_id]['categories']:
+                        budgets[salary_budget_id]['categories'][salary_category_id] = {
+                            'id': salary_category_id,
+                            'name': salary_category_name,
+                            'total': 0.0,
+                            'category_budget_amount': 0.0,
+                            'subcategories': {}
+                        }
+                    
+                    if salary_subcategory_id not in budgets[salary_budget_id]['categories'][salary_category_id]['subcategories']:
+                        budgets[salary_budget_id]['categories'][salary_category_id]['subcategories'][salary_subcategory_id] = {
+                            'id': salary_subcategory_id,
+                            'name': salary_subcategory_name,
+                            'total': 0.0,
+                            'subcategory_budget_amount': 0.0,
+                            'patterns': {}
+                        }
+                else:
+                    logger.warning(f"No se encontraron IDs reales para la estructura de sueldo: {salary_budget_name}/{salary_category_name}/{salary_subcategory_name}")
+                    
+                    # Fallback a la lógica anterior usando nombres y IDs temporales
+                    # Buscar por nombre en los presupuestos ya existentes
+                    for budget_id, budget in budgets.items():
+                        if budget['name'] == salary_budget_name:
+                            salary_budget_id = budget_id
+                            break
+                    
+                    if not salary_budget_id:
+                        salary_budget_id = f"prev_salary_budget_{len(budgets) + 1}"
+                        budgets[salary_budget_id] = {
+                            'id': salary_budget_id,
+                            'name': salary_budget_name,
+                            'total': 0.0,
+                            'budget_amount': 0.0,
+                            'categories': {}
+                        }
+                    
+                    salary_category_id = None
+                    if salary_budget_id in budgets:
+                        for cat_id, category in budgets[salary_budget_id]['categories'].items():
+                            if category['name'] == salary_category_name:
+                                salary_category_id = cat_id
+                                break
+                        
+                    if not salary_category_id:
+                        salary_category_id = f"prev_salary_category_{len(budgets[salary_budget_id]['categories']) + 1}"
+                        budgets[salary_budget_id]['categories'][salary_category_id] = {
+                            'id': salary_category_id,
+                            'name': salary_category_name,
+                            'total': 0.0,
+                            'category_budget_amount': 0.0,
+                            'subcategories': {}
+                        }
+                    
+                    salary_subcategory_id = None
+                    if salary_category_id in budgets[salary_budget_id]['categories']:
+                        for subcat_id, subcategory in budgets[salary_budget_id]['categories'][salary_category_id]['subcategories'].items():
+                            if subcategory['name'] == salary_subcategory_name:
+                                salary_subcategory_id = subcat_id
+                                break
+                        
+                    if not salary_subcategory_id:
+                        salary_subcategory_id = f"prev_salary_subcategory_{len(budgets[salary_budget_id]['categories'][salary_category_id]['subcategories']) + 1}"
+                        budgets[salary_budget_id]['categories'][salary_category_id]['subcategories'][salary_subcategory_id] = {
+                            'id': salary_subcategory_id,
+                            'name': salary_subcategory_name,
+                            'total': 0.0,
+                            'subcategory_budget_amount': 0.0,
+                            'patterns': {}
+                        }
+            except Exception as e:
+                logger.error(f"Error al obtener estructura real para el sueldo: {str(e)}", exc_info=True)
+                # Fallback a IDs generados si ocurre un error
+                salary_budget_id = f"prev_salary_budget_{len(budgets) + 1}"
+                salary_category_id = f"prev_salary_category_1"
+                salary_subcategory_id = f"prev_salary_subcategory_1"
+                
+                # Crear estructura mínima
+                budgets[salary_budget_id] = {
+                    'id': salary_budget_id,
+                    'name': salary_budget_name,
+                    'total': 0.0,
+                    'budget_amount': 0.0,
+                    'categories': {
+                        salary_category_id: {
+                            'id': salary_category_id,
+                            'name': salary_category_name,
+                            'total': 0.0,
+                            'category_budget_amount': 0.0,
+                            'subcategories': {
+                                salary_subcategory_id: {
+                                    'id': salary_subcategory_id,
+                                    'name': salary_subcategory_name,
+                                    'total': 0.0,
+                                    'subcategory_budget_amount': 0.0,
+                                    'patterns': {}
+                                }
+                            }
+                        }
+                    }
+                }
+            
+            # Crear un patrón especial para el sueldo del mes anterior usando
+            # valores reales de la transacción
+            prev_salary_pattern_id = "prev_month_salary_pattern"
+            budgets[salary_budget_id]['categories'][salary_category_id]['subcategories'][salary_subcategory_id]['patterns'][prev_salary_pattern_id] = {
+                'id': prev_salary_pattern_id,
+                'text': "Sueldo del mes anterior",
+                'total': previous_month_salary['amount'],
+                'transactions': [{
+                    'id': previous_month_salary['id'],
+                    'amount': previous_month_salary['amount'],
+                    'description': previous_month_salary['description'],
+                    'type': previous_month_salary['type'],
+                    'from_previous_month': True,  # Marcar que viene del mes anterior
+                    'transaction_date': previous_month_salary['transaction_date']  # Incluir la fecha original
+                }]
+            }
+            
+            # Actualizar totales en la jerarquía para incluir el sueldo del mes anterior
+            budgets[salary_budget_id]['categories'][salary_category_id]['subcategories'][salary_subcategory_id]['total'] += previous_month_salary['amount']
+            budgets[salary_budget_id]['categories'][salary_category_id]['total'] += previous_month_salary['amount']
+            budgets[salary_budget_id]['total'] += previous_month_salary['amount']
+        
         # 4. Convertir diccionarios a listas para el formato final de respuesta
         result = []
         for budget_id, budget in budgets.items():
-            # Usar directamente el budget_amount de la vista
             budget_result = {
                 'id': budget['id'],
                 'name': budget['name'],
                 'total': budget['total'],
-                'budget_amount': budget['budget_amount'],  # Usar el valor de la vista sin recalcular
+                'budget_amount': budget['budget_amount'],
                 'categories': []
             }
             
-            # Agregar categorías
             for category_id, category in budget['categories'].items():
                 category_result = {
                     'id': category['id'],
                     'name': category['name'],
                     'total': category['total'],
-                    'category_budget_amount': category['category_budget_amount'],  # Usar el valor de la vista sin recalcular
+                    'category_budget_amount': category['category_budget_amount'],
                     'subcategories': []
                 }
                 
-                # Agregar subcategorías
                 for subcategory_id, subcategory in category['subcategories'].items():
                     subcategory_result = {
-                        'id': subcategory['id'],
+                        'id': subcategory_id,
                         'name': subcategory['name'],
                         'total': subcategory['total'],
                         'subcategory_budget_amount': subcategory['subcategory_budget_amount'],
                         'patterns': []
                     }
                     
-                    # Agregar patrones
                     for pattern_id, pattern in subcategory['patterns'].items():
                         pattern_result = {
                             'id': pattern['id'],
@@ -1032,27 +1295,27 @@ async def get_budget_summary(
                         }
                         subcategory_result['patterns'].append(pattern_result)
                     
-                    # Ordenar patrones por total (descendente)
                     subcategory_result['patterns'].sort(key=lambda x: x['total'], reverse=True)
                     category_result['subcategories'].append(subcategory_result)
                 
-                # Ordenar subcategorías por total (descendente)
                 category_result['subcategories'].sort(key=lambda x: x['total'], reverse=True)
                 budget_result['categories'].append(category_result)
             
-            # Ordenar categorías por total (descendente)
             budget_result['categories'].sort(key=lambda x: x['total'], reverse=True)
             result.append(budget_result)
         
-        # Ordenar presupuestos por total (descendente)
         result.sort(key=lambda x: x['total'], reverse=True)
         
-        # Añadir información del período al resultado
-        for budget_result in result:
-            budget_result['period'] = f"{year}-{month:02d}"
+        response = {
+            'budgets': result,
+            'period': f"{year}-{month:02d}"
+        }
+        
+        if current_month_salary:
+            response['current_month_salary'] = current_month_salary
         
         logger.info(f"Resumen de presupuesto generado exitosamente para el usuario {user_id}, período {year}-{month:02d}")
-        return result
+        return response
     
     except Exception as e:
         logger.error(f"Error al generar resumen de presupuesto: {str(e)}", exc_info=True)
