@@ -4,6 +4,7 @@ import BudgetSummary from './BudgetSummary';
 const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
   const [currentMonth, setCurrentMonth] = useState(initialMonth || new Date().toISOString().substring(0, 7));
   const [budgetSummary, setBudgetSummary] = useState([]);
+  const [userBanks, setUserBanks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [displayPeriod, setDisplayPeriod] = useState(initialMonth || new Date().toISOString().substring(0, 7));
 
@@ -15,6 +16,54 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     })}`;
+  };
+
+  // Fetch user banks data from GraphQL endpoint
+  const fetchUserBanks = async () => {
+    try {
+      const graphqlEndpoint = `${budgetSummaryUrl}/graphql`;
+      
+      const query = `
+        query {
+              banks {
+                id
+                name
+                balance
+                createdAt
+                updatedAt
+              }
+            }
+      `;
+
+      const response = await fetch(graphqlEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query,
+          variables: { userId },
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.data && result.data.userBanks) {
+        // Format bank data with balance in currency format
+        const formattedBanks = result.data.userBanks.map(bank => ({
+          ...bank,
+          formattedBalance: formatCurrency(bank.balance || 0)
+        }));
+        setUserBanks(formattedBanks);
+        console.log('User banks loaded:', formattedBanks);
+      } else {
+        console.error('Error fetching user banks:', result.errors);
+        setUserBanks([]);
+      }
+    } catch (error) {
+      console.error('Error fetching user banks:', error);
+      setUserBanks([]);
+    }
   };
 
   // Fetch budget summary data
@@ -61,10 +110,19 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
     }
   };
 
-  // Load data when month changes
+  // Load data when month changes or component mounts
   useEffect(() => {
-    fetchBudgetSummary(currentMonth);
-  }, [currentMonth]);
+    const loadData = async () => {
+      setIsLoading(true);
+      await Promise.all([
+        fetchBudgetSummary(currentMonth),
+        fetchUserBanks()
+      ]);
+      setIsLoading(false);
+    };
+    
+    loadData();
+  }, [currentMonth, userId]);
 
   // Handle month change
   const handleMonthChange = (event) => {
@@ -92,6 +150,39 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
           </div>
         </div>
       </div>
+
+      {/* User Banks Summary */}
+      {userBanks.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-4 mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">Tus Cuentas Bancarias</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {userBanks.map(bank => (
+              <div key={bank.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center">
+                <div className="flex-shrink-0 mr-3">
+                  {bank.bank.logo ? (
+                    <img 
+                      src={bank.bank.logo} 
+                      alt={bank.bank.name} 
+                      className="w-10 h-10 object-contain"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 bg-blue-100 flex items-center justify-center rounded-full">
+                      <i className="fas fa-university text-blue-500"></i>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-sm">{bank.name}</div>
+                  <div className="text-xs text-gray-500">{bank.bank.name}</div>
+                  <div className={`font-bold ${bank.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {bank.formattedBalance}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Loading Overlay */}
       {isLoading && (
