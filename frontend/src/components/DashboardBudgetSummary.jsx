@@ -83,10 +83,12 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
       setIsLoading(true);
       const summaryResponse = await fetch(`${budgetSummaryUrl}/api/v1/transactions/budget-summary?user_id=${userId}&year_month=${yearMonth}`);
       if (summaryResponse.ok) {
+
         const data = await summaryResponse.json();
         
+        console.log('Budget summary response:', data);
         // Format the budget summary data
-        const formattedData = data.map(budget => ({
+        const formattedData = data.budgets.map(budget => ({
           ...budget,
           formattedTotal: formatCurrency(budget.total),
           categories: budget.categories.map(category => ({
