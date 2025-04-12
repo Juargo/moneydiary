@@ -272,13 +272,13 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleAccordion('budget', budget.id)}
                   >
-                    <div className="flex items-center gap-2 flex-grow">
+                    <div className="flex items-center gap-2">
                       <i className={`${isExpanded('budget', budget.id) ? 'fas fa-folder-open text-yellow-500' : 'fas fa-folder text-yellow-400'} mr-2`}></i>
-                      <span className="font-semibold text-gray-700 text-sm mt-1">{budget.name}</span>
+                      <span className="font-semibold text-gray-700 text-sm w-36 truncate">{budget.name}</span>
                       
                       {/* Progress bar for budget - hide for "Ingresos" budget */}
-                      {budget.budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
-                        <div className="flex-grow max-w-[150px] relative">
+                      {budget.budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' ? (
+                        <div className="w-48 relative">
                           <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
                             {/* Progress bar showing percentage of usage */}
                             <div 
@@ -291,7 +291,6 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                                 ${Math.abs(budget.total) > budget.budget_amount ? 'bg-red-500' : 'bg-yellow-500'}
                               `}
                             >
-                              {/* Percentage text if space allows */}
                               <span className="text-xs px-1 truncate">
                                 {Math.round((Math.abs(budget.total) / budget.budget_amount) * 100)}%
                               </span>
@@ -307,6 +306,9 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                             </div>
                           </div>
                         </div>
+                      ) : (
+                        // Empty placeholder to maintain alignment when no progress bar
+                        <div className="w-48"></div>
                       )}
                     </div>
                     <div className={`font-semibold text-sm ${budget.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -325,13 +327,13 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                           className="flex items-center justify-between cursor-pointer"
                           onClick={() => toggleAccordion('category', category.id)}
                         >
-                          <div className="flex items-center gap-2 flex-grow">
+                          <div className="flex items-center gap-2">
                             <i className={`${isExpanded('category', category.id) ? 'fas fa-folder-open text-blue-400' : 'fas fa-folder text-blue-300'} mr-2`}></i>
-                            <span>{category.name}</span>
+                            <span className="w-36 truncate">{category.name}</span>
                             
                             {/* Progress bar for category - hide for "Ingresos" budget */}
-                            {category.category_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
-                              <div className="flex-grow max-w-[150px] relative">
+                            {category.category_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' ? (
+                              <div className="w-48 relative">
                                 <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
                                   {/* Progress bar showing percentage of usage */}
                                   <div 
@@ -359,6 +361,9 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                                   </div>
                                 </div>
                               </div>
+                            ) : (
+                              // Empty placeholder to maintain alignment when no progress bar
+                              <div className="w-48"></div>
                             )}
                           </div>
                           <div className={`font-semibold ${category.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -377,13 +382,13 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                                 className="flex items-center justify-between cursor-pointer"
                                 onClick={() => toggleAccordion('subcategory', subcategory.id)}
                               >
-                                <div className="flex items-center gap-2 flex-grow">
+                                <div className="flex items-center gap-2">
                                   <i className={`${isExpanded('subcategory', subcategory.id) ? 'fas fa-folder-open text-green-400' : 'fas fa-folder text-green-300'} mr-2`}></i>
-                                  <span>{subcategory.name}</span>
+                                  <span className="w-36 truncate">{subcategory.name}</span>
                                   
                                   {/* Progress bar for subcategory - hide for "Ingresos" budget */}
-                                  {subcategory.subcategory_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
-                                    <div className="flex-grow max-w-[150px] relative">
+                                  {subcategory.subcategory_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' ? (
+                                    <div className="w-48 relative">
                                       <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
                                         {/* Progress bar showing percentage of usage */}
                                         <div 
@@ -411,6 +416,9 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                                         </div>
                                       </div>
                                     </div>
+                                  ) : (
+                                    // Empty placeholder to maintain alignment when no progress bar
+                                    <div className="w-48"></div>
                                   )}
                                 </div>
                                 <div className={`font-semibold ${subcategory.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
