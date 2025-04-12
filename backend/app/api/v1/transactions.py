@@ -429,11 +429,11 @@ async def categorizar_transacciones(transacciones, patrones_usuario):
                         normalized_pattern = normalize_text(pattern_text)
                         normalized_description = normalize_text(descripcion)
                         
-                        # Verificar si hay coincidencia (solo búsqueda de texto simple)
-                        logger.debug(f"##### Buscando coincidencia con patrón: {normalized_pattern} ---> {normalized_description}")
-                        coincide = normalized_pattern in normalized_description
+                        # Verificar si hay coincidencia exacta (no una coincidencia parcial)
+                        logger.debug(f"##### Buscando coincidencia exacta con patrón: {normalized_pattern} ---> {normalized_description}")
+                        coincide = normalized_pattern == normalized_description
                         if coincide:
-                            logger.debug(f"Coincidencia encontrada con patrón simple: {pattern_text}")
+                            logger.debug(f"Coincidencia exacta encontrada con patrón: {pattern_text}")
                             # Asignar categoría y subcategoría
                             transaccion_categorizada["category_id"] = categoria["category_id"]
                             transaccion_categorizada["category_name"] = categoria["category_name"]
