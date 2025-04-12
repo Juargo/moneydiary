@@ -295,15 +295,12 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                                 {Math.round((Math.abs(budget.total) / budget.budget_amount) * 100)}%
                               </span>
                             </div>
-                            
-                            {/* 100% marker with budget amount */}
-                            <div 
-                              className="absolute h-full w-1 bg-black z-10 right-0 flex items-center"
-                            >
-                              <span className="absolute text-xs font-semibold whitespace-nowrap ml-1 right-0 transform translate-x-full">
-                                {formatCurrency(budget.budget_amount)}
-                              </span>
-                            </div>
+                          </div>
+                          
+                          {/* Amount information below the progress bar */}
+                          <div className="flex justify-between text-xs mt-0.5 text-gray-600">
+                            <span>{formatCurrency(Math.abs(budget.total))}</span>
+                            <span>{formatCurrency(budget.budget_amount)}</span>
                           </div>
                         </div>
                       ) : (
@@ -350,15 +347,12 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                                       {Math.round((Math.abs(category.total) / category.category_budget_amount) * 100)}%
                                     </span>
                                   </div>
-                                  
-                                  {/* 100% marker with budget amount */}
-                                  <div 
-                                    className="absolute h-full w-1 bg-black z-10 right-0 flex items-center"
-                                  >
-                                    <span className="absolute text-xs font-semibold whitespace-nowrap ml-1 right-0 transform translate-x-full">
-                                      {formatCurrency(category.category_budget_amount)}
-                                    </span>
-                                  </div>
+                                </div>
+                                
+                                {/* Amount information below the progress bar */}
+                                <div className="flex justify-between text-xs mt-0.5 text-gray-600">
+                                  <span>{formatCurrency(Math.abs(category.total))}</span>
+                                  <span>{formatCurrency(category.category_budget_amount)}</span>
                                 </div>
                               </div>
                             ) : (
@@ -405,15 +399,12 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                                             {Math.round((Math.abs(subcategory.total) / subcategory.subcategory_budget_amount) * 100)}%
                                           </span>
                                         </div>
-                                        
-                                        {/* 100% marker with budget amount */}
-                                        <div 
-                                          className="absolute h-full w-1 bg-black z-10 right-0 flex items-center"
-                                        >
-                                          <span className="absolute text-xs font-semibold whitespace-nowrap ml-1 right-0 transform translate-x-full">
-                                            {formatCurrency(subcategory.subcategory_budget_amount)}
-                                          </span>
-                                        </div>
+                                      </div>
+                                      
+                                      {/* Amount information below the progress bar */}
+                                      <div className="flex justify-between text-xs mt-0.5 text-gray-600">
+                                        <span>{formatCurrency(Math.abs(subcategory.total))}</span>
+                                        <span>{formatCurrency(subcategory.subcategory_budget_amount)}</span>
                                       </div>
                                     </div>
                                   ) : (
