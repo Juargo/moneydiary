@@ -326,7 +326,7 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                         >
                           <div className="flex items-center gap-2">
                             <i className={`${isExpanded('category', category.id) ? 'fas fa-folder-open text-blue-400' : 'fas fa-folder text-blue-300'} mr-2`}></i>
-                            <span className="w-36 truncate">{category.name}</span>
+                            <span className="w-36 truncate text-xs font-semibold text-gray-700">{category.name}</span>
                             
                             {/* Progress bar for category - hide for "Ingresos" budget */}
                             {category.category_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' ? (
@@ -378,7 +378,7 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                               >
                                 <div className="flex items-center gap-2">
                                   <i className={`${isExpanded('subcategory', subcategory.id) ? 'fas fa-folder-open text-green-400' : 'fas fa-folder text-green-300'} mr-2`}></i>
-                                  <span className="w-36 truncate">{subcategory.name}</span>
+                                  <span className="w-36 truncate text-xs font-semibold text-gray-700">{subcategory.name}</span>
                                   
                                   {/* Progress bar for subcategory - hide for "Ingresos" budget */}
                                   {subcategory.subcategory_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' ? (
@@ -424,7 +424,7 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                                 <div key={pattern.id} className="flex items-center justify-between py-1 hover:bg-gray-50">
                                   <div className="flex items-center">
                                     <i className="fas fa-file-alt text-gray-400 mr-2"></i>
-                                    <span className="text-sm">{pattern.text}</span>
+                                    <span className="text-xs">{pattern.text}</span>
                                   </div>
                                   <div className="flex items-center">
                                     <span className="text-xs text-gray-500 mr-3">{pattern.transaction_count} transacciones</span>
