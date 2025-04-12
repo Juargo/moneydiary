@@ -198,7 +198,8 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                   
                   // Get the corresponding darker color class by extracting the color base
                   const colorBase = color.replace('bg-', '').split('-')[0]; // Extract base color name
-                  const darkerColorClass = `bg-${colorBase}-500`; // Use shade 500 instead of 600
+                  // const darkerColorClass = `bg-${colorBase}-500`; // Use shade 500 instead of 600
+                  const darkerColorClass = `bg-[#00000054]`; // Use shade 500 instead of 600
                   
                   return (
                     <div
