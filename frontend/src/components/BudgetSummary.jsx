@@ -360,7 +360,7 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                               <div className="w-48"></div>
                             )}
                           </div>
-                          <div className={`font-semibold ${category.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          <div className={`font-semibold ${category.total < 0 ? 'text-red-600' : 'text-green-600'} text-sm`}>
                             {formatCurrency(category.total)}
                           </div>
                         </div>
@@ -412,7 +412,7 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                                     <div className="w-48"></div>
                                   )}
                                 </div>
-                                <div className={`font-semibold ${subcategory.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                <div className={`font-semibold ${subcategory.total < 0 ? 'text-red-600' : 'text-green-600'} text-sm`}>
                                   {formatCurrency(subcategory.total)}
                                 </div>
                               </div>
