@@ -272,41 +272,47 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                     className="flex items-center justify-between cursor-pointer"
                     onClick={() => toggleAccordion('budget', budget.id)}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2 flex-grow">
                       <i className={`${isExpanded('budget', budget.id) ? 'fas fa-folder-open text-yellow-500' : 'fas fa-folder text-yellow-400'} mr-2`}></i>
                       <span className="font-semibold text-gray-700 text-sm mt-1">{budget.name}</span>
+                      
+                      {/* Progress bar for budget - hide for "Ingresos" budget */}
+                      {budget.budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
+                        <div className="flex-grow max-w-[150px] relative">
+                          <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
+                            {/* Progress bar showing percentage of usage */}
+                            <div 
+                              style={{ 
+                                width: `${Math.min(100, (Math.abs(budget.total) / budget.budget_amount) * 100)}%` 
+                              }} 
+                              className={`
+                                flex flex-col text-center whitespace-nowrap 
+                                text-white justify-center
+                                ${Math.abs(budget.total) > budget.budget_amount ? 'bg-red-500' : 'bg-yellow-500'}
+                              `}
+                            >
+                              {/* Percentage text if space allows */}
+                              <span className="text-xs px-1 truncate">
+                                {Math.round((Math.abs(budget.total) / budget.budget_amount) * 100)}%
+                              </span>
+                            </div>
+                            
+                            {/* 100% marker with budget amount */}
+                            <div 
+                              className="absolute h-full w-1 bg-black z-10 right-0 flex items-center"
+                            >
+                              <span className="absolute text-xs font-semibold whitespace-nowrap ml-1 right-0 transform translate-x-full">
+                                {formatCurrency(budget.budget_amount)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  {/* Progress bar for budget - hide for "Ingresos" budget */}
-                  {budget.budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
-                    <div className="mt-1 relative pt-1" >
-                      <div className="relative h-4 flex overflow-hidden rounded bg-gray-200">
-                        {/* Budget limit line */}
-                        <div 
-                          className="absolute h-full w-1 bg-black z-10"
-                          style={{
-                            left: `${Math.min(100, (budget.budget_amount / Math.max(Math.abs(budget.total), budget.budget_amount)) * 100)}%`
-                          }}
-                        ></div>
-                        
-                        {/* Progress bar */}
-                        <div 
-                          style={{ 
-                            width: `${Math.min(100, (Math.abs(budget.total) / Math.max(Math.abs(budget.total), budget.budget_amount)) * 100)}%` 
-                          }} 
-                          className={`
-                            flex flex-col text-center whitespace-nowrap 
-                            text-white justify-center
-                            ${Math.abs(budget.total) > budget.budget_amount ? 'bg-red-500' : 'bg-yellow-500'}
-                          `}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
                     <div className={`font-semibold text-sm ${budget.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {formatCurrency(budget.total)}
                     </div>
                   </div>
-                  
                 </div>
                 
                 {/* Budget Content (Categories) */}
@@ -319,55 +325,48 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                           className="flex items-center justify-between cursor-pointer"
                           onClick={() => toggleAccordion('category', category.id)}
                         >
-                          <div className="flex items-center">
+                          <div className="flex items-center gap-2 flex-grow">
                             <i className={`${isExpanded('category', category.id) ? 'fas fa-folder-open text-blue-400' : 'fas fa-folder text-blue-300'} mr-2`}></i>
                             <span>{category.name}</span>
+                            
+                            {/* Progress bar for category - hide for "Ingresos" budget */}
+                            {category.category_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
+                              <div className="flex-grow max-w-[150px] relative">
+                                <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
+                                  {/* Progress bar showing percentage of usage */}
+                                  <div 
+                                    style={{ 
+                                      width: `${Math.min(100, (Math.abs(category.total) / category.category_budget_amount) * 100)}%` 
+                                    }} 
+                                    className={`
+                                      flex flex-col text-center whitespace-nowrap 
+                                      text-white justify-center
+                                      ${Math.abs(category.total) > category.category_budget_amount ? 'bg-red-500' : 'bg-blue-500'}
+                                    `}
+                                  >
+                                    <span className="text-xs px-1 truncate">
+                                      {Math.round((Math.abs(category.total) / category.category_budget_amount) * 100)}%
+                                    </span>
+                                  </div>
+                                  
+                                  {/* 100% marker with budget amount */}
+                                  <div 
+                                    className="absolute h-full w-1 bg-black z-10 right-0 flex items-center"
+                                  >
+                                    <span className="absolute text-xs font-semibold whitespace-nowrap ml-1 right-0 transform translate-x-full">
+                                      {formatCurrency(category.category_budget_amount)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                           <div className={`font-semibold ${category.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
                             {formatCurrency(category.total)}
                           </div>
                         </div>
-                        
-                        {/* Progress bar for category - hide for "Ingresos" budget */}
-                        {category.category_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
-                          <div className="mt-1 relative pt-1">
-                            <div className="flex mb-2 items-center justify-between">
-                              <div>
-                                <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                                  Categoría: {formatCurrency(category.category_budget_amount)}
-                                </span>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-xs font-semibold inline-block text-blue-600">
-                                  {Math.round(Math.abs(category.total) / category.category_budget_amount * 100)}%
-                                </span>
-                              </div>
-                            </div>
-                            <div className="relative h-4 flex overflow-hidden rounded bg-gray-200">
-                              {/* Category budget limit line */}
-                              <div 
-                                className="absolute h-full w-1 bg-black z-10"
-                                style={{
-                                  left: `${Math.min(100, (category.category_budget_amount / Math.max(Math.abs(category.total), category.category_budget_amount)) * 100)}%`
-                                }}
-                              ></div>
-                              
-                              {/* Progress bar */}
-                              <div 
-                                style={{ 
-                                  width: `${Math.min(100, (Math.abs(category.total) / Math.max(Math.abs(category.total), category.category_budget_amount)) * 100)}%` 
-                                }} 
-                                className={`
-                                  flex flex-col text-center whitespace-nowrap 
-                                  text-white justify-center
-                                  ${Math.abs(category.total) > category.category_budget_amount ? 'bg-red-500' : 'bg-blue-500'}
-                                `}
-                              ></div>
-                            </div>
-                          </div>
-                        )}
                       </div>
-                      
+
                       {/* Category Content (Subcategories) */}
                       <div className={`pl-6 ${isExpanded('category', category.id) ? 'block' : 'hidden'}`}>
                         {category.subcategories.map((subcategory) => (
@@ -378,53 +377,46 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                                 className="flex items-center justify-between cursor-pointer"
                                 onClick={() => toggleAccordion('subcategory', subcategory.id)}
                               >
-                                <div className="flex items-center">
+                                <div className="flex items-center gap-2 flex-grow">
                                   <i className={`${isExpanded('subcategory', subcategory.id) ? 'fas fa-folder-open text-green-400' : 'fas fa-folder text-green-300'} mr-2`}></i>
                                   <span>{subcategory.name}</span>
+                                  
+                                  {/* Progress bar for subcategory - hide for "Ingresos" budget */}
+                                  {subcategory.subcategory_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
+                                    <div className="flex-grow max-w-[150px] relative">
+                                      <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
+                                        {/* Progress bar showing percentage of usage */}
+                                        <div 
+                                          style={{ 
+                                            width: `${Math.min(100, (Math.abs(subcategory.total) / subcategory.subcategory_budget_amount) * 100)}%` 
+                                          }} 
+                                          className={`
+                                            flex flex-col text-center whitespace-nowrap 
+                                            text-white justify-center
+                                            ${Math.abs(subcategory.total) > subcategory.subcategory_budget_amount ? 'bg-red-500' : 'bg-green-500'}
+                                          `}
+                                        >
+                                          <span className="text-xs px-1 truncate">
+                                            {Math.round((Math.abs(subcategory.total) / subcategory.subcategory_budget_amount) * 100)}%
+                                          </span>
+                                        </div>
+                                        
+                                        {/* 100% marker with budget amount */}
+                                        <div 
+                                          className="absolute h-full w-1 bg-black z-10 right-0 flex items-center"
+                                        >
+                                          <span className="absolute text-xs font-semibold whitespace-nowrap ml-1 right-0 transform translate-x-full">
+                                            {formatCurrency(subcategory.subcategory_budget_amount)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className={`font-semibold ${subcategory.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
                                   {formatCurrency(subcategory.total)}
                                 </div>
                               </div>
-                              
-                              {/* Progress bar for subcategory - hide for "Ingresos" budget */}
-                              {subcategory.subcategory_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
-                                <div className="mt-1 relative pt-1">
-                                  <div className="flex mb-2 items-center justify-between">
-                                    <div>
-                                      <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                                        Progreso
-                                      </span>
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="text-xs font-semibold inline-block text-blue-600">
-                                        {Math.round(Math.abs(subcategory.total) / subcategory.subcategory_budget_amount * 100)}%
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="relative h-4 flex overflow-hidden rounded bg-gray-200">
-                                    {/* Budget limit line (black vertical line) */}
-                                    <div 
-                                      className="absolute h-full w-1 bg-black z-10"
-                                      style={{
-                                        left: `${Math.min(100, (subcategory.subcategory_budget_amount / Math.max(Math.abs(subcategory.total), subcategory.subcategory_budget_amount)) * 100)}%`
-                                      }}
-                                    ></div>
-                                    
-                                    {/* Progress bar */}
-                                    <div 
-                                      style={{ 
-                                        width: `${Math.min(100, (Math.abs(subcategory.total) / Math.max(Math.abs(subcategory.total), subcategory.subcategory_budget_amount)) * 100)}%` 
-                                      }} 
-                                      className={`
-                                        flex flex-col text-center whitespace-nowrap 
-                                        text-white justify-center
-                                        ${Math.abs(subcategory.total) > subcategory.subcategory_budget_amount ? 'bg-red-500' : 'bg-blue-500'}
-                                      `}
-                                    ></div>
-                                  </div>
-                                </div>
-                              )}
                             </div>
                             
                             {/* Subcategory Content (Patterns as files) */}
