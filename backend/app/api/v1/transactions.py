@@ -413,6 +413,7 @@ async def categorizar_transacciones(transacciones, patrones_usuario):
             transaccion_categorizada["subcategory_id"] = None
             transaccion_categorizada["subcategory_name"] = "Sin subcategoría"
             transaccion_categorizada["category_color"] = "#CCCCCC"  # Color gris por defecto
+            transaccion_categorizada["pattern_id"] = None  # Añadir pattern_id con valor predeterminado
             
             # Buscar coincidencias con patrones
             for categoria in patrones_usuario:
@@ -439,6 +440,7 @@ async def categorizar_transacciones(transacciones, patrones_usuario):
                             transaccion_categorizada["subcategory_id"] = subcategoria["subcategory_id"]
                             transaccion_categorizada["subcategory_name"] = subcategoria["subcategory_name"]
                             transaccion_categorizada["category_color"] = categoria["category_color"]
+                            transaccion_categorizada["pattern_id"] = patron["pattern_id"]  # Añadir el ID del patrón que coincidió
                             contador_categorizadas += 1
                             
                             logger.debug(f"Transacción categorizada: {transaccion_categorizada}")
@@ -633,6 +635,7 @@ class BulkTransactionInput(BaseModel):
     type: str  # "Ingreso" o "Gasto"
     user_bank_id: int
     subcategory_id: int
+    pattern_id: Optional[int] = None  # Opcional: ID del patrón que coincide con esta transacción
 
 @router.post("/bulk-transactions")
 async def create_bulk_transactions(
@@ -707,14 +710,16 @@ async def create_bulk_transactions(
                     continue
             
             # Verificar si la transacción ya existe usando la vista view_transaction_hierarchy
-            # Esto nos permite tener una verificación más completa que incluye la jerarquía
+            # Revisando la estructura de la vista, no incluye user_bank_id directamente
+            # Actualizamos para usar sólo los campos disponibles en la vista
             duplicate_check_query = """
-            SELECT * FROM view_transaction_hierarchy
-            WHERE transaction_date = %s
-            AND description = %s
-            AND amount = %s
-            AND user_bank_id = %s
-            AND subcategory_id = %s
+            SELECT t.* FROM view_transaction_hierarchy v
+            JOIN transaction t ON t.id = v.transaction_id
+            WHERE v.transaction_date = %s
+            AND v.transaction_description = %s
+            AND v.amount = %s
+            AND t.user_bank_id = %s
+            AND v.subcategory_id = %s
             """
             
             duplicate_params = [
@@ -752,14 +757,22 @@ async def create_bulk_transactions(
             else:
                 # La transacción no existe, insertarla
                 try:
-                    new_transaction = await Transaction.create(
-                        transaction_date=transaction_date,
-                        description=transaction_data.description,
-                        amount=transaction_data.amount,
-                        type=transaction_data.type,
-                        user_bank_id=transaction_data.user_bank_id,
-                        subcategory_id=transaction_data.subcategory_id
-                    )
+                    # Crear diccionario con los datos de la transacción
+                    transaction_data_dict = {
+                        "transaction_date": transaction_date,
+                        "description": transaction_data.description,
+                        "amount": transaction_data.amount,
+                        "type": transaction_data.type,
+                        "user_bank_id": transaction_data.user_bank_id,
+                        "subcategory_id": transaction_data.subcategory_id
+                    }
+                    
+                    # Si hay un pattern_id, incluirlo en la creación
+                    if transaction_data.pattern_id is not None:
+                        transaction_data_dict["pattern_id"] = transaction_data.pattern_id
+                    
+                    # Crear la transacción con los datos proporcionados
+                    new_transaction = await Transaction.create(**transaction_data_dict)
                     inserted_count += 1
                     
                     # Obtener información completa de la transacción desde la vista
@@ -904,7 +917,7 @@ async def get_budget_summary(
         # Variable para almacenar la transacción del sueldo del mes anterior
         previous_month_salary = None
         
-        if salary_result[1]:
+        if (salary_result[1]):
             previous_month_salary = {
                 'id': salary_result[1][0]['transaction_id'],
                 'transaction_date': salary_result[1][0]['transaction_date'].isoformat() if isinstance(salary_result[1][0]['transaction_date'], datetime) else salary_result[1][0]['transaction_date'],

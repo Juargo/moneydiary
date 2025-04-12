@@ -23,6 +23,7 @@ interface TransactionProcessed {
   subcategory_name: string;
   category_name: string;
   category_color: string;
+  pattern_id: number | null;  // Add pattern_id field
   createdAt: string;
   updatedAt: string;
 }
@@ -223,6 +224,7 @@ export default function ContableApp({ userId = 1 }) {
       setUploadStatus('Reporte procesado correctamente');
       
       // Actualiza el estado con los datos del reporte
+      console.log('>>>>>>>>Processed report:', result);
       setData(result.transactions);
       setBalance(result.balance);
       setSelectedBankId(result.bank_id);
@@ -335,13 +337,15 @@ export default function ContableApp({ userId = 1 }) {
           Tipo,
           Cargo,
           Abono,
-          subcategory_id = -1, // Default to 1 if not specified
+          subcategory_id = -1, // Default to -1 if not specified
+          pattern_id = null,   // Include pattern_id, default to null if not specified
         } = item;
         
         // Format the date to YYYY-MM-DD format for the API
         const formattedDate = formatDateForAPI(Fecha);
         
-        return {
+        // Create the transaction object with all required fields
+        const transaction = {
           transaction_date: formattedDate,
           description: Descripción,
           amount: Monto || Cargo || Abono || 0,
@@ -349,6 +353,13 @@ export default function ContableApp({ userId = 1 }) {
           user_bank_id: selectedBankObj.userBankId || selectedBankObj.id,
           subcategory_id
         };
+        
+        // Add pattern_id only if it exists
+        if (pattern_id !== null) {
+          transaction.pattern_id = pattern_id;
+        }
+        
+        return transaction;
       });
       
       console.log('Saving transactions:', transactionsToSave);
