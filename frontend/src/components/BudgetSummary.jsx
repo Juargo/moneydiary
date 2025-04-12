@@ -106,7 +106,7 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="bg-white rounded-lg shadow" id="budget-summary-container">
       <div className="p-6">
         {/* Display total available balance if provided */}
         {totalAvailableBalance !== undefined && (
@@ -259,9 +259,12 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Resumen de Presupuestos</h2>
         
         {sortedBudgetData.length > 0 ? (
-          <div className="space-y-2 font-mono">
+          <div className="space-y-2 font-mono" id="container-resumen">
             {sortedBudgetData.map((budget) => (
               <div key={budget.id} className="border-l-2 border-gray-200 pl-2">
+              <pre className='text-xs'>
+                {JSON.stringify(budget, null, 2)}
+              </pre>
                 {/* Budget (Root folder) */}
                 <div className="py-1 hover:bg-gray-50">
                   <div 
@@ -270,7 +273,7 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                   >
                     <div className="flex items-center">
                       <i className={`${isExpanded('budget', budget.id) ? 'fas fa-folder-open text-yellow-500' : 'fas fa-folder text-yellow-400'} mr-2`}></i>
-                      <span className="font-medium">{budget.name}</span>
+                      <span className="font-semibold">{budget.name}</span>
                     </div>
                     <div className={`font-semibold ${budget.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {formatCurrency(budget.total)}

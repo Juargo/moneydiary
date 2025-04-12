@@ -226,7 +226,7 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
           <div className="mb-4 border-t border-gray-200 pt-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="bg-blue-50 p-2 rounded">
-                <div className="text-gray-600">Ingresos Presupuestados</div>
+                <div className="text-gray-600">Ingresos del Mes</div>
                 <div className="font-bold text-green-600">
                   {new Intl.NumberFormat('es-CL', {
                     style: 'currency',
