@@ -262,9 +262,10 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
           <div className="space-y-2 font-mono" id="container-resumen">
             {sortedBudgetData.map((budget) => (
               <div key={budget.id} className="border-l-2 border-gray-200 pl-2">
-              <pre className='text-xs'>
+              {/* <pre className='text-xs'>
                 {JSON.stringify(budget, null, 2)}
               </pre>
+     */}
                 {/* Budget (Root folder) */}
                 <div className="py-1 hover:bg-gray-50">
                   <div 
@@ -273,28 +274,11 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                   >
                     <div className="flex items-center">
                       <i className={`${isExpanded('budget', budget.id) ? 'fas fa-folder-open text-yellow-500' : 'fas fa-folder text-yellow-400'} mr-2`}></i>
-                      <span className="font-semibold">{budget.name}</span>
+                      <span className="font-semibold text-gray-700 text-sm mt-1">{budget.name}</span>
                     </div>
-                    <div className={`font-semibold ${budget.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {formatCurrency(budget.total)}
-                    </div>
-                  </div>
-                  
                   {/* Progress bar for budget - hide for "Ingresos" budget */}
                   {budget.budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' && (
-                    <div className="mt-1 relative pt-1">
-                      <div className="flex mb-2 items-center justify-between">
-                        <div>
-                          <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-yellow-600 bg-yellow-200">
-                            Presupuesto Total: {formatCurrency(budget.budget_amount)}
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-xs font-semibold inline-block text-yellow-600">
-                            {Math.round(Math.abs(budget.total) / budget.budget_amount * 100)}%
-                          </span>
-                        </div>
-                      </div>
+                    <div className="mt-1 relative pt-1" >
                       <div className="relative h-4 flex overflow-hidden rounded bg-gray-200">
                         {/* Budget limit line */}
                         <div 
@@ -318,6 +302,11 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
                       </div>
                     </div>
                   )}
+                    <div className={`font-semibold text-sm ${budget.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {formatCurrency(budget.total)}
+                    </div>
+                  </div>
+                  
                 </div>
                 
                 {/* Budget Content (Categories) */}
