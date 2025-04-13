@@ -285,26 +285,29 @@ class Query:
             query += " AND budget_id = $2"
             params.append(budgetId)
         
-        # Ejecutar la consulta raw
-        results = await TransactionModel.raw(query, *params)
+        # Ejecutar la consulta raw usando la conexión de Tortoise ORM
+        from tortoise.transactions import in_transaction
         
-        # Convertir los resultados al tipo GraphQL
-        return [
-            BudgetConfigData(
-                user_id=row["user_id"],
-                user_name=row["user_name"],
-                budget_id=row["budget_id"],
-                budget_name=row["budget_name"],
-                category_id=row["category_id"],
-                category_name=row["category_name"],
-                subcategory_id=row["subcategory_id"],
-                subcategory_name=row["subcategory_name"],
-                subcategory_budget_amount=float(row["subcategory_budget_amount"]) if row["subcategory_budget_amount"] is not None else None,
-                pattern_id=row["pattern_id"],
-                pattern_text=row["pattern_text"]
-            )
-            for row in results
-        ]
+        async with in_transaction() as connection:
+            results = await connection.execute_query(query, params)
+            
+            # Convertir los resultados al tipo GraphQL
+            return [
+                BudgetConfigData(
+                    user_id=row["user_id"],
+                    user_name=row["user_name"],
+                    budget_id=row["budget_id"],
+                    budget_name=row["budget_name"],
+                    category_id=row["category_id"],
+                    category_name=row["category_name"],
+                    subcategory_id=row["subcategory_id"],
+                    subcategory_name=row["subcategory_name"],
+                    subcategory_budget_amount=float(row["subcategory_budget_amount"]) if row["subcategory_budget_amount"] is not None else None,
+                    pattern_id=row["pattern_id"],
+                    pattern_text=row["pattern_text"]
+                )
+                for row in results[1]  # results[1] contains the actual data rows
+            ]
         
     @strawberry.field(name="userTransactions")
     async def user_transactions(
