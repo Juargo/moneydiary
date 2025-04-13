@@ -63,6 +63,7 @@ export default function ContableApp() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userId, setUserId] = useState<number>(1); // Default user ID
   const [userBanksData, setUserBanksData] = useState<GraphQLUserBank[]>([]); // Store user banks data
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     // Safe to access localStorage inside useEffect (client-side only)
@@ -476,6 +477,34 @@ export default function ContableApp() {
 
   const countUncategorizedTransactions = data.filter(item => !item.category_name || item.category_name === "Sin categoría").length;
 
+  // Handle drag events for file upload
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const droppedFile = e.dataTransfer.files[0];
+      console.log('File dropped:', droppedFile);
+      setFile(droppedFile);
+      
+      // Auto-select bank based on filename pattern matching
+      autoSelectBankByFileName(droppedFile.name);
+      
+      // Process the file after selection
+      processFileUpload(droppedFile);
+    }
+  };
+
   if (loading) return <div className="loading-container">Cargando datos...</div>;
   if (error) return <div className="error-container">Error: {error}</div>;
 
@@ -534,7 +563,16 @@ export default function ContableApp() {
             
             <div className="form-group flex-1">
               <label htmlFor="file-input" className="block text-sm font-medium text-gray-700 mb-1">Archivo de Reporte:</label>
-              <div className="relative">
+              <div 
+                className={`drag-drop-area relative p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${
+                  isDragging 
+                    ? 'border-primary-500 bg-primary-50' 
+                    : 'border-gray-300 hover:border-primary-300 hover:bg-gray-50'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <input 
                   id="file-input"
                   type="file" 
@@ -545,9 +583,31 @@ export default function ContableApp() {
                 />
                 <label 
                   htmlFor="file-input" 
-                  className="block w-full cursor-pointer rounded-md border border-gray-300 bg-white py-2 px-4 text-sm text-gray-700 shadow-sm hover:bg-gray-50 focus-within:ring focus-within:ring-primary-200 focus-within:ring-opacity-50"
+                  className="cursor-pointer flex flex-col items-center"
                 >
-                  {file ? file.name : "Seleccionar archivo"}
+                  <svg 
+                    className={`w-10 h-10 mb-2 ${isDragging ? 'text-primary-500' : 'text-gray-400'}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24" 
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                  </svg>
+                  {file ? (
+                    <div className="mt-2 text-sm font-medium text-gray-900">
+                      {file.name}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-gray-900">
+                        {isDragging ? 'Suelta el archivo aquí' : 'Arrastra y suelta un archivo'}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        o haz clic para seleccionar
+                      </p>
+                    </>
+                  )}
                 </label>
               </div>
               <p className="text-sm text-gray-500 mt-1">Formatos soportados: .csv, .xls, .xlsx, .pdf</p>
@@ -849,6 +909,20 @@ export default function ContableApp() {
         .bank-option:hover {
           border-color: #4a66d8;
           background-color: #f0f4ff;
+        }
+
+        .drag-drop-area {
+          min-height: 8rem;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          transition: all 0.2s ease;
+        }
+        
+        .drag-drop-area:hover {
+          border-color: #4a66d8;
+          background-color: #f8fafc;
         }
       `}</style>
     </div>
