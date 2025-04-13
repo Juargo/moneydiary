@@ -374,16 +374,6 @@ export default function ContableApp() {
     }
   };
 
-  // Cambiar el evento onChange para garantizar que `handleSubmit` se ejecute después de actualizar el estado
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFileChange(e);
-    setTimeout(() => handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>), 0);
-  };
-
-  const handleBankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedBank(e.target.value);
-  };
-
   const handleSaveTransactions = async () => {
     if (!data.length) {
       setSaveStatus('No hay transacciones para guardar');
