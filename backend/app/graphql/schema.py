@@ -276,19 +276,30 @@ class Query:
             userId: ID del usuario
             budgetId: ID opcional del presupuesto para filtrar
         """
-        # Construir la consulta SQL para la vista
-        query = "SELECT * FROM view_budget_config WHERE user_id = $1"
-        params = [userId]
+        from tortoise import connections
         
-        # Aplicar filtro por presupuesto si se proporcionó
+        # Get the current connection
+        connection = connections.get("default")
+        
+        # Construir la consulta SQL para la vista usando placeholders compatibles con el dialect
+        if connection.capabilities.dialect == "mysql":
+            # MySQL uses %s for placeholders
+            query = "SELECT * FROM view_budget_config WHERE user_id = %s"
+            if budgetId is not None:
+                query += " AND budget_id = %s"
+        else:
+            # PostgreSQL and others use $1, $2, etc.
+            query = "SELECT * FROM view_budget_config WHERE user_id = $1"
+            if budgetId is not None:
+                query += " AND budget_id = $2"
+                
+        # Preparar los parámetros
+        params = [userId]
         if budgetId is not None:
-            query += " AND budget_id = $2"
             params.append(budgetId)
         
         # Ejecutar la consulta raw usando la conexión de Tortoise ORM
-        from tortoise.transactions import in_transaction
-        
-        async with in_transaction() as connection:
+        try:
             results = await connection.execute_query(query, params)
             
             # Convertir los resultados al tipo GraphQL
@@ -308,6 +319,11 @@ class Query:
                 )
                 for row in results[1]  # results[1] contains the actual data rows
             ]
+        except Exception as e:
+            print(f"Error executing SQL query: {e}")
+            print(f"Query: {query}")
+            print(f"Params: {params}")
+            return []
         
     @strawberry.field(name="userTransactions")
     async def user_transactions(
