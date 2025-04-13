@@ -13,6 +13,9 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
   const [expensesTotal, setExpensesTotal] = useState(0);
   const [theoreticalBalance, setTheoreticalBalance] = useState(0);
   const [balanceDifference, setBalanceDifference] = useState(0);
+  
+  // Valor fijo para cuadre
+  const cuadre = 32251;
 
   // Function to format currency values
   const formatCurrency = (amount) => {
@@ -174,7 +177,9 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
           }
         });
         
-        const calculatedTheoreticalBalance = income - -expenses;
+        // Calcular balance teórico sumando el cuadre
+        const rawTheoreticalBalance = income - -expenses;
+        const calculatedTheoreticalBalance = rawTheoreticalBalance + cuadre;
         
         setIncomeTotal(income);
         setExpensesTotal(expenses);
@@ -184,7 +189,11 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
         const difference = totalBalance - calculatedTheoreticalBalance;
         setBalanceDifference(difference);
         
-        console.log('Income:', income, 'Expenses:', expenses, 'Theoretical Balance:', calculatedTheoreticalBalance, 'Actual Balance:', totalBalance, 'Difference:', difference);
+        console.log('Income:', income, 'Expenses:', expenses, 
+                    'Raw Theoretical Balance:', rawTheoreticalBalance,
+                    'Cuadre:', cuadre,
+                    'Adjusted Theoretical Balance:', calculatedTheoreticalBalance, 
+                    'Actual Balance:', totalBalance, 'Difference:', difference);
         
         // Update the display period if available
         if (data.length > 0 && data[0].period) {
@@ -304,6 +313,13 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
                     currency: 'CLP',
                     minimumFractionDigits: 0
                   }).format(theoreticalBalance)}
+                  <div className="text-xs text-gray-500">
+                    (Incluye cuadre de {new Intl.NumberFormat('es-CL', {
+                      style: 'currency', 
+                      currency: 'CLP',
+                      minimumFractionDigits: 0
+                    }).format(cuadre)})
+                  </div>
                 </div>
               </div>
             </div>
