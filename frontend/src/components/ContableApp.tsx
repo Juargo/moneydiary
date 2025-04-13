@@ -346,6 +346,7 @@ export default function ContableApp() {
     setUploadStatus('Subiendo reporte...');
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('user_id', (userId || 1).toString()); // Include bank_id if selected
 
     try {
       const response = await fetch(`http://localhost:8000/api/v1/transactions/upload-bank-report`, {

@@ -78,16 +78,20 @@ def sanitize_json_data(obj: Any) -> Any:
 @router.post("/upload-bank-report")
 async def upload_bank_report(
     file: UploadFile = File(...),
+    user_id: int = Form(1),  # Default user_id is 1 if not provided
 ):
     """
     Recibe y procesa un archivo Excel de banco.
 
     - **file**: Archivo Excel del banco
+    - **user_id**: ID del usuario (default: 1)
 
-    Retorna el saldo contable y los movimientos extraídos del archivo, distinguiendo entre ingresos y gastos.
-    Las transacciones que coinciden con patrones a ignorar serán excluidas del procesamiento.
+    Retorna el saldo contable y los movimientos extraídos del archivo, distinguiendo entre:
+    - Transacciones encontradas
+    - Transacciones omitidas (que coinciden con patrones a ignorar)
+    - Transacciones no clasificadas (sin categoría asignada)
     """
-    logger.info(f"Inicio de procesamiento de archivo bancario: {file.filename},")
+    logger.info(f"Inicio de procesamiento de archivo bancario: {file.filename}, para usuario ID: {user_id}")
     
     # Verificar que el archivo es un Excel
     if not file.filename.endswith((".xls", ".xlsx")):
@@ -108,26 +112,18 @@ async def upload_bank_report(
             f.write(contents)
         logger.info(f"Archivo guardado temporalmente en: {temp_file.name}")
 
-        # Obtener patrones a ignorar del usuario (ID=1 por defecto)
-        logger.info("Obteniendo patrones a ignorar para el procesamiento")
-        pattern_ignores = await get_user_pattern_ignores()
+        # Obtener patrones a ignorar del usuario especificado
+        logger.info(f"Obteniendo patrones a ignorar para el usuario ID: {user_id}")
+        pattern_ignores = await get_user_pattern_ignores(user_id)
         logger.info(f"Se encontraron {len(pattern_ignores)} patrones a ignorar")
 
-        # Procesar el archivo según el ID del banco
-       
-        # Pasar los patrones a ignorar a la función de extracción
-        movimientos = await extraer_datos(temp_file.name, pattern_ignores)
-        logger.info(f"Extracción completada: transacciones={len(movimientos)}")
+        # Procesar el archivo y extraer datos
+        result = await extraer_y_clasificar_datos(temp_file.name, pattern_ignores, user_id)
         
         # Sanitizar datos para evitar errores de serialización JSON
-        response_data = {
-            "transactions": movimientos
-        }
-        
-        logger.info("Sanitizando datos para respuesta JSON")
-        sanitized_data = sanitize_json_data(response_data)
-        logger.info(f"Procesamiento completado exitosamente. Retornando {len(sanitized_data['transactions'])} transacciones")
-        return sanitized_data        
+        sanitized_data = sanitize_json_data(result)
+        logger.info(f"Procesamiento completado exitosamente. Retornando datos clasificados.")
+        return sanitized_data
     except Exception as e:
         logger.error(f"Error al procesar el archivo: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -139,6 +135,275 @@ async def upload_bank_report(
         temp_file.close()
         os.unlink(temp_file.name)
 
+
+async def extraer_y_clasificar_datos(archivo, pattern_ignores=None, user_id=1):
+    """
+    Extrae y clasifica las transacciones de un archivo de banco.
+    
+    Args:
+        archivo: Ruta al archivo a procesar
+        pattern_ignores: Lista de patrones a ignorar
+        user_id: ID del usuario para obtener patrones de clasificación
+        
+    Returns:
+        Diccionario con transacciones categorizadas, omitidas y no clasificadas
+    """
+    try:
+        logger.info(f"Iniciando procesamiento de archivo: {archivo}")
+        
+        # Si no hay patrones a ignorar, inicializar como lista vacía
+        if pattern_ignores is None:
+            pattern_ignores = []
+        
+        # Obtener todos los datos del archivo
+        xls = pd.ExcelFile(archivo)
+        sheet_name = xls.sheet_names[0]
+        df = pd.read_excel(xls, sheet_name=sheet_name)
+
+        logger.info(f"Procesando archivo con forma: {df.shape}")
+
+        ## Listas de encabezados según el banco (mismo código que antes)
+        fecha_headers = ["Fecha", "Fecha Transacción"]
+        descripcion_headers = ["Descripción", "Detalle"]
+        cargos_headers = ["Cargos (CLP)", "Cargo $", "Monto cargo ($)", "Cheques / Cargos $"]
+        abonos_headers = ["Abonos (CLP)", "Abono $", "Monto abono ($)", "Depósitos / Abonos $"]
+       
+        # Buscar columnas con información de movimientos (mismo código de antes)
+        header_row = None
+        for i, row in df.iterrows():
+            row_str = row.to_string().lower()
+            
+            # Verificar coincidencia en encabezados
+            fecha_match = any(header.lower() in row_str for header in fecha_headers)
+            descripcion_match = any(header.lower() in row_str for header in descripcion_headers)
+            cargos_match = any(header.lower() in row_str for header in cargos_headers)
+            abonos_match = any(header.lower() in row_str for header in abonos_headers)
+            
+            # Contar coincidencias
+            total_matches = sum([fecha_match, descripcion_match, cargos_match, abonos_match])
+            
+            if total_matches >= 4:
+                logger.info(f"Encontrados posibles encabezados en fila {i}: {row_str}")
+                header_row = i
+                break
+
+        logger.info(f"Fila de encabezado encontrada: {header_row}")
+        
+        # Variables para almacenar resultados
+        todas_transacciones = []
+        transacciones_omitidas = []
+        transacciones_sin_categoria = []
+        transacciones_categorizadas = []
+        bank_balance = 0.0
+        bank_id = None  # Se puede determinar por patrón o configuración
+        
+        if header_row is not None:
+            df_movimientos = df.iloc[header_row + 1:].copy()
+            df_movimientos.columns = df.iloc[header_row]
+            
+            # Mapear columnas necesarias (mismo código de antes)
+            column_mapping = {
+                "Fecha": fecha_headers,
+                "Descripción": descripcion_headers,
+                "Cargo": cargos_headers,
+                "Abono": abonos_headers,
+            }
+            
+            # Buscar columnas en dataframe (mismo código de antes)
+            found_columns = {}
+            for target_col, possible_names in column_mapping.items():
+                for col_name in df_movimientos.columns:
+                    col_str = str(col_name).lower()
+                    if any(possible.lower() in col_str for possible in possible_names):
+                        found_columns[target_col] = col_name
+                        break
+            
+            logger.info(f"Columnas encontradas: {found_columns}")
+            
+            # Verificar columnas mínimas necesarias
+            if "Fecha" in found_columns and "Descripción" in found_columns and ("Cargo" in found_columns or "Abono" in found_columns):
+                # Crear DataFrame con columnas estandarizadas
+                df_final = pd.DataFrame()
+                df_final["Fecha"] = df_movimientos[found_columns["Fecha"]]
+                df_final["Descripción"] = df_movimientos[found_columns["Descripción"]]
+                
+                # Inicializar columnas numéricas
+                df_final["Cargo"] = 0
+                df_final["Abono"] = 0
+                
+                # Función para convertir montos (mismo código de antes)
+                def parse_chilean_amount(value):
+                    if pd.isna(value):
+                        return 0
+                    
+                    # Si ya es un número, devolverlo directamente
+                    if isinstance(value, (int, float)):
+                        return value
+                    
+                    # Convertir a string si no lo es
+                    value_str = str(value)
+                    
+                    # Reemplazar puntos y comas
+                    cleaned_value = value_str.replace('.', '').replace(',', '.')
+                    
+                    try:
+                        return float(cleaned_value)
+                    except ValueError:
+                        # Extraer solo dígitos y puntos/comas
+                        import re
+                        numeric_chars = re.sub(r'[^\d,.]', '', value_str)
+                        if numeric_chars:
+                            numeric_chars = numeric_chars.replace('.', '').replace(',', '.')
+                            try:
+                                return float(numeric_chars)
+                            except ValueError:
+                                return 0
+                        return 0
+                
+                # Procesar columnas de montos
+                if "Cargo" in found_columns:
+                    df_final["Cargo"] = df_movimientos[found_columns["Cargo"]].apply(parse_chilean_amount)
+                
+                if "Abono" in found_columns:
+                    df_final["Abono"] = df_movimientos[found_columns["Abono"]].apply(parse_chilean_amount)
+                
+                # Si hay columna de monto con valores positivos/negativos
+                if "Monto" in found_columns:
+                    montos = df_movimientos[found_columns["Monto"]].apply(parse_chilean_amount)
+                    df_final["Cargo"] += montos.apply(lambda x: abs(x) if x < 0 else 0)
+                    df_final["Abono"] += montos.apply(lambda x: x if x > 0 else 0)
+                
+                # Determinar tipo de transacción
+                df_final["Tipo"] = "Gasto"
+                df_final.loc[df_final["Abono"] > 0, "Tipo"] = "Ingreso"
+                
+                # Calcular monto final
+                df_final["Monto"] = df_final["Cargo"] + df_final["Abono"]
+                
+                # Filtrar filas con valores nulos y montos cero
+                df_final = df_final.dropna(subset=["Fecha", "Monto"])
+                df_final = df_final[df_final["Monto"] != 0]
+                
+                # Convertir a lista de diccionarios
+                todas_transacciones = df_final[["Fecha", "Descripción", "Monto", "Tipo", "Cargo", "Abono"]].to_dict(orient="records")
+                
+                # Calcular balance final (todas las transacciones)
+                bank_balance = df_final["Monto"].sum()
+                
+                # Filtrar transacciones que coinciden con patrones a ignorar
+                transacciones_filtradas = []
+                
+                if pattern_ignores:
+                    for movimiento in todas_transacciones:
+                        descripcion = movimiento["Descripción"].lower() if "Descripción" in movimiento and movimiento["Descripción"] else ""
+                        
+                        # Verificar si la descripción coincide con algún patrón a ignorar
+                        should_ignore = False
+                        for pattern in pattern_ignores:
+                            pattern_exp = pattern["match_text"]
+                            
+                            # Convertir patrón con comodines a expresión regular
+                            if "*" in pattern_exp:
+                                pattern_regex = pattern_exp.replace("*", ".*")
+                                import re
+                                if re.search(pattern_regex, descripcion, re.IGNORECASE):
+                                    logger.debug(f"Ignorando transacción que coincide con patrón '{pattern_exp}': {descripcion}")
+                                    should_ignore = True
+                                    movimiento["ignored_pattern"] = pattern_exp
+                                    transacciones_omitidas.append(movimiento)
+                                    break
+                            # Comparación directa si no hay comodines
+                            elif pattern_exp.lower() in descripcion:
+                                logger.debug(f"Ignorando transacción que coincide con patrón '{pattern_exp}': {descripcion}")
+                                should_ignore = True
+                                movimiento["ignored_pattern"] = pattern_exp
+                                transacciones_omitidas.append(movimiento)
+                                break
+                        
+                        # Si no debe ignorarse, añadir a la lista filtrada
+                        if not should_ignore:
+                            transacciones_filtradas.append(movimiento)
+                else:
+                    transacciones_filtradas = todas_transacciones.copy()
+                
+                # Obtener patrones del usuario para clasificar
+                user_patterns = await get_user_patterns(user_id)
+                
+                # Aplicar categorización
+                transacciones_categorizadas = await categorizar_transacciones(transacciones_filtradas, user_patterns)
+                
+                # Identificar transacciones sin categoría
+                for transaccion in transacciones_categorizadas:
+                    if transaccion["category_name"] == "Sin categoría":
+                        transacciones_sin_categoria.append(transaccion)
+                
+                # Contar transacciones
+                total_procesadas = len(todas_transacciones)
+                total_omitidas = len(transacciones_omitidas)
+                total_sin_categoria = len(transacciones_sin_categoria)
+                total_categorizadas = len(transacciones_categorizadas) - total_sin_categoria
+                
+                logger.info(f"Análisis de transacciones: Total={total_procesadas}, " 
+                           f"Omitidas={total_omitidas}, Sin categoría={total_sin_categoria}, "
+                           f"Categorizadas={total_categorizadas}")
+                
+                return {
+                    "bank_id": bank_id,
+                    "balance": bank_balance,
+                    "transactions": transacciones_categorizadas,
+                    "transactions_count": len(transacciones_categorizadas),
+                    "ignored_transactions": transacciones_omitidas,
+                    "ignored_count": total_omitidas,
+                    "uncategorized_transactions": transacciones_sin_categoria,
+                    "uncategorized_count": total_sin_categoria,
+                    "categorized_count": total_categorizadas,
+                    "total_count": total_procesadas
+                }
+            else:
+                logger.warning("No se encontraron las columnas necesarias para extraer transacciones")
+                return {
+                    "bank_id": None,
+                    "balance": 0,
+                    "transactions": [],
+                    "transactions_count": 0,
+                    "ignored_transactions": [],
+                    "ignored_count": 0,
+                    "uncategorized_transactions": [],
+                    "uncategorized_count": 0,
+                    "categorized_count": 0,
+                    "total_count": 0,
+                    "error": "No se encontraron las columnas necesarias para procesar el archivo"
+                }
+        else:
+            logger.warning("No se pudo identificar la fila de encabezados en el archivo")
+            return {
+                "bank_id": None, 
+                "balance": 0,
+                "transactions": [],
+                "transactions_count": 0,
+                "ignored_transactions": [],
+                "ignored_count": 0,
+                "uncategorized_transactions": [],
+                "uncategorized_count": 0,
+                "categorized_count": 0,
+                "total_count": 0,
+                "error": "No se encontró la estructura de columnas necesaria en el archivo"
+            }
+    except Exception as e:
+        logger.error(f"Error al procesar el archivo: {str(e)}", exc_info=True)
+        return {
+            "bank_id": None,
+            "balance": 0,
+            "transactions": [],
+            "transactions_count": 0,
+            "ignored_transactions": [],
+            "ignored_count": 0,
+            "uncategorized_transactions": [],
+            "uncategorized_count": 0,
+            "categorized_count": 0,
+            "total_count": 0,
+            "error": f"Error al procesar el archivo: {str(e)}"
+        }
 
 async def extraer_datos(archivo, pattern_ignores=None):
     """
