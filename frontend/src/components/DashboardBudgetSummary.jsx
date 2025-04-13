@@ -4,6 +4,7 @@ import BudgetSummary from './BudgetSummary';
 const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
   const [currentMonth, setCurrentMonth] = useState(initialMonth || new Date().toISOString().substring(0, 7));
   const [budgetSummary, setBudgetSummary] = useState([]);
+  const [budgetConfig, setBudgetConfig] = useState([]);
   const [userBanks, setUserBanks] = useState([]);
   const [totalBalance, setTotalBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -78,6 +79,55 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
       console.error('Error fetching user banks:', error);
       setUserBanks([]);
       setTotalBalance(0);
+    }
+  };
+
+  // Fetch budget configuration from GraphQL
+  const fetchBudgetConfig = async () => {
+    try {
+      const graphqlEndpoint = `${budgetSummaryUrl}/graphql`;
+      
+      const query = `
+       query GetBudgetConfig($userId: Int!) {
+              budgetConfig(userId: $userId) {
+                userId
+                userName
+                budgetId
+                budgetName
+                categoryId
+                categoryName
+                subcategoryId
+                subcategoryName
+                subcategoryBudgetAmount
+                patternId
+                patternText
+              }
+            }
+      `;
+
+      const response = await fetch(graphqlEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query,
+          variables: { userId },
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.data && result.data.budgetConfig) {
+        console.log('Budget config loaded:', result.data.budgetConfig);
+        setBudgetConfig(result.data.budgetConfig);
+      } else {
+        console.error('Error fetching budget config:', result.errors);
+        setBudgetConfig([]);
+      }
+    } catch (error) {
+      console.error('Error fetching budget config:', error);
+      setBudgetConfig([]);
     }
   };
 
@@ -165,6 +215,7 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
     const loadData = async () => {
       setIsLoading(true);
       await fetchUserBanks();
+      await fetchBudgetConfig(); // Fetch budget configuration
       await fetchBudgetSummary(currentMonth);
       setIsLoading(false);
     };
@@ -320,7 +371,11 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
       
       {/* Budget Summary */}
       <div>
-        <BudgetSummary budgetSummary={budgetSummary} totalAvailableBalance={totalBalance} />
+        <BudgetSummary 
+          budgetSummary={budgetSummary} 
+          budgetConfig={budgetConfig} 
+          totalAvailableBalance={totalBalance}
+        />
       </div>
     </div>
   );

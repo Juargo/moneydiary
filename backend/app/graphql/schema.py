@@ -11,6 +11,7 @@ from app.db.models.bank import Bank as BankModel
 from app.db.models.user_bank import UserBank as UserBankModel
 from app.db.models.pattern_ignore import PatternIgnore as PatternIgnoreModel
 from app.db.models.transaction import Transaction as TransactionModel, TransactionType
+from tortoise.expressions import RawSQL
 
 
 @strawberry.type
@@ -107,6 +108,21 @@ class TransactionData:
     bank_name: str = strawberry.field(name="bankName")
     subcategory_name: str = strawberry.field(name="subcategoryName")
     category_name: str = strawberry.field(name="categoryName")
+
+@strawberry.type
+class BudgetConfigData:
+    """ Tipo GraphQL para la vista de configuración de presupuesto """
+    user_id: int
+    user_name: str
+    budget_id: int
+    budget_name: str
+    category_id: int
+    category_name: str
+    subcategory_id: int
+    subcategory_name: str
+    subcategory_budget_amount: Optional[float]
+    pattern_id: Optional[int]
+    pattern_text: Optional[str]
 
 @strawberry.type
 class Query:
@@ -245,6 +261,49 @@ class Query:
                 updated_at=str(pattern_ignore.updated_at)
             )
             for pattern_ignore in pattern_ignores
+        ]
+    
+    @strawberry.field(name="budgetConfig")
+    async def budget_config(
+        self,
+        userId: int,
+        budgetId: Optional[int] = None
+    ) -> List[BudgetConfigData]:
+        """ 
+        Obtener la configuración de presupuesto desde la vista view_budget_config
+        
+        Args:
+            userId: ID del usuario
+            budgetId: ID opcional del presupuesto para filtrar
+        """
+        # Construir la consulta SQL para la vista
+        query = "SELECT * FROM view_budget_config WHERE user_id = $1"
+        params = [userId]
+        
+        # Aplicar filtro por presupuesto si se proporcionó
+        if budgetId is not None:
+            query += " AND budget_id = $2"
+            params.append(budgetId)
+        
+        # Ejecutar la consulta raw
+        results = await TransactionModel.raw(query, *params)
+        
+        # Convertir los resultados al tipo GraphQL
+        return [
+            BudgetConfigData(
+                user_id=row["user_id"],
+                user_name=row["user_name"],
+                budget_id=row["budget_id"],
+                budget_name=row["budget_name"],
+                category_id=row["category_id"],
+                category_name=row["category_name"],
+                subcategory_id=row["subcategory_id"],
+                subcategory_name=row["subcategory_name"],
+                subcategory_budget_amount=float(row["subcategory_budget_amount"]) if row["subcategory_budget_amount"] is not None else None,
+                pattern_id=row["pattern_id"],
+                pattern_text=row["pattern_text"]
+            )
+            for row in results
         ]
         
     @strawberry.field(name="userTransactions")
