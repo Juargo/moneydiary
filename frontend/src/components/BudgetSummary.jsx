@@ -1,16 +1,227 @@
 import React, { useState, useMemo } from 'react';
 
-const BudgetSummary = ({ budgetSummary, budgetConfig,totalAvailableBalance = 0 }) => {
-  console.log('>>>>>>>>>BudgetSummary', budgetSummary, budgetConfig);
+const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance = 0 }) => {
   const [expandedItems, setExpandedItems] = useState({});
+
+  // Format currency values
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(value);
+  };
+
+  // Create a lookup map from budgetConfig for quick access
+  const configLookup = useMemo(() => {
+    const lookup = {
+      subcategories: {},
+      categories: {},
+      budgets: {}
+    };
+    
+    if (budgetConfig && budgetConfig.length > 0) {
+      // For each config item, populate all lookup maps
+      budgetConfig.forEach(item => {
+        // Budget lookup
+        if (item.budgetId && !lookup.budgets[item.budgetId]) {
+          lookup.budgets[item.budgetId] = {
+            name: item.budgetName
+          };
+        }
+        
+        // Category lookup
+        if (item.categoryId && !lookup.categories[item.categoryId]) {
+          lookup.categories[item.categoryId] = {
+            name: item.categoryName,
+            budgetId: item.budgetId,
+            budgetName: item.budgetName
+          };
+        }
+        
+        // Subcategory lookup
+        if (item.subcategoryId) {
+          if (!lookup.subcategories[item.subcategoryId]) {
+            lookup.subcategories[item.subcategoryId] = {
+              budgetAmount: item.subcategoryBudgetAmount || 0,
+              budgetId: item.budgetId,
+              budgetName: item.budgetName,
+              categoryId: item.categoryId,
+              categoryName: item.categoryName,
+              subcategoryName: item.subcategoryName
+            };
+          }
+        }
+      });
+    }
+    
+    return lookup;
+  }, [budgetConfig]);
+
+  // Transform budgetConfig into hierarchical structure and identify missing items
+  const { organizedConfig, completeData } = useMemo(() => {
+    // Create hierarchical organization of config data
+    const configMap = {
+      budgets: {}
+    };
+    
+    // Copy budgetSummary to avoid modifying original
+    const mergedData = JSON.parse(JSON.stringify(budgetSummary || []));
+    
+    // Create lookup maps for easy access
+    const budgetLookup = {};
+    mergedData.forEach(budget => {
+      budgetLookup[budget.id] = budget;
+      
+      // Create category lookup within each budget
+      const categoryLookup = {};
+      budget.categories.forEach(category => {
+        categoryLookup[category.id] = category;
+        
+        // Create subcategory lookup within each category
+        const subcategoryLookup = {};
+        category.subcategories.forEach(subcategory => {
+          subcategoryLookup[subcategory.id] = subcategory;
+        });
+        
+        category.subcategoryLookup = subcategoryLookup;
+      });
+      
+      budget.categoryLookup = categoryLookup;
+    });
+    
+    // Process budgetConfig to add missing items
+    if (budgetConfig && budgetConfig.length > 0) {
+      budgetConfig.forEach(item => {
+        // Ensure budget exists
+        if (!configMap.budgets[item.budgetId]) {
+          configMap.budgets[item.budgetId] = {
+            id: item.budgetId,
+            name: item.budgetName,
+            categories: {}
+          };
+        }
+        
+        // Ensure category exists
+        const budget = configMap.budgets[item.budgetId];
+        if (!budget.categories[item.categoryId]) {
+          budget.categories[item.categoryId] = {
+            id: item.categoryId,
+            name: item.categoryName,
+            subcategories: {}
+          };
+        }
+        
+        // Ensure subcategory exists with budget amount
+        const category = budget.categories[item.categoryId];
+        if (!category.subcategories[item.subcategoryId]) {
+          category.subcategories[item.subcategoryId] = {
+            id: item.subcategoryId,
+            name: item.subcategoryName,
+            budgetAmount: item.subcategoryBudgetAmount || 0,
+            patterns: []
+          };
+        }
+        
+        // Add pattern if it exists
+        if (item.patternId && item.patternText) {
+          const subcategory = category.subcategories[item.subcategoryId];
+          const patternExists = subcategory.patterns.some(p => p.id === item.patternId);
+          
+          if (!patternExists) {
+            subcategory.patterns.push({
+              id: item.patternId,
+              text: item.patternText
+            });
+          }
+        }
+        
+        // Now add missing items to the merged data
+        
+        // Check if budget exists in data, if not add it
+        let budgetInData = budgetLookup[item.budgetId];
+        if (!budgetInData) {
+          budgetInData = {
+            id: item.budgetId,
+            name: item.budgetName,
+            total: 0,
+            formattedTotal: formatCurrency(0),
+            categories: [],
+            categoryLookup: {}
+          };
+          mergedData.push(budgetInData);
+          budgetLookup[item.budgetId] = budgetInData;
+        }
+        
+        // Check if category exists in budget, if not add it
+        let categoryInData = budgetInData.categoryLookup[item.categoryId];
+        if (!categoryInData) {
+          categoryInData = {
+            id: item.categoryId,
+            name: item.categoryName,
+            total: 0,
+            formattedTotal: formatCurrency(0),
+            subcategories: [],
+            subcategoryLookup: {}
+          };
+          budgetInData.categories.push(categoryInData);
+          budgetInData.categoryLookup[item.categoryId] = categoryInData;
+        }
+        
+        // Check if subcategory exists in category, if not add it
+        let subcategoryInData = categoryInData.subcategoryLookup[item.subcategoryId];
+        if (!subcategoryInData) {
+          subcategoryInData = {
+            id: item.subcategoryId,
+            name: item.subcategoryName,
+            subcategory_budget_amount: item.subcategoryBudgetAmount || 0,
+            total: 0,
+            formattedTotal: formatCurrency(0),
+            patterns: []
+          };
+          categoryInData.subcategories.push(subcategoryInData);
+          categoryInData.subcategoryLookup[item.subcategoryId] = subcategoryInData;
+          
+          // Update category budget amount
+          if (!categoryInData.category_budget_amount) {
+            categoryInData.category_budget_amount = 0;
+          }
+          categoryInData.category_budget_amount += (item.subcategoryBudgetAmount || 0);
+          
+          // Update budget amount
+          if (!budgetInData.budget_amount) {
+            budgetInData.budget_amount = 0;
+          }
+          budgetInData.budget_amount += (item.subcategoryBudgetAmount || 0);
+        }
+        
+        // Add pattern if needed
+        if (item.patternId && item.patternText) {
+          const patternExists = subcategoryInData.patterns.some(p => p.id === item.patternId);
+          
+          if (!patternExists) {
+            subcategoryInData.patterns.push({
+              id: item.patternId,
+              text: item.patternText,
+              total: 0,
+              transaction_count: 0,
+              formattedTotal: formatCurrency(0)
+            });
+          }
+        }
+      });
+    }
+    
+    return {
+      organizedConfig: configMap,
+      completeData: mergedData
+    };
+  }, [budgetSummary, budgetConfig]);
 
   // Sort all data by amount (total) in descending order
   const sortedBudgetData = useMemo(() => {
-    // Create a deep copy to avoid modifying the original data
-    const sortedData = [...(budgetSummary || [])];
-    
     // Sort budgets by total (highest to lowest)
-    sortedData.sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+    const sortedData = [...completeData].sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
     
     // Sort categories within each budget
     sortedData.forEach(budget => {
@@ -28,7 +239,7 @@ const BudgetSummary = ({ budgetSummary, budgetConfig,totalAvailableBalance = 0 }
     });
     
     return sortedData;
-  }, [budgetSummary]);
+  }, [completeData]);
 
   // Calculate aggregate data for the overall budget visualization
   const aggregateData = useMemo(() => {
@@ -75,7 +286,7 @@ const BudgetSummary = ({ budgetSummary, budgetConfig,totalAvailableBalance = 0 }
       difference,
       hasSavings
     };
-  }, [budgetSummary]);
+  }, [sortedBudgetData]);
 
   // Helper function to get a color for each budget
   function getBudgetColor(budgetId) {
@@ -90,15 +301,6 @@ const BudgetSummary = ({ budgetSummary, budgetConfig,totalAvailableBalance = 0 }
     return colors[budgetId % colors.length];
   }
 
-  // Format currency values
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP',
-      minimumFractionDigits: 0
-    }).format(value);
-  };
-
   const toggleAccordion = (type, id) => {
     setExpandedItems(prev => ({
       ...prev,
@@ -108,6 +310,64 @@ const BudgetSummary = ({ budgetSummary, budgetConfig,totalAvailableBalance = 0 }
 
   const isExpanded = (type, id) => {
     return !!expandedItems[`${type}-${id}`];
+  };
+
+  // Function to check if a subcategory should show a progress bar
+  const getSubcategoryProgressBar = (subcategory, budget) => {
+    if (!subcategory) return { show: false, amount: 0 };
+    
+    // If subcategory has a budget amount in the data, use it
+    if (subcategory.subcategory_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos') {
+      return {
+        show: true,
+        amount: subcategory.subcategory_budget_amount
+      };
+    }
+    
+    // Check if it has a budget amount in the config
+    const configInfo = configLookup.subcategories[subcategory.id];
+    if (configInfo && configInfo.budgetAmount > 0 && budget.name.toLowerCase() !== 'ingresos') {
+      return {
+        show: true,
+        amount: configInfo.budgetAmount
+      };
+    }
+    
+    return { show: false, amount: 0 };
+  };
+
+  // Function to check if a category should show a progress bar
+  const getCategoryProgressBar = (category, budget) => {
+    if (!category) return { show: false, amount: 0 };
+    
+    // If category has a budget amount in the data, use it
+    if (category.category_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos') {
+      return {
+        show: true,
+        amount: category.category_budget_amount
+      };
+    }
+    
+    // Sum up the budget amounts from all subcategories in configLookup
+    let totalBudgetAmount = 0;
+    let foundBudgetAmount = false;
+    
+    // Look through all subcategories in the configuration
+    Object.values(configLookup.subcategories).forEach(subConfig => {
+      if (subConfig.categoryId === category.id && subConfig.budgetAmount > 0) {
+        totalBudgetAmount += subConfig.budgetAmount;
+        foundBudgetAmount = true;
+      }
+    });
+    
+    if (foundBudgetAmount && budget.name.toLowerCase() !== 'ingresos') {
+      return {
+        show: true,
+        amount: totalBudgetAmount
+      };
+    }
+    
+    return { show: false, amount: 0 };
   };
 
   return (
@@ -321,130 +581,147 @@ const BudgetSummary = ({ budgetSummary, budgetConfig,totalAvailableBalance = 0 }
                 
                 {/* Budget Content (Categories) */}
                 <div className={`pl-6 ${isExpanded('budget', budget.id) ? 'block' : 'hidden'}`}>
-                  {budget.categories.map((category) => (
-                    <div key={category.id} className="border-l-2 border-gray-200 pl-2 mt-1">
-                      {/* Category (Subfolder) */}
-                      <div className="py-1 hover:bg-gray-50">
-                        <div 
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => toggleAccordion('category', category.id)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <i className={`${isExpanded('category', category.id) ? 'fas fa-folder-open text-blue-400' : 'fas fa-folder text-blue-300'} mr-2`}></i>
-                            <span className="w-36 truncate text-xs font-semibold text-gray-700">{category.name}</span>
+                  {budget.categories.map((category) => {
+                    // Check if this category should show a progress bar
+                    const categoryProgressBar = getCategoryProgressBar(category, budget);
+                    
+                    return (
+                      <div key={category.id} className="border-l-2 border-gray-200 pl-2 mt-1">
+                        {/* Category (Subfolder) */}
+                        <div className="py-1 hover:bg-gray-50">
+                          <div 
+                            className="flex items-center justify-between cursor-pointer"
+                            onClick={() => toggleAccordion('category', category.id)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <i className={`${isExpanded('category', category.id) ? 'fas fa-folder-open text-blue-400' : 'fas fa-folder text-blue-300'} mr-2`}></i>
+                              <span className="w-36 truncate text-xs font-semibold text-gray-700">{category.name}</span>
+                              
+                              {/* Progress bar for category - now showing for those with budgetConfig entries too */}
+                              {categoryProgressBar.show ? (
+                                <div className="w-48 relative">
+                                  <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
+                                    {/* Progress bar showing percentage of usage */}
+                                    <div 
+                                      style={{ 
+                                        width: `${Math.min(100, (Math.abs(category.total || 0) / categoryProgressBar.amount) * 100)}%` 
+                                      }} 
+                                      className={`
+                                        flex flex-col text-center whitespace-nowrap 
+                                        text-white justify-center
+                                        ${Math.abs(category.total || 0) > categoryProgressBar.amount ? 'bg-red-500' : 'bg-blue-500'}
+                                      `}
+                                    >
+                                      <span className="text-xs px-1 truncate">
+                                        {Math.round((Math.abs(category.total || 0) / categoryProgressBar.amount) * 100)}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Amount information below the progress bar */}
+                                  <div className="flex justify-between text-xs mt-0.5 text-gray-600">
+                                    <span>{formatCurrency(Math.abs(category.total || 0))}</span>
+                                    <span>{formatCurrency(categoryProgressBar.amount)}</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                // Empty placeholder to maintain alignment when no progress bar
+                                <div className="w-48"></div>
+                              )}
+                            </div>
+                            <div className={`font-semibold ${category.total < 0 ? 'text-red-600' : 'text-green-600'} text-sm`}>
+                              {formatCurrency(category.total || 0)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Category Content (Subcategories) */}
+                        <div className={`pl-6 ${isExpanded('category', category.id) ? 'block' : 'hidden'}`}>
+                          {category.subcategories.map((subcategory) => {
+                            // Check if this subcategory should show a progress bar
+                            const subcategoryProgressBar = getSubcategoryProgressBar(subcategory, budget);
                             
-                            {/* Progress bar for category - hide for "Ingresos" budget */}
-                            {category.category_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' ? (
-                              <div className="w-48 relative">
-                                <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
-                                  {/* Progress bar showing percentage of usage */}
+                            return (
+                              <div key={subcategory.id} className="border-l-2 border-gray-200 pl-2 mt-1">
+                                {/* Subcategory (Nested subfolder) */}
+                                <div className="py-1 hover:bg-gray-50">
                                   <div 
-                                    style={{ 
-                                      width: `${Math.min(100, (Math.abs(category.total) / category.category_budget_amount) * 100)}%` 
-                                    }} 
-                                    className={`
-                                      flex flex-col text-center whitespace-nowrap 
-                                      text-white justify-center
-                                      ${Math.abs(category.total) > category.category_budget_amount ? 'bg-red-500' : 'bg-blue-500'}
-                                    `}
+                                    className="flex items-center justify-between cursor-pointer"
+                                    onClick={() => toggleAccordion('subcategory', subcategory.id)}
                                   >
-                                    <span className="text-xs px-1 truncate">
-                                      {Math.round((Math.abs(category.total) / category.category_budget_amount) * 100)}%
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <i className={`${isExpanded('subcategory', subcategory.id) ? 'fas fa-folder-open text-green-400' : 'fas fa-folder text-green-300'} mr-2`}></i>
+                                      <span className="w-36 truncate text-xs font-semibold text-gray-700">{subcategory.name}</span>
+                                      
+                                      {/* Progress bar for subcategory */}
+                                      {subcategoryProgressBar.show ? (
+                                        <div className="w-48 relative">
+                                          <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
+                                            {/* Progress bar showing percentage of usage */}
+                                            <div 
+                                              style={{ 
+                                                width: `${Math.min(100, (Math.abs(subcategory.total || 0) / subcategoryProgressBar.amount) * 100)}%` 
+                                              }} 
+                                              className={`
+                                                flex flex-col text-center whitespace-nowrap 
+                                                text-white justify-center
+                                                ${Math.abs(subcategory.total || 0) > subcategoryProgressBar.amount ? 'bg-red-500' : 'bg-green-500'}
+                                              `}
+                                            >
+                                              <span className="text-xs px-1 truncate">
+                                                {Math.round((Math.abs(subcategory.total || 0) / subcategoryProgressBar.amount) * 100)}%
+                                              </span>
+                                            </div>
+                                          </div>
+                                          
+                                          {/* Amount information below the progress bar */}
+                                          <div className="flex justify-between text-xs mt-0.5 text-gray-600">
+                                            <span>{formatCurrency(Math.abs(subcategory.total || 0))}</span>
+                                            <span>{formatCurrency(subcategoryProgressBar.amount)}</span>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        // Empty placeholder to maintain alignment when no progress bar
+                                        <div className="w-48"></div>
+                                      )}
+                                    </div>
+                                    <div className={`font-semibold ${subcategory.total < 0 ? 'text-red-600' : 'text-green-600'} text-sm`}>
+                                      {formatCurrency(subcategory.total || 0)}
+                                    </div>
                                   </div>
                                 </div>
                                 
-                                {/* Amount information below the progress bar */}
-                                <div className="flex justify-between text-xs mt-0.5 text-gray-600">
-                                  <span>{formatCurrency(Math.abs(category.total))}</span>
-                                  <span>{formatCurrency(category.category_budget_amount)}</span>
-                                </div>
-                              </div>
-                            ) : (
-                              // Empty placeholder to maintain alignment when no progress bar
-                              <div className="w-48"></div>
-                            )}
-                          </div>
-                          <div className={`font-semibold ${category.total < 0 ? 'text-red-600' : 'text-green-600'} text-sm`}>
-                            {formatCurrency(category.total)}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Category Content (Subcategories) */}
-                      <div className={`pl-6 ${isExpanded('category', category.id) ? 'block' : 'hidden'}`}>
-                        {category.subcategories.map((subcategory) => (
-                          <div key={subcategory.id} className="border-l-2 border-gray-200 pl-2 mt-1">
-                            {/* Subcategory (Nested subfolder) */}
-                            <div className="py-1 hover:bg-gray-50">
-                              <div 
-                                className="flex items-center justify-between cursor-pointer"
-                                onClick={() => toggleAccordion('subcategory', subcategory.id)}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <i className={`${isExpanded('subcategory', subcategory.id) ? 'fas fa-folder-open text-green-400' : 'fas fa-folder text-green-300'} mr-2`}></i>
-                                  <span className="w-36 truncate text-xs font-semibold text-gray-700">{subcategory.name}</span>
-                                  
-                                  {/* Progress bar for subcategory - hide for "Ingresos" budget */}
-                                  {subcategory.subcategory_budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' ? (
-                                    <div className="w-48 relative">
-                                      <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
-                                        {/* Progress bar showing percentage of usage */}
-                                        <div 
-                                          style={{ 
-                                            width: `${Math.min(100, (Math.abs(subcategory.total) / subcategory.subcategory_budget_amount) * 100)}%` 
-                                          }} 
-                                          className={`
-                                            flex flex-col text-center whitespace-nowrap 
-                                            text-white justify-center
-                                            ${Math.abs(subcategory.total) > subcategory.subcategory_budget_amount ? 'bg-red-500' : 'bg-green-500'}
-                                          `}
-                                        >
-                                          <span className="text-xs px-1 truncate">
-                                            {Math.round((Math.abs(subcategory.total) / subcategory.subcategory_budget_amount) * 100)}%
-                                          </span>
-                                        </div>
+                                {/* Subcategory Content (Patterns as files) */}
+                                <div className={`pl-6 ${isExpanded('subcategory', subcategory.id) ? 'block' : 'hidden'}`}>
+                                  {subcategory.patterns.map((pattern) => (
+                                    <div key={pattern.id} className="flex items-center justify-between py-1 hover:bg-gray-50">
+                                      <div className="flex items-center">
+                                        <i className="fas fa-file-alt text-gray-400 mr-2"></i>
+                                        <span className="text-xs">{pattern.text}</span>
                                       </div>
-                                      
-                                      {/* Amount information below the progress bar */}
-                                      <div className="flex justify-between text-xs mt-0.5 text-gray-600">
-                                        <span>{formatCurrency(Math.abs(subcategory.total))}</span>
-                                        <span>{formatCurrency(subcategory.subcategory_budget_amount)}</span>
+                                      <div className="flex items-center">
+                                        <span className="text-xs text-gray-500 mr-3">{pattern.transaction_count} transacciones</span>
+                                        <span className={`text-sm font-medium ${pattern.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                          {pattern.formattedTotal}
+                                        </span>
                                       </div>
                                     </div>
-                                  ) : (
-                                    // Empty placeholder to maintain alignment when no progress bar
-                                    <div className="w-48"></div>
+                                  ))}
+                                  
+                                  {/* Show message when no patterns exist */}
+                                  {subcategory.patterns.length === 0 && (
+                                    <div className="py-1 text-xs text-gray-500 italic">
+                                      No hay patrones definidos para esta subcategoría
+                                    </div>
                                   )}
                                 </div>
-                                <div className={`font-semibold ${subcategory.total < 0 ? 'text-red-600' : 'text-green-600'} text-sm`}>
-                                  {formatCurrency(subcategory.total)}
-                                </div>
                               </div>
-                            </div>
-                            
-                            {/* Subcategory Content (Patterns as files) */}
-                            <div className={`pl-6 ${isExpanded('subcategory', subcategory.id) ? 'block' : 'hidden'}`}>
-                              {subcategory.patterns.map((pattern) => (
-                                <div key={pattern.id} className="flex items-center justify-between py-1 hover:bg-gray-50">
-                                  <div className="flex items-center">
-                                    <i className="fas fa-file-alt text-gray-400 mr-2"></i>
-                                    <span className="text-xs">{pattern.text}</span>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <span className="text-xs text-gray-500 mr-3">{pattern.transaction_count} transacciones</span>
-                                    <span className={`text-sm font-medium ${pattern.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                      {pattern.formattedTotal}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
