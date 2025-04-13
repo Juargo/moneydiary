@@ -62,6 +62,7 @@ export default function ContableApp() {
   // Add currentUser state
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userId, setUserId] = useState<number>(1); // Default user ID
+  const [userBanksData, setUserBanksData] = useState<GraphQLUserBank[]>([]); // Store user banks data
 
   useEffect(() => {
     // Safe to access localStorage inside useEffect (client-side only)
@@ -122,6 +123,7 @@ export default function ContableApp() {
         bankId: number;
         balance: number;
         description: string | null;
+        patternNameFile?: string | null;
         createdAt: string;
         updatedAt: string;
       }
@@ -199,6 +201,9 @@ export default function ContableApp() {
       }
       
       const userBanks: GraphQLUserBank[] = userBanksResult.data.userBanks;
+      
+      // Store the original user banks data for pattern matching later
+      setUserBanksData(userBanks);
       
       // Map user banks to the format needed by the component
       const enhancedBanks = userBanks.map(userBank => {
@@ -278,8 +283,48 @@ export default function ContableApp() {
       setFile(selectedFile);
       setUploadStatus(null);
       
-      // Procesar el archivo inmediatamente después de seleccionarlo
+      // Auto-select bank based on filename pattern matching
+      autoSelectBankByFileName(selectedFile.name);
+      
+      // Process the file after selection
       processFileUpload(selectedFile);
+    }
+  };
+
+  // New dedicated function for auto-selecting bank based on file name
+  const autoSelectBankByFileName = (fileName: string) => {
+    if (!fileName || !userBanksData || userBanksData.length === 0) return;
+    
+    fileName = fileName.toLowerCase();
+    console.log('Checking if filename matches any bank patterns:', fileName);
+    
+    // Look for banks with matching pattern_name_file
+    const matchedBank = userBanksData.find(userBank => {
+      if (!userBank.patternNameFile) return false;
+      
+      const pattern = userBank.patternNameFile.toLowerCase();
+      const isMatch = fileName.includes(pattern);
+      
+      if (isMatch) {
+        console.log(`File name "${fileName}" matches pattern "${pattern}" for bank ID ${userBank.bankId}`);
+      }
+      
+      return isMatch;
+    });
+    
+    if (matchedBank) {
+      // Find the corresponding bank in the banks array to get its name
+      const bankInfo = banks.find(bank => bank.id === matchedBank.bankId);
+      const bankName = bankInfo?.name || `Banco ID: ${matchedBank.bankId}`;
+      
+      // Select this bank
+      console.log(`Auto-selecting bank: ${bankName} (ID: ${matchedBank.bankId})`);
+      setSelectedBank(matchedBank.bankId.toString());
+      
+      // Show notification to user with more details
+      setUploadStatus(`Banco ${bankName} seleccionado automáticamente por coincidencia con el patrón "${matchedBank.patternNameFile}"`);
+    } else {
+      console.log('No bank pattern matches the filename');
     }
   };
 
@@ -454,25 +499,45 @@ export default function ContableApp() {
         <form id="upload-form" className="space-y-4">
           <div className="form-row flex flex-col md:flex-row gap-4">
             <div className="form-group flex-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar Banco:</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Seleccionar Banco: {selectedBank && <span className="text-primary-600">(Auto-detectado por nombre de archivo)</span>}
+              </label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {loadingBanks ? (
                   <p className="text-gray-500">Cargando bancos...</p>
                 ) : (
-                  banks.map(bank => (
-                    <div 
-                      key={bank.id} 
-                      className={`bank-option p-4 border rounded-lg cursor-pointer shadow-sm ${
-                        selectedBank === bank.id.toString() ? 'border-primary-500 bg-primary-50' : 'border-gray-300'
-                      }`}
-                      onClick={() => setSelectedBank(bank.id.toString())}
-                    >
-                      <h3 className="text-sm font-medium text-gray-800">{bank.name}</h3>
-                      {bank.balance && (
-                        <p className="text-sm text-gray-600">Saldo: {formatAmount(bank.balance)}</p>
-                      )}
-                    </div>
-                  ))
+                  banks.map(bank => {
+                    // Find the corresponding userBank to show pattern info
+                    const userBank = userBanksData.find(ub => ub.bankId === bank.id);
+                    const hasPattern = userBank && userBank.patternNameFile;
+                    
+                    return (
+                      <div 
+                        key={bank.id} 
+                        className={`bank-option p-4 border rounded-lg cursor-pointer shadow-sm ${
+                          selectedBank === bank.id.toString() 
+                            ? 'border-primary-500 bg-primary-50' 
+                            : hasPattern 
+                              ? 'border-blue-200' 
+                              : 'border-gray-300'
+                        }`}
+                        onClick={() => setSelectedBank(bank.id.toString())}
+                      >
+                        <h3 className="text-sm font-medium text-gray-800">
+                          {bank.name}
+                          {hasPattern && <span className="ml-1 text-xs text-blue-500">✓</span>}
+                        </h3>
+                        {bank.balance && (
+                          <p className="text-sm text-gray-600">Saldo: {formatAmount(bank.balance)}</p>
+                        )}
+                        {hasPattern && (
+                          <p className="text-xs text-blue-500 mt-1 truncate" title={userBank.patternNameFile}>
+                            Patrón: {userBank.patternNameFile}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
