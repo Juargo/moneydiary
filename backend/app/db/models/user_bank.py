@@ -8,6 +8,7 @@ class UserBank(Model):
     user = fields.ForeignKeyField('models.User', related_name='bank')
     bank = fields.ForeignKeyField('models.Bank', related_name='user')
     balance = fields.DecimalField(max_digits=15, decimal_places=0, default=0)
+    pattern_name_file = fields.CharField(max_length=255, null=True)
     description = fields.TextField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)

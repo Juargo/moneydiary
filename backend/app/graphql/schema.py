@@ -77,6 +77,7 @@ class UserBank:
     bank_id: int = strawberry.field(name="bankId")
     balance: float
     description: Optional[str]
+    pattern_name_file: Optional[str] = strawberry.field(name="patternNameFile")
     created_at: str = strawberry.field(name="createdAt")
     updated_at: str = strawberry.field(name="updatedAt")
 
@@ -240,6 +241,7 @@ class Query:
                 user_id=user_bank.user_id,
                 bank_id=user_bank.bank_id,
                 balance=float(user_bank.balance),
+                pattern_name_file=user_bank.pattern_name_file,
                 description=user_bank.description,
                 created_at=str(user_bank.created_at),
                 updated_at=str(user_bank.updated_at)

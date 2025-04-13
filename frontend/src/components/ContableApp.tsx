@@ -175,6 +175,7 @@ export default function ContableApp() {
                 bankId
                 balance
                 description
+                patternNameFile
                 createdAt
                 updatedAt
               }
