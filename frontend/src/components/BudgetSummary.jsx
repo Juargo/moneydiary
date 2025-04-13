@@ -373,24 +373,6 @@ const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance
   return (
     <div className="bg-white rounded-lg shadow" id="budget-summary-container">
       <div className="p-6">
-        {/* Display total available balance if provided */}
-        {/* {totalAvailableBalance !== undefined && (
-          <div className={`mb-4 p-3 rounded-lg border border-gray-300 
-                          ${totalAvailableBalance >= 0 ? 'bg-blue-50' : 'bg-yellow-50'}`}>
-            <div className="flex justify-between items-center">
-              <div>
-                <span className="font-medium text-gray-700">Dinero Disponible Actualmente:</span>
-                <p className="text-sm text-gray-600 mt-1">
-                  Este es el balance total de todas tus cuentas bancarias registradas.
-                </p>
-              </div>
-              <div className={`text-xl font-bold ${totalAvailableBalance >= 0 ? 'text-blue-600' : 'text-yellow-600'}`}>
-                {formatCurrency(totalAvailableBalance)}
-              </div>
-            </div>
-          </div>
-        )} */}
-        
         {/* Overall Budget Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
@@ -527,10 +509,6 @@ const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance
           <div className="space-y-2 font-mono" id="container-resumen">
             {sortedBudgetData.map((budget) => (
               <div key={budget.id} className="border-l-2 border-gray-200 pl-2">
-              {/* <pre className='text-xs'>
-                {JSON.stringify(budget, null, 2)}
-              </pre>
-     */}
                 {/* Budget (Root folder) */}
                 <div className="py-1 hover:bg-gray-50">
                   <div 
@@ -543,7 +521,7 @@ const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance
                       
                       {/* Progress bar for budget - hide for "Ingresos" budget */}
                       {budget.budget_amount > 0 && budget.name.toLowerCase() !== 'ingresos' ? (
-                        <div className="w-48 relative">
+                        <div className="w-96 relative">
                           <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
                             {/* Progress bar showing percentage of usage */}
                             <div 
@@ -570,7 +548,7 @@ const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance
                         </div>
                       ) : (
                         // Empty placeholder to maintain alignment when no progress bar
-                        <div className="w-48"></div>
+                        <div className="w-96"></div>
                       )}
                     </div>
                     <div className={`font-semibold text-sm ${budget.total < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -599,7 +577,7 @@ const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance
                               
                               {/* Progress bar for category - now showing for those with budgetConfig entries too */}
                               {categoryProgressBar.show ? (
-                                <div className="w-48 relative">
+                                <div className="w-96 relative">
                                   <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
                                     {/* Progress bar showing percentage of usage */}
                                     <div 
@@ -626,7 +604,7 @@ const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance
                                 </div>
                               ) : (
                                 // Empty placeholder to maintain alignment when no progress bar
-                                <div className="w-48"></div>
+                                <div className="w-96"></div>
                               )}
                             </div>
                             <div className={`font-semibold ${category.total < 0 ? 'text-red-600' : 'text-green-600'} text-sm`}>
@@ -655,7 +633,7 @@ const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance
                                       
                                       {/* Progress bar for subcategory */}
                                       {subcategoryProgressBar.show ? (
-                                        <div className="w-48 relative">
+                                        <div className="w-96 relative">
                                           <div className="relative h-4 flex overflow-hidden rounded bg-gray-200 w-full">
                                             {/* Progress bar showing percentage of usage */}
                                             <div 
@@ -682,7 +660,7 @@ const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance
                                         </div>
                                       ) : (
                                         // Empty placeholder to maintain alignment when no progress bar
-                                        <div className="w-48"></div>
+                                        <div className="w-96"></div>
                                       )}
                                     </div>
                                     <div className={`font-semibold ${subcategory.total < 0 ? 'text-red-600' : 'text-green-600'} text-sm`}>
