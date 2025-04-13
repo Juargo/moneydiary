@@ -326,6 +326,9 @@ export default function ContableApp() {
       setUploadStatus(`Banco ${bankName} seleccionado automáticamente por coincidencia con el patrón "${matchedBank.patternNameFile}"`);
     } else {
       console.log('No bank pattern matches the filename');
+      // Clear selected bank if no match is found
+      setSelectedBank('');
+      setUploadStatus('No se pudo identificar el banco automáticamente. Por favor, sube un archivo con un nombre que coincida con algún patrón configurado.');
     }
   };
 
@@ -389,7 +392,7 @@ export default function ContableApp() {
       const selectedBankObj = banks.find(b => b.id.toString() === selectedBank);
       
       if (!selectedBankObj) {
-        setSaveStatus('Error: Selecciona un banco válido');
+        setSaveStatus('Error: No se ha seleccionado un banco automáticamente. Por favor, sube un archivo cuyo nombre coincida con un patrón configurado.');
         setSavingTransactions(false);
         return;
       }
@@ -513,13 +516,13 @@ export default function ContableApp() {
       <div className="upload-section">
         <h2 className="text-xl font-bold text-gray-800 mb-4">Subir Reporte Bancario</h2>
         <p className="text-sm text-gray-600 mb-4">
-          Sube un archivo de tu banco para procesar las transacciones. Asegúrate de seleccionar el banco correcto y un archivo válido.
+          Sube el archivo de tu banco para procesar las transacciones. El banco será detectado automáticamente según el nombre del archivo.
         </p>
         <form id="upload-form" className="space-y-4">
           <div className="form-row flex flex-col md:flex-row gap-4">
             <div className="form-group flex-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Seleccionar Banco: {selectedBank && <span className="text-primary-600">(Auto-detectado por nombre de archivo)</span>}
+                Banco: {selectedBank && <span className="text-emerald-600 font-medium">(Auto-detectado)</span>}
               </label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {loadingBanks ? (
@@ -529,29 +532,37 @@ export default function ContableApp() {
                     // Find the corresponding userBank to show pattern info
                     const userBank = userBanksData.find(ub => ub.bankId === bank.id);
                     const hasPattern = userBank && userBank.patternNameFile;
+                    const isSelected = selectedBank === bank.id.toString();
                     
                     return (
                       <div 
                         key={bank.id} 
-                        className={`bank-option p-4 border rounded-lg cursor-pointer shadow-sm ${
-                          selectedBank === bank.id.toString() 
-                            ? 'border-primary-500 bg-primary-50' 
+                        className={`bank-option p-4 border rounded-lg shadow-sm cursor-not-allowed ${
+                          isSelected
+                            ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500 ring-opacity-50' 
                             : hasPattern 
-                              ? 'border-blue-200' 
-                              : 'border-gray-300'
+                              ? 'border-blue-200 bg-blue-50' 
+                              : 'border-gray-200 bg-gray-50 opacity-60'
                         }`}
-                        onClick={() => setSelectedBank(bank.id.toString())}
                       >
-                        <h3 className="text-sm font-medium text-gray-800">
+                        <h3 className={`text-sm font-medium ${isSelected ? 'text-emerald-800' : 'text-gray-800'}`}>
                           {bank.name}
-                          {hasPattern && <span className="ml-1 text-xs text-blue-500">✓</span>}
+                          {isSelected && <span className="ml-2 text-xs text-emerald-600">✓ Seleccionado</span>}
+                          {hasPattern && !isSelected && <span className="ml-1 text-xs text-blue-500">Auto-detectable</span>}
                         </h3>
                         {bank.balance && (
-                          <p className="text-sm text-gray-600">Saldo: {formatAmount(bank.balance)}</p>
+                          <p className={`text-sm ${isSelected ? 'text-emerald-700' : 'text-gray-600'}`}>
+                            Saldo: {formatAmount(bank.balance)}
+                          </p>
                         )}
                         {hasPattern && (
-                          <p className="text-xs text-blue-500 mt-1 truncate" title={userBank.patternNameFile}>
+                          <p className={`text-xs mt-1 truncate ${isSelected ? 'text-emerald-600' : 'text-blue-500'}`} title={userBank.patternNameFile}>
                             Patrón: {userBank.patternNameFile}
+                          </p>
+                        )}
+                        {!hasPattern && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Sin patrón de detección
                           </p>
                         )}
                       </div>
@@ -559,6 +570,11 @@ export default function ContableApp() {
                   })
                 )}
               </div>
+              {!selectedBank && !loadingBanks && (
+                <p className="text-sm text-amber-600 mt-2 font-medium">
+                  El banco será seleccionado automáticamente al subir un archivo que coincida con algún patrón.
+                </p>
+              )}
             </div>
             
             <div className="form-group flex-1">
@@ -566,8 +582,8 @@ export default function ContableApp() {
               <div 
                 className={`drag-drop-area relative p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${
                   isDragging 
-                    ? 'border-primary-500 bg-primary-50' 
-                    : 'border-gray-300 hover:border-primary-300 hover:bg-gray-50'
+                    ? 'border-emerald-500 bg-emerald-50' 
+                    : 'border-gray-300 hover:border-emerald-300 hover:bg-gray-50'
                 }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -586,7 +602,7 @@ export default function ContableApp() {
                   className="cursor-pointer flex flex-col items-center"
                 >
                   <svg 
-                    className={`w-10 h-10 mb-2 ${isDragging ? 'text-primary-500' : 'text-gray-400'}`} 
+                    className={`w-10 h-10 mb-2 ${isDragging ? 'text-emerald-500' : 'text-gray-400'}`} 
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24" 
@@ -618,7 +634,11 @@ export default function ContableApp() {
         {uploadStatus && (
           <div 
             className={`mt-4 p-3 rounded-lg text-sm font-medium ${
-              uploadStatus.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+              uploadStatus.includes('Error') || uploadStatus.includes('No se pudo') 
+                ? 'bg-amber-100 text-amber-700 border-l-4 border-amber-500' 
+                : uploadStatus.includes('seleccionado automáticamente') 
+                  ? 'bg-emerald-100 text-emerald-700 border-l-4 border-emerald-500'
+                  : 'bg-blue-100 text-blue-700'
             }`}
           >
             {uploadStatus}
@@ -923,6 +943,22 @@ export default function ContableApp() {
         .drag-drop-area:hover {
           border-color: #4a66d8;
           background-color: #f8fafc;
+        }
+
+        .bank-option {
+          transition: all 0.2s ease-in-out;
+          position: relative;
+        }
+        
+        .bank-option.opacity-60:after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(255,255,255,0.5);
+          border-radius: 0.5rem;
         }
       `}</style>
     </div>
