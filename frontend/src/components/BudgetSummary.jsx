@@ -31,9 +31,13 @@ const BudgetSummary = ({ budgetSummary, totalAvailableBalance = 0 }) => {
 
   // Calculate aggregate data for the overall budget visualization
   const aggregateData = useMemo(() => {
-    if (!budgetSummary || budgetSummary.length === 0) return { totalSpent: 0, budgets: [], totalLimit: 2000000, totalBudgetAmount: 0 };
+    if (!budgetSummary || budgetSummary.length === 0) return { totalSpent: 0, budgets: [], totalLimit: 0, totalBudgetAmount: 0 };
     
-    const totalLimit = 2000000; // Fixed limit of 2,000,000 CLP
+    // Find the "Ingresos" budget to use as the monthly limit
+    const ingresosBudget = budgetSummary.find(budget => budget.name.toLowerCase() === 'ingresos');
+    // Use the income total as the limit, or default to 0 if not found
+    const totalLimit = ingresosBudget ? Math.abs(ingresosBudget.total || 0) : 0;
+    
     let totalSpent = 0;
     
     // Filter out the "Ingresos" budget and prepare budget data

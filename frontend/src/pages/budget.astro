@@ -727,25 +727,6 @@ const totalRemaining = totalBudgeted - totalSpent;
                     <h4 class="font-medium">{category.name}</h4>
                     <p class="text-sm text-gray-500">{category.description}</p>
                   </div>
-                  <div class="flex items-center gap-4">
-                    <div class="text-right">
-                      <div class="text-sm">
-                        <span class="text-gray-500">Gastado:</span> 
-                        <span class="font-medium">${category.spent.toFixed(2)}</span> / 
-                        <span class="font-medium">${category.limit.toFixed(2)}</span>
-                      </div>
-                      <div class="w-32 bg-gray-200 rounded-full h-2.5 mt-1">
-                        <div class={`h-2.5 rounded-full ${
-                          category.progress >= 100 
-                            ? 'bg-red-600' 
-                            : category.progress > 75 
-                              ? 'bg-yellow-500' 
-                              : 'bg-green-600'
-                        }`} style={`width: ${Math.min(category.progress, 100)}%`}></div>
-                      </div>
-                    </div>
-                    <i class="fas fa-chevron-down transform group-open:rotate-180 transition-transform"></i>
-                  </div>
                 </summary>
                 
                 <!-- Subcategories Level -->
