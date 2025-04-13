@@ -244,6 +244,7 @@ export default function ContableApp() {
     setUploadStatus('Subiendo reporte...');
     const formData = new FormData();
     formData.append('file', selectedFile);
+    formData.append('user_id', userId.toString() || '');
   
     try {
       const response = await fetch(`http://localhost:8000/api/v1/transactions/upload-bank-report`, {
@@ -329,53 +330,6 @@ export default function ContableApp() {
       // Clear selected bank if no match is found
       setSelectedBank('');
       setUploadStatus('No se pudo identificar el banco automáticamente. Por favor, sube un archivo con un nombre que coincida con algún patrón configurado.');
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    // Verificar si el archivo está definido
-    if (!file) {
-      setUploadStatus('Por favor selecciona un archivo');
-      return;
-    }
-
-    console.log('Submitting form with file:', file);
-
-    setUploadStatus('Subiendo reporte...');
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('user_id', (userId || 1).toString()); // Include bank_id if selected
-
-    try {
-      const response = await fetch(`http://localhost:8000/api/v1/transactions/upload-bank-report`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Error al procesar el archivo');
-      }
-
-      const result: BankReport = await response.json();
-      setUploadStatus('Reporte procesado correctamente');
-      
-      // Actualiza el estado con los datos del reporte
-      setData(result.transactions);
-      setBalance(result.balance);
-      setSelectedBankId(result.bank_id);
-      
-      // Mostrar tabla cuando hay datos del reporte
-      setShowTable(result.transactions.length > 0);
-
-      // Limpiar el input file
-      setFile(null);
-      const fileInput = document.getElementById('file-input') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-    } catch (err: any) {
-      setUploadStatus(`Error: ${err.message}`);
     }
   };
 
