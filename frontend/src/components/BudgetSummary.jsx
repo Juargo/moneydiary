@@ -374,7 +374,7 @@ const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance
     <div className="bg-white rounded-lg shadow" id="budget-summary-container">
       <div className="p-6">
         {/* Display total available balance if provided */}
-        {totalAvailableBalance !== undefined && (
+        {/* {totalAvailableBalance !== undefined && (
           <div className={`mb-4 p-3 rounded-lg border border-gray-300 
                           ${totalAvailableBalance >= 0 ? 'bg-blue-50' : 'bg-yellow-50'}`}>
             <div className="flex justify-between items-center">
@@ -389,7 +389,7 @@ const BudgetSummary = ({ budgetSummary, budgetConfig = [], totalAvailableBalance
               </div>
             </div>
           </div>
-        )}
+        )} */}
         
         {/* Overall Budget Progress Bar */}
         <div className="mb-8">

@@ -261,7 +261,7 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
         <div className="bg-white rounded-lg shadow p-4 mb-4">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-semibold text-gray-800">Tus Cuentas Bancarias</h3>
-            <div className="text-right">
+            {/* <div className="text-right">
               <div className="text-sm text-gray-600">Balance Total</div>
               <div className={`text-lg font-bold ${totalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {new Intl.NumberFormat('es-CL', {
@@ -270,14 +270,14 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
                   minimumFractionDigits: 0
                 }).format(totalBalance)}
               </div>
-            </div>
+            </div> */}
           </div>
           
           {/* Balance Comparison Section */}
           <div className="mb-4 border-t border-gray-200 pt-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="bg-blue-50 p-2 rounded">
-                <div className="text-gray-600">Ingresos del Mes</div>
+                <div className="text-gray-600">Ingresos del Mes actualmente</div>
                 <div className="font-bold text-green-600">
                   {new Intl.NumberFormat('es-CL', {
                     style: 'currency',
@@ -287,7 +287,7 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
                 </div>
               </div>
               <div className="bg-blue-50 p-2 rounded">
-                <div className="text-gray-600">Gastos Presupuestados</div>
+                <div className="text-gray-600">Gastos del Mes actualmente</div>
                 <div className="font-bold text-red-600">
                   {new Intl.NumberFormat('es-CL', {
                     style: 'currency',
@@ -297,7 +297,7 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
                 </div>
               </div>
               <div className="bg-blue-50 p-2 rounded">
-                <div className="text-gray-600">Balance Teórico</div>
+                <div className="text-gray-600">Esto debería quedar en banco</div>
                 <div className={`font-bold ${theoreticalBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {new Intl.NumberFormat('es-CL', {
                     style: 'currency',
@@ -336,7 +336,22 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
               </div>
             )}
           </div>
-          
+          {totalBalance !== undefined && (
+          <div className={`mt-3 mb-4 p-3 rounded-lg border border-gray-300 
+                          ${totalBalance >= 0 ? 'bg-blue-50' : 'bg-yellow-50'}`}>
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="font-medium text-gray-700">Dinero Disponible Actualmente:</span>
+                <p className="text-sm text-gray-600 mt-1">
+                  Este es el balance total de todas tus cuentas bancarias registradas.
+                </p>
+              </div>
+              <div className={`text-xl font-bold ${totalBalance >= 0 ? 'text-blue-600' : 'text-yellow-600'}`}>
+                {formatCurrency(totalBalance)}
+              </div>
+            </div>
+          </div>
+        )}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {userBanks.map(bank => (
               <div key={bank.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center">
@@ -356,6 +371,7 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
               </div>
             ))}
           </div>
+          
         </div>
       )}
 
