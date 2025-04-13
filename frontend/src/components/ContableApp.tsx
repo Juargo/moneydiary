@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 
 const API_URL = 'http://localhost:8000'; 
+// Remove the direct localStorage access at module level
 
 interface Transaction {
   transaction_date: string;
@@ -42,7 +43,9 @@ interface BankReport {
 }
 
 // Add a userId prop or use a default value (1 for demo)
-export default function ContableApp({ userId = 1 }) {
+export default function ContableApp() {
+  const [user, setUser] = useState<{ id: number; name: string } | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [data, setData] = useState<TransactionProcessed[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,14 +58,38 @@ export default function ContableApp({ userId = 1 }) {
   const [selectedBankId, setSelectedBankId] = useState<number | null>(null);
   const [savingTransactions, setSavingTransactions] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
-  const [showTable, setShowTable] = useState(false); // Nuevo estado para controlar la visibilidad de la tabla
+  const [showTable, setShowTable] = useState(false);
+  // Add currentUser state
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userId, setUserId] = useState<number>(1); // Default user ID
 
   useEffect(() => {
-    // No cargar transacciones al iniciar, solo bancos
-    // fetchTransactions();
-    fetchBanks();
-    setLoading(false); // Indicar que la carga inicial ha terminado
+    // Safe to access localStorage inside useEffect (client-side only)
+    try {
+      const userFromStorage = localStorage.getItem('currentUser');
+      if (userFromStorage) {
+        const parsedUser = JSON.parse(userFromStorage);
+        setCurrentUser(parsedUser);
+        if (parsedUser.id) {
+          setUserId(parseInt(parsedUser.id)); // Ensure it's parsed as number
+          console.log("User ID set from localStorage:", parsedUser.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+    }
+    
+    // Move fetchBanks to a separate useEffect that depends on userId
+    setLoading(false);
   }, []);
+
+  // Add a new useEffect to fetch banks after userId is set from localStorage
+  useEffect(() => {
+    if (userId) {
+      console.log("Fetching banks with user ID:", userId);
+      fetchBanks();
+    }
+  }, [userId]);
 
   const fetchTransactions = async () => {
     try {
@@ -86,6 +113,7 @@ export default function ContableApp({ userId = 1 }) {
   const fetchBanks = async () => {
     try {
       setLoadingBanks(true);
+      console.log("Using userId for API call:", userId);
       
       // Define GraphQL types for type safety
       interface GraphQLUserBank {
@@ -153,6 +181,7 @@ export default function ContableApp({ userId = 1 }) {
             }
           `,
           variables: {
+            // Use the userId from state which is updated from localStorage in useEffect
             userId: userId
           }
         }),

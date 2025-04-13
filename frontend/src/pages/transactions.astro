@@ -21,7 +21,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/graphql
 
 <DashboardLayout title="Transacciones">
   <ContableApp client:load />
-  <div class="mb-6">
+  <!-- <div class="mb-6">
     <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold text-gray-800">Administra tus Transacciones</h1>
       <button class="bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg flex items-center">
@@ -30,11 +30,10 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/graphql
     </div>
   </div>
   
-  <!-- React component for transaction management -->
   <TransactionsManager 
     client:load
     userId={userId} 
     apiUrl={API_URL}
     initialMonth={currentYearMonth}
-  />
+  /> -->
 </DashboardLayout>
