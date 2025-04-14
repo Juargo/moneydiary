@@ -3,45 +3,26 @@ import DashboardLayout from '../layouts/DashboardLayout.astro';
 import '../styles/global.css';
 
 // GraphQL queries
-const BUDGETS_QUERY = `
-  query GetBudgets($userId: Int!) {
-    budgets(userId: $userId) {
-      id
-      name
-      description
+// Replace multiple individual queries with a single comprehensive budget config query
+const BUDGET_CONFIG_QUERY = `
+  query GetBudgetConfig($userId: Int!) {
+    budgetConfig(userId: $userId) {
+      userId
+      userName
+      budgetId
+      budgetName
+      categoryId
+      categoryName
+      subcategoryId
+      subcategoryName
+      subcategoryBudgetAmount
+      patternId
+      patternText
     }
   }
 `;
 
-const CATEGORIES_QUERY = `
-  query GetCategories($budgetId: Int!) {
-    categories(budgetId: $budgetId) {
-      id
-      name
-      description
-    }
-  }
-`;
-
-const SUBCATEGORIES_QUERY = `
-  query GetSubcategories($categoryId: Int!) {
-    subcategories(categoryId: $categoryId) {
-      id
-      name
-    }
-  }
-`;
-
-const PATTERNS_QUERY = `
-  query GetPatterns($subcategoryId: Int!) {
-    patterns(subcategoryId: $subcategoryId) {
-      id
-      expName
-    }
-  }
-`;
-
-// Add new query for pattern ignores
+// Keep the pattern ignores query
 const PATTERN_IGNORES_QUERY = `
   query GetPatternIgnores($userId: Int!) {
     patternIgnores(userId: $userId) {
@@ -83,55 +64,77 @@ let budgetData = [];
 let patternIgnores = [];
 
 try {
-  // Fetch budgets
-  const budgetsData = await fetchGraphQL(BUDGETS_QUERY, { userId });
+  // Fetch budget configuration using the new comprehensive query
+  const budgetConfigData = await fetchGraphQL(BUDGET_CONFIG_QUERY, { userId });
   
-  if (budgetsData && budgetsData.budgets) {
-    // For each budget, fetch categories
-    for (const budget of budgetsData.budgets) {
-      const categoriesData = await fetchGraphQL(CATEGORIES_QUERY, { budgetId: budget.id });
+  if (budgetConfigData && budgetConfigData.budgetConfig) {
+    // Process budget config data to construct the hierarchy
+    const configItems = budgetConfigData.budgetConfig;
+    
+    // Create a map to organize the data hierarchically
+    const budgetsMap = new Map();
+    
+    // Process each item from the flat budgetConfig result
+    configItems.forEach(item => {
+      // Add budget level if not exists
+      if (!budgetsMap.has(item.budgetId)) {
+        budgetsMap.set(item.budgetId, {
+          id: item.budgetId,
+          name: item.budgetName,
+          description: `Budget for ${item.userName}`,
+          categories: new Map()
+        });
+      }
       
-      const categories = [];
-      if (categoriesData && categoriesData.categories) {
-        // For each category, fetch subcategories
-        for (const category of categoriesData.categories) {
-          const subcategoriesData = await fetchGraphQL(SUBCATEGORIES_QUERY, { categoryId: category.id });
-          
-          const subcategories = [];
-          if (subcategoriesData && subcategoriesData.subcategories) {
-            // For each subcategory, fetch patterns
-            for (const subcategory of subcategoriesData.subcategories) {
-              const patternsData = await fetchGraphQL(PATTERNS_QUERY, { subcategoryId: subcategory.id });
-              
-              subcategories.push({
-                ...subcategory,
-                patterns: patternsData?.patterns || []
-              });
-            }
-          }
-          
-          // Calculate category totals
-          const limit = 1000; // This would ideally come from the API
-          const spent = 800; // This would be calculated from transactions in a real app
-          const remaining = limit - spent;
-          const progress = (spent / limit) * 100;
-          
-          categories.push({
-            ...category,
-            subcategories,
-            limit,
-            spent,
-            remaining,
-            progress
+      const budget = budgetsMap.get(item.budgetId);
+      
+      // Add category level if not exists
+      if (!budget.categories.has(item.categoryId)) {
+        budget.categories.set(item.categoryId, {
+          id: item.categoryId,
+          name: item.categoryName,
+          description: `Category in ${item.budgetName}`,
+          subcategories: new Map(),
+          // Set default budget amounts that would typically come from the API
+          limit: 1000, // Default value
+          spent: 800, // Default value
+          remaining: 200,
+          progress: 80
+        });
+      }
+      
+      const category = budget.categories.get(item.categoryId);
+      
+      // Add subcategory level if not exists
+      if (!category.subcategories.has(item.subcategoryId)) {
+        category.subcategories.set(item.subcategoryId, {
+          id: item.subcategoryId,
+          name: item.subcategoryName,
+          patterns: []
+        });
+      }
+      
+      // Add pattern if it exists
+      if (item.patternId && item.patternText) {
+        const subcategory = category.subcategories.get(item.subcategoryId);
+        // Avoid duplicate patterns
+        if (!subcategory.patterns.some(p => p.id === item.patternId)) {
+          subcategory.patterns.push({
+            id: item.patternId,
+            expName: item.patternText
           });
         }
       }
-      
-      budgetData.push({
-        ...budget,
-        categories
-      });
-    }
+    });
+    
+    // Convert maps to arrays for easier rendering
+    budgetData = Array.from(budgetsMap.values()).map(budget => ({
+      ...budget,
+      categories: Array.from(budget.categories.values()).map(category => ({
+        ...category,
+        subcategories: Array.from(category.subcategories.values())
+      }))
+    }));
   }
   
   // Fetch pattern ignores
