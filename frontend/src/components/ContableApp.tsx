@@ -39,7 +39,13 @@ interface Bank {
 interface BankReport {
   bank_id: number;
   balance: number;
-  transactions: Transaction[];
+  transactions: TransactionProcessed[];
+  transactions_count: number;
+  ignored_count: number;
+  categorized_count: number;
+  uncategorized_count: number;
+  ignored_transactions?: TransactionProcessed[];
+  uncategorized_transactions?: TransactionProcessed[];
 }
 
 // Add a userId prop or use a default value (1 for demo)
@@ -64,6 +70,12 @@ export default function ContableApp() {
   const [userId, setUserId] = useState<number>(1); // Default user ID
   const [userBanksData, setUserBanksData] = useState<GraphQLUserBank[]>([]); // Store user banks data
   const [isDragging, setIsDragging] = useState(false);
+  const [reportStats, setReportStats] = useState<{
+    transactions_count: number;
+    ignored_count: number;
+    categorized_count: number;
+    uncategorized_count: number;
+  } | null>(null);
 
   useEffect(() => {
     // Safe to access localStorage inside useEffect (client-side only)
@@ -265,6 +277,14 @@ export default function ContableApp() {
       setData(result.transactions);
       setBalance(result.balance);
       setSelectedBankId(result.bank_id);
+      
+      // Store report statistics
+      setReportStats({
+        transactions_count: result.transactions_count || 0,
+        ignored_count: result.ignored_count || 0,
+        categorized_count: result.categorized_count || 0,
+        uncategorized_count: result.uncategorized_count || 0
+      });
       
       // Mostrar tabla cuando hay datos del reporte
       setShowTable(result.transactions.length > 0);
@@ -603,13 +623,36 @@ export default function ContableApp() {
       
       {balance !== null && (
         <div className="balance-info">
-          <h3>Información del Reporte</h3>
-          <p>Banco: {banks.find(b => b.id === selectedBankId)?.name || `ID: ${selectedBankId}`}</p>
-          <p>Saldo: {formatAmount(balance)}</p>
-          <p>Transacciones sin categoría: {countUncategorizedTransactions}</p>
+          <h3 className="font-semibold text-lg mb-2">Información del Reporte</h3>
+          
+          {reportStats && (
+            <div className="stats-container">
+              <div className="stat-card">
+                <div className="stat-value">{reportStats.transactions_count}</div>
+                <div className="stat-label">Encontradas</div>
+              </div>
+              
+              <div className="stat-card">
+                <div className="stat-value text-emerald-600">{reportStats.categorized_count}</div>
+                <div className="stat-label">Categorizadas</div>
+              </div>
+              
+              <div className="stat-card">
+                <div className="stat-value text-red-600">{reportStats.uncategorized_count}</div>
+                <div className="stat-label">Sin categorizar</div>
+              </div>
+              
+              <div className="stat-card">
+                <div className="stat-value text-amber-600">{reportStats.ignored_count}</div>
+                <div className="stat-label">Ignoradas</div>
+              </div>
+              
+             
+            </div>
+          )}
         </div>
       )}
-      
+
       {showTable && data.length > 0 && (
         <>
           <div className="transactions-header">
@@ -782,13 +825,49 @@ export default function ContableApp() {
         }
 
         .balance-info {
-          background-color: #e3f2fd;
+          background-color: #f0f9ff;
           padding: 1rem;
           border-radius: 8px;
           margin-bottom: 1.5rem;
-          border-left: 4px solid #2196f3;
+          border-left: 4px solid #0ea5e9;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
         
+        .stats-container {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+          gap: 0.75rem;
+          margin-top: 0.5rem;
+        }
+        
+        .stat-card {
+          background: white;
+          border-radius: 6px;
+          padding: 0.75rem;
+          text-align: center;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+          transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stat-value {
+          font-size: 1.25rem;
+          font-weight: 700;
+          line-height: 1.2;
+          margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+          font-size: 0.75rem;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
         tr.ingreso {
           background-color: rgba(76, 175, 80, 0.1);
         }
@@ -914,6 +993,27 @@ export default function ContableApp() {
           bottom: 0;
           background: rgba(255,255,255,0.5);
           border-radius: 0.5rem;
+        }
+
+        .stats-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 0.5rem;
+        }
+        
+        .stat-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.25rem 0;
+        }
+        
+        .stat-label {
+          font-weight: 500;
+        }
+        
+        .stat-value {
+          font-weight: 600;
         }
       `}</style>
     </div>
