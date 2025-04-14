@@ -56,7 +56,8 @@ async function fetchGraphQL(query: string, variables: Record<string, any> = {}) 
   return result.data;
 }
 
-// Mock user ID - in a real application, this would come from authentication
+// Mock user ID for server-side rendering only
+// The actual user ID will be retrieved from localStorage on the client side
 const userId = 1;
 
 // Fetch all needed data
@@ -809,32 +810,437 @@ const totalRemaining = totalBudgeted - totalSpent;
 </DashboardLayout>
 
 <script>
-  // Initialize all details elements to be closed initially
-  // except for the main budget level
-  document.addEventListener('DOMContentLoaded', () => {
+  // Initialize with default user ID
+  let userId = 1;
+  let currentUser = null;
+
+  // Function to get current user from localStorage
+  function getCurrentUserFromLocalStorage() {
+    try {
+      const userFromStorage = localStorage.getItem('currentUser');
+      if (userFromStorage) {
+        const parsedUser = JSON.parse(userFromStorage);
+        
+        if (parsedUser && parsedUser.id) {
+          userId = parseInt(parsedUser.id);
+          currentUser = parsedUser;
+          console.log("User ID set from localStorage:", userId);
+          return true;
+        }
+      }
+      console.warn("No user found in localStorage or invalid user data");
+      return false;
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
+      return false;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Get user data from localStorage (similar to ContableApp.tsx)
+    const userFound = getCurrentUserFromLocalStorage();
+    
+    // If we found a user, reload data with the user's actual ID
+    if (userFound) {
+      await reloadDataWithUserId(userId);
+    }
+    
+    // Initialize all details elements to be closed initially
     const allDetails = document.querySelectorAll('details:not(.group)');
     allDetails.forEach(detail => {
       (detail as HTMLDetailsElement).open = false;
     });
     
-    // Set up pattern modals and form submission
+    // Setup pattern modals and form submission
     setupPatternFunctionality();
-    
-    // Set up edit pattern functionality
     setupEditPatternFunctionality();
-    
-    // Set up delete pattern functionality (will be implemented later)
     setupDeletePatternFunctionality();
-    
-    // Set up subcategory functionality
     setupSubcategoryFunctionality();
     setupEditSubcategoryFunctionality();
     setupDeleteSubcategoryFunctionality();
-    
-    // Set up pattern ignore functionality
     setupPatternIgnoreFunctionality();
   });
+
+  // Function to reload data with the correct user ID
+  async function reloadDataWithUserId(userId) {
+    if (!userId) return;
+    
+    try {
+      // Fetch budget config for the actual user
+      const budgetConfigResponse = await fetchGraphQL(BUDGET_CONFIG_QUERY, { userId });
+      
+      if (!budgetConfigResponse || !budgetConfigResponse.budgetConfig || 
+          budgetConfigResponse.budgetConfig.length === 0) {
+        console.warn('No budget configuration found for user ID:', userId);
+        return;
+      }
+
+      // Check if data needs to be refreshed
+      const currentBudgets = document.querySelectorAll('.bg-white.rounded-lg.shadow.overflow-hidden');
+      
+      // Get unique budget IDs from the response
+      const responseBudgetIds = new Set(
+        budgetConfigResponse.budgetConfig.map(item => item.budgetId)
+      );
+      
+      // If user has different budgets than what's displayed, reload the page
+      if (currentBudgets.length !== responseBudgetIds.size) {
+        console.log('Budget count mismatch, reloading with correct user data');
+        window.location.reload();
+        return;
+      }
+      
+      // Get pattern ignores for the actual user
+      const patternIgnoresResponse = await fetchGraphQL(PATTERN_IGNORES_QUERY, { userId });
+      
+      if (patternIgnoresResponse && patternIgnoresResponse.patternIgnores) {
+        const currentPatterns = document.querySelectorAll('#patternIgnoresTable tr:not(:first-child)');
+        if (currentPatterns.length !== patternIgnoresResponse.patternIgnores.length) {
+          console.log('Pattern ignores count mismatch, reloading with correct user data');
+          window.location.reload();
+        }
+      }
+    } catch (error) {
+      console.error('Error reloading data with user ID:', error);
+    }
+  }
+
+  // GraphQL fetch function (moved from server to client-side)
+  async function fetchGraphQL(query, variables = {}) {
+    try {
+      const response = await fetch('http://localhost:8000/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query,
+          variables,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`GraphQL request failed: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('GraphQL fetch error:', error);
+      return null;
+    }
+  }
+
+  // Client-side GraphQL queries for dynamically loading data
+  const BUDGET_CONFIG_QUERY = `
+    query GetBudgetConfig($userId: Int!) {
+      budgetConfig(userId: $userId) {
+        userId
+        userName
+        budgetId
+        budgetName
+        categoryId
+        categoryName
+        subcategoryId
+        subcategoryName
+        subcategoryBudgetAmount
+        patternId
+        patternText
+      }
+    }
+  `;
+
+  const PATTERN_IGNORES_QUERY = `
+    query GetPatternIgnores($userId: Int!) {
+      patternIgnores(userId: $userId) {
+        id
+        expName
+        description
+        createdAt
+        updatedAt
+      }
+    }
+  `;
   
+  // Update pattern ignore functionality to include userId from localStorage
+  function setupPatternIgnoreFunctionality() {
+    const patternIgnoreModal = document.getElementById('patternIgnoreModal');
+    const patternIgnoreForm = document.getElementById('patternIgnoreForm') as HTMLFormElement;
+    const patternIgnoreIdInput = document.getElementById('patternIgnoreId') as HTMLInputElement;
+    const patternIgnoreExpressionInput = document.getElementById('patternIgnoreExpression') as HTMLInputElement;
+    const patternIgnoreDescriptionInput = document.getElementById('patternIgnoreDescription') as HTMLTextAreaElement;
+    const patternIgnoreModalTitle = document.getElementById('patternIgnoreModalTitle');
+    
+    const closePatternIgnoreModalBtn = document.getElementById('closePatternIgnoreModal');
+    const cancelPatternIgnoreBtn = document.getElementById('cancelPatternIgnoreBtn');
+    const addPatternIgnoreBtn = document.getElementById('addPatternIgnoreBtn');
+    
+    // Delete pattern ignore modal elements
+    const deletePatternIgnoreModal = document.getElementById('deletePatternIgnoreModal');
+    const deletePatternIgnoreId = document.getElementById('deletePatternIgnoreId') as HTMLInputElement;
+    const deletePatternIgnoreName = document.getElementById('deletePatternIgnoreName');
+    const closeDeletePatternIgnoreModalBtn = document.getElementById('closeDeletePatternIgnoreModal');
+    const cancelDeletePatternIgnoreBtn = document.getElementById('cancelDeletePatternIgnoreBtn');
+    const confirmDeletePatternIgnoreBtn = document.getElementById('confirmDeletePatternIgnoreBtn');
+    
+    // Add Pattern Ignore
+    if (addPatternIgnoreBtn) {
+      addPatternIgnoreBtn.addEventListener('click', () => {
+        // Reset form
+        patternIgnoreForm.reset();
+        patternIgnoreIdInput.value = '';
+        
+        // Update modal title
+        if (patternIgnoreModalTitle) {
+          patternIgnoreModalTitle.textContent = 'Agregar Patrón a Ignorar';
+        }
+        
+        // Show modal
+        if (patternIgnoreModal) {
+          patternIgnoreModal.classList.remove('hidden');
+        }
+      });
+    }
+    
+    // Close pattern ignore modal
+    if (closePatternIgnoreModalBtn) {
+      closePatternIgnoreModalBtn.addEventListener('click', () => {
+        if (patternIgnoreModal) {
+          patternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    if (cancelPatternIgnoreBtn) {
+      cancelPatternIgnoreBtn.addEventListener('click', () => {
+        if (patternIgnoreModal) {
+          patternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Click outside to close pattern ignore modal
+    if (patternIgnoreModal) {
+      patternIgnoreModal.addEventListener('click', (e) => {
+        if (e.target === patternIgnoreModal) {
+          patternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Close delete pattern ignore modal
+    if (closeDeletePatternIgnoreModalBtn) {
+      closeDeletePatternIgnoreModalBtn.addEventListener('click', () => {
+        if (deletePatternIgnoreModal) {
+          deletePatternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    if (cancelDeletePatternIgnoreBtn) {
+      cancelDeletePatternIgnoreBtn.addEventListener('click', () => {
+        if (deletePatternIgnoreModal) {
+          deletePatternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Click outside to close delete pattern ignore modal
+    if (deletePatternIgnoreModal) {
+      deletePatternIgnoreModal.addEventListener('click', (e) => {
+        if (e.target === deletePatternIgnoreModal) {
+          deletePatternIgnoreModal.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Handle form submission for pattern ignore
+    patternIgnoreForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const patternId = patternIgnoreIdInput.value;
+      const expName = patternIgnoreExpressionInput.value.trim();
+      const description = patternIgnoreDescriptionInput.value.trim();
+      
+      if (!expName || !description) {
+        alert('Por favor completa todos los campos requeridos');
+        return;
+      }
+      
+      try {
+        // Show loading state
+        const submitBtn = patternIgnoreForm.querySelector('button[type="submit"]');
+        if (!submitBtn) {
+          console.error('Submit button not found');
+          return;
+        }
+        const originalText = submitBtn.innerHTML;
+        (submitBtn as HTMLButtonElement).disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        
+        let response;
+        let patternIgnore;
+        
+        // Use the current userId from localStorage for API requests
+        const requestData = {
+          match_text: expName,
+          description: description,
+          user_id: userId  // Use the userId from localStorage
+        };
+        
+        // Create or update pattern ignore
+        if (patternId) {
+          // Update existing pattern ignore
+          response = await fetch(`http://localhost:8000/api/v1/pattern-ignores/${patternId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData),
+          });
+        } else {
+          // Create new pattern ignore
+          response = await fetch('http://localhost:8000/api/v1/pattern-ignores/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData),
+          });
+        }
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Error al procesar el patrón a ignorar');
+        }
+        
+        patternIgnore = await response.json();
+        
+        // Refresh the page to show updated data
+        // In a real app you might update the DOM directly instead
+        window.location.reload();
+        
+        // Close the modal
+        if (patternIgnoreModal) {
+          patternIgnoreModal.classList.add('hidden');
+        }
+        
+        // Show success message
+        showNotification(`Patrón a ignorar ${patternId ? 'actualizado' : 'creado'} exitosamente`, 'success');
+      } catch (error) {
+        console.error('Error processing pattern ignore:', error);
+        showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al procesar el patrón a ignorar', 'error');
+      } finally {
+        // Restore button state
+        const submitBtn = patternIgnoreForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          (submitBtn as HTMLButtonElement).disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
+      }
+    });
+    
+    // Edit Pattern Ignore
+    document.querySelectorAll('.edit-pattern-ignore-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        const btn = e.currentTarget as HTMLButtonElement;
+        const patternId = btn.dataset.patternId;
+        const patternName = btn.dataset.patternName;
+        const patternDescription = btn.dataset.patternDescription;
+        
+        // Set form values
+        patternIgnoreIdInput.value = patternId || '';
+        patternIgnoreExpressionInput.value = patternName || '';
+        patternIgnoreDescriptionInput.value = patternDescription || '';
+        
+        // Update modal title
+        if (patternIgnoreModalTitle) {
+          patternIgnoreModalTitle.textContent = 'Editar Patrón a Ignorar';
+        }
+        
+        // Show modal
+        if (patternIgnoreModal) {
+          patternIgnoreModal.classList.remove('hidden');
+        }
+      });
+    });
+    
+    // Delete Pattern Ignore
+    document.querySelectorAll('.delete-pattern-ignore-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        const btn = e.currentTarget as HTMLButtonElement;
+        const patternId = btn.dataset.patternId;
+        const patternName = btn.dataset.patternName;
+        
+        // Set values for delete confirmation
+        deletePatternIgnoreId.value = patternId || '';
+        if (deletePatternIgnoreName) {
+          deletePatternIgnoreName.textContent = `"${patternName || ''}"`;
+        }
+        
+        // Show delete modal
+        if (deletePatternIgnoreModal) {
+          deletePatternIgnoreModal.classList.remove('hidden');
+        }
+      });
+    });
+    
+    // Handle delete confirmation
+    if (confirmDeletePatternIgnoreBtn) {
+      confirmDeletePatternIgnoreBtn.addEventListener('click', async () => {
+        const patternId = deletePatternIgnoreId.value;
+        
+        if (!patternId) {
+          console.error('Invalid pattern ID');
+          return;
+        }
+        
+        try {
+          // Show loading state
+          const originalText = confirmDeletePatternIgnoreBtn.innerHTML;
+          confirmDeletePatternIgnoreBtn.disabled = true;
+          confirmDeletePatternIgnoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+          
+          // Call the API to delete the pattern ignore
+          const response = await fetch(`http://localhost:8000/api/v1/pattern-ignores/${patternId}`, {
+            method: 'DELETE',
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Error al eliminar el patrón a ignorar');
+          }
+          
+          // Refresh the page to show updated data
+          // In a real app you might update the DOM directly instead
+          window.location.reload();
+          
+          // Close the modal
+          if (deletePatternIgnoreModal) {
+            deletePatternIgnoreModal.classList.add('hidden');
+          }
+          
+          // Show success message
+          showNotification('Patrón a ignorar eliminado exitosamente', 'success');
+        } catch (error) {
+          console.error('Error deleting pattern ignore:', error);
+          showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al eliminar el patrón a ignorar', 'error');
+        } finally {
+          // Restore button state
+          if (confirmDeletePatternIgnoreBtn) {
+            confirmDeletePatternIgnoreBtn.disabled = false;
+            confirmDeletePatternIgnoreBtn.innerHTML = originalText;
+          }
+        }
+      });
+    }
+  }
+  
+  // Also update other API calls to include the current userId
   function setupPatternFunctionality() {
     const addPatternModal = document.getElementById('addPatternModal');
     const patternForm = document.getElementById('patternForm') as HTMLFormElement;
@@ -1733,283 +2139,6 @@ const totalRemaining = totalBudgeted - totalSpent;
           if (confirmDeleteBtn) {
             confirmDeleteBtn.disabled = false;
             confirmDeleteBtn.innerHTML = originalText;
-          }
-        }
-      });
-    }
-  }
-  
-  // Implementation of pattern ignore functionality
-  function setupPatternIgnoreFunctionality() {
-    const patternIgnoreModal = document.getElementById('patternIgnoreModal');
-    const patternIgnoreForm = document.getElementById('patternIgnoreForm') as HTMLFormElement;
-    const patternIgnoreIdInput = document.getElementById('patternIgnoreId') as HTMLInputElement;
-    const patternIgnoreExpressionInput = document.getElementById('patternIgnoreExpression') as HTMLInputElement;
-    const patternIgnoreDescriptionInput = document.getElementById('patternIgnoreDescription') as HTMLTextAreaElement;
-    const patternIgnoreModalTitle = document.getElementById('patternIgnoreModalTitle');
-    
-    const closePatternIgnoreModalBtn = document.getElementById('closePatternIgnoreModal');
-    const cancelPatternIgnoreBtn = document.getElementById('cancelPatternIgnoreBtn');
-    const addPatternIgnoreBtn = document.getElementById('addPatternIgnoreBtn');
-    
-    // Delete pattern ignore modal elements
-    const deletePatternIgnoreModal = document.getElementById('deletePatternIgnoreModal');
-    const deletePatternIgnoreId = document.getElementById('deletePatternIgnoreId') as HTMLInputElement;
-    const deletePatternIgnoreName = document.getElementById('deletePatternIgnoreName');
-    const closeDeletePatternIgnoreModalBtn = document.getElementById('closeDeletePatternIgnoreModal');
-    const cancelDeletePatternIgnoreBtn = document.getElementById('cancelDeletePatternIgnoreBtn');
-    const confirmDeletePatternIgnoreBtn = document.getElementById('confirmDeletePatternIgnoreBtn');
-    
-    // Add Pattern Ignore
-    if (addPatternIgnoreBtn) {
-      addPatternIgnoreBtn.addEventListener('click', () => {
-        // Reset form
-        patternIgnoreForm.reset();
-        patternIgnoreIdInput.value = '';
-        
-        // Update modal title
-        if (patternIgnoreModalTitle) {
-          patternIgnoreModalTitle.textContent = 'Agregar Patrón a Ignorar';
-        }
-        
-        // Show modal
-        if (patternIgnoreModal) {
-          patternIgnoreModal.classList.remove('hidden');
-        }
-      });
-    }
-    
-    // Close pattern ignore modal
-    if (closePatternIgnoreModalBtn) {
-      closePatternIgnoreModalBtn.addEventListener('click', () => {
-        if (patternIgnoreModal) {
-          patternIgnoreModal.classList.add('hidden');
-        }
-      });
-    }
-    
-    if (cancelPatternIgnoreBtn) {
-      cancelPatternIgnoreBtn.addEventListener('click', () => {
-        if (patternIgnoreModal) {
-          patternIgnoreModal.classList.add('hidden');
-        }
-      });
-    }
-    
-    // Click outside to close pattern ignore modal
-    if (patternIgnoreModal) {
-      patternIgnoreModal.addEventListener('click', (e) => {
-        if (e.target === patternIgnoreModal) {
-          patternIgnoreModal.classList.add('hidden');
-        }
-      });
-    }
-    
-    // Close delete pattern ignore modal
-    if (closeDeletePatternIgnoreModalBtn) {
-      closeDeletePatternIgnoreModalBtn.addEventListener('click', () => {
-        if (deletePatternIgnoreModal) {
-          deletePatternIgnoreModal.classList.add('hidden');
-        }
-      });
-    }
-    
-    if (cancelDeletePatternIgnoreBtn) {
-      cancelDeletePatternIgnoreBtn.addEventListener('click', () => {
-        if (deletePatternIgnoreModal) {
-          deletePatternIgnoreModal.classList.add('hidden');
-        }
-      });
-    }
-    
-    // Click outside to close delete pattern ignore modal
-    if (deletePatternIgnoreModal) {
-      deletePatternIgnoreModal.addEventListener('click', (e) => {
-        if (e.target === deletePatternIgnoreModal) {
-          deletePatternIgnoreModal.classList.add('hidden');
-        }
-      });
-    }
-    
-    // Handle form submission for pattern ignore
-    patternIgnoreForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const patternId = patternIgnoreIdInput.value;
-      const expName = patternIgnoreExpressionInput.value.trim();
-      const description = patternIgnoreDescriptionInput.value.trim();
-      
-      if (!expName || !description) {
-        alert('Por favor completa todos los campos requeridos');
-        return;
-      }
-      
-      try {
-        // Show loading state
-        const submitBtn = patternIgnoreForm.querySelector('button[type="submit"]');
-        if (!submitBtn) {
-          console.error('Submit button not found');
-          return;
-        }
-        const originalText = submitBtn.innerHTML;
-        (submitBtn as HTMLButtonElement).disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
-        
-        let response;
-        let patternIgnore;
-        
-        // Create or update pattern ignore
-        if (patternId) {
-          // Update existing pattern ignore
-          response = await fetch(`http://localhost:8000/api/v1/pattern-ignores/${patternId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              match_text: expName,
-              description: description
-            }),
-          });
-        } else {
-          // Create new pattern ignore
-          response = await fetch('http://localhost:8000/api/v1/pattern-ignores/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              match_text: expName,
-              description: description
-            }),
-          });
-        }
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Error al procesar el patrón a ignorar');
-        }
-        
-        patternIgnore = await response.json();
-        
-        // Refresh the page to show updated data
-        // In a real app you might update the DOM directly instead
-        window.location.reload();
-        
-        // Close the modal
-        if (patternIgnoreModal) {
-          patternIgnoreModal.classList.add('hidden');
-        }
-        
-        // Show success message
-        showNotification(`Patrón a ignorar ${patternId ? 'actualizado' : 'creado'} exitosamente`, 'success');
-      } catch (error) {
-        console.error('Error processing pattern ignore:', error);
-        showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al procesar el patrón a ignorar', 'error');
-      } finally {
-        // Restore button state
-        const submitBtn = patternIgnoreForm.querySelector('button[type="submit"]');
-        if (submitBtn) {
-          (submitBtn as HTMLButtonElement).disabled = false;
-          submitBtn.innerHTML = originalText;
-        }
-      }
-    });
-    
-    // Edit Pattern Ignore
-    document.querySelectorAll('.edit-pattern-ignore-btn').forEach(button => {
-      button.addEventListener('click', (e) => {
-        e.stopPropagation();
-        
-        const btn = e.currentTarget as HTMLButtonElement;
-        const patternId = btn.dataset.patternId;
-        const patternName = btn.dataset.patternName;
-        const patternDescription = btn.dataset.patternDescription;
-        
-        // Set form values
-        patternIgnoreIdInput.value = patternId || '';
-        patternIgnoreExpressionInput.value = patternName || '';
-        patternIgnoreDescriptionInput.value = patternDescription || '';
-        
-        // Update modal title
-        if (patternIgnoreModalTitle) {
-          patternIgnoreModalTitle.textContent = 'Editar Patrón a Ignorar';
-        }
-        
-        // Show modal
-        if (patternIgnoreModal) {
-          patternIgnoreModal.classList.remove('hidden');
-        }
-      });
-    });
-    
-    // Delete Pattern Ignore
-    document.querySelectorAll('.delete-pattern-ignore-btn').forEach(button => {
-      button.addEventListener('click', (e) => {
-        e.stopPropagation();
-        
-        const btn = e.currentTarget as HTMLButtonElement;
-        const patternId = btn.dataset.patternId;
-        const patternName = btn.dataset.patternName;
-        
-        // Set values for delete confirmation
-        deletePatternIgnoreId.value = patternId || '';
-        if (deletePatternIgnoreName) {
-          deletePatternIgnoreName.textContent = `"${patternName || ''}"`;
-        }
-        
-        // Show delete modal
-        if (deletePatternIgnoreModal) {
-          deletePatternIgnoreModal.classList.remove('hidden');
-        }
-      });
-    });
-    
-    // Handle delete confirmation
-    if (confirmDeletePatternIgnoreBtn) {
-      confirmDeletePatternIgnoreBtn.addEventListener('click', async () => {
-        const patternId = deletePatternIgnoreId.value;
-        
-        if (!patternId) {
-          console.error('Invalid pattern ID');
-          return;
-        }
-        
-        try {
-          // Show loading state
-          const originalText = confirmDeletePatternIgnoreBtn.innerHTML;
-          confirmDeletePatternIgnoreBtn.disabled = true;
-          confirmDeletePatternIgnoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
-          
-          // Call the API to delete the pattern ignore
-          const response = await fetch(`http://localhost:8000/api/v1/pattern-ignores/${patternId}`, {
-            method: 'DELETE',
-          });
-          
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Error al eliminar el patrón a ignorar');
-          }
-          
-          // Refresh the page to show updated data
-          // In a real app you might update the DOM directly instead
-          window.location.reload();
-          
-          // Close the modal
-          if (deletePatternIgnoreModal) {
-            deletePatternIgnoreModal.classList.add('hidden');
-          }
-          
-          // Show success message
-          showNotification('Patrón a ignorar eliminado exitosamente', 'success');
-        } catch (error) {
-          console.error('Error deleting pattern ignore:', error);
-          showNotification((error instanceof Error ? error.message : 'Error desconocido') || 'Error al eliminar el patrón a ignorar', 'error');
-        } finally {
-          // Restore button state
-          if (confirmDeletePatternIgnoreBtn) {
-            confirmDeletePatternIgnoreBtn.disabled = false;
-            confirmDeletePatternIgnoreBtn.innerHTML = originalText;
           }
         }
       });
