@@ -9,10 +9,9 @@ export default function UserSelector() {
     const fetchUsers = async () => {
       try {
         // Usamos la variable de entorno para la URL del backend
-        const backendUrl = import.meta.env.BACKEND_URL || 'http://localhost:8000';
+        const backendUrl = import.meta.env.BACKEND_URL || 'http://localhost:8000/graphql';
         // const graphqlEndpoint = `http://jorgedev.cl:8000/graphql`;
         
-        console.log('Conectando a:', backendUrl); // Para depuración
         
         const response = await fetch(backendUrl, {
           method: 'POST',
