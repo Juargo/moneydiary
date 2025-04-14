@@ -545,12 +545,7 @@ export default function BudgetManager({ initialBudgetData, initialPatternIgnores
         </div>
       </div>
 
-      {/* Budget Summary */}
-      <BudgetSummary 
-        totalBudgeted={totals.totalBudgeted}
-        totalSpent={totals.totalSpent}
-        totalRemaining={totals.totalRemaining}
-      />
+  
       
       {/* Pattern Ignores Section */}
       <PatternIgnoreTable 
