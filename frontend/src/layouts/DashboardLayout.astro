@@ -1,5 +1,6 @@
 ---
 import DashboardBudgetSummary from "../components/DashboardBudgetSummary";
+import UserSelector from '../components/UserSelector';
 
 interface Props {
   title: string;
@@ -25,7 +26,12 @@ const budgetSummaryUrl = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '')
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   </head>
   <body class="bg-gray-100">
-    <div class="min-h-screen flex flex-col">
+    <div id="user-selector" class="hidden">
+      <UserSelector 
+        client:load 
+      />
+    </div>
+    <div class="min-h-screen flex flex-col" id="dashboard">
       <!-- Top Navigation Bar -->
       <nav class="bg-blue-800 text-white shadow-lg">
         <div class="container mx-auto px-4">
@@ -138,5 +144,66 @@ const budgetSummaryUrl = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '')
         });
       }
     </script>
+
+<script>
+  // Lógica para verificar si hay un usuario en localStorage
+  const userSelector = document.getElementById('user-selector');
+  const dashboard = document.getElementById('dashboard');
+  const userInfo = document.getElementById('user-info');
+  
+  // Verificar si existe un usuario en localStorage
+  const checkUser = () => {
+    const currentUser = localStorage.getItem('currentUser');
+    console.log('currentUser', {
+      currentUser,
+      dashboard: dashboard ? 'exists' : 'not exists',
+      userSelector: userSelector ? 'exists' : 'not exists',
+      userInfo: userInfo ? 'exists' : 'not exists'
+    });
+    if (currentUser) {
+      // Mostrar dashboard y ocultar selector
+      if (dashboard) dashboard.classList.remove('hidden');
+      if (userSelector) userSelector.classList.add('hidden');
+      
+      // Mostrar información del usuario
+      const userData = JSON.parse(currentUser);
+      if (userInfo) {
+        userInfo.textContent = `${userData.username}`;
+      }
+    } else {
+      // Mostrar selector y ocultar dashboard
+      if (dashboard) dashboard.classList.add('hidden');
+      if (userSelector) userSelector.classList.remove('hidden');
+    }
+  };
+
+  // Verificar al cargar la página
+  document.addEventListener('DOMContentLoaded', checkUser);
+
+  // Configurar evento para cuando se selecciona un usuario desde el componente UserSelector
+  document.addEventListener('user-selected', (event) => {
+    checkUser();
+  });
+
+  // Configurar botón de cerrar sesión
+  const logoutButton = document.getElementById('logout-button');
+  if (logoutButton) {
+    logoutButton.addEventListener('click', () => {
+      localStorage.removeItem('currentUser');
+      checkUser();
+    });
+  }
+  
+  // Configurar botón de cambiar usuario
+  const changeUserButton = document.getElementById('change-user-button');
+  if (changeUserButton) {
+    changeUserButton.addEventListener('click', () => {
+      // No eliminamos la información del usuario, solo mostramos el selector
+      if (dashboard) dashboard.classList.add('hidden');
+      if (userSelector) userSelector.classList.remove('hidden');
+    });
+  }
+</script>
+
   </body>
 </html>

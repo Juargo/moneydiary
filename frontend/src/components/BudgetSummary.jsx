@@ -3,6 +3,10 @@ import React from 'react';
 export default function BudgetSummary({ totalBudgeted, totalSpent, totalRemaining }) {
   // Format currency values
   const formatCurrency = (amount) => {
+    // Handle undefined, null or non-number values
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return '0.00';
+    }
     return amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
   };
   
