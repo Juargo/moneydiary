@@ -453,7 +453,15 @@ export default function ContableApp() {
     });
   };
 
-  const countUncategorizedTransactions = data.filter(item => !item.category_name || item.category_name === "Sin categoría").length;
+  // Update countUncategorizedTransactions to be more reliable
+  const countUncategorizedTransactions = data.filter(item => 
+    !item.category_name || 
+    item.category_name === "Sin categoría" || 
+    item.subcategory_id === -1
+  ).length;
+  
+  // Check if saving should be disabled due to uncategorized transactions
+  const hasSaveDisabled = countUncategorizedTransactions > 0;
 
   // Handle drag events for file upload
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -657,18 +665,38 @@ export default function ContableApp() {
         <>
           <div className="transactions-header">
             <h2>Transacciones</h2>
-            <button 
-              onClick={handleSaveTransactions} 
-              disabled={savingTransactions}
-              className="save-button"
-            >
-              {savingTransactions ? 'Guardando...' : 'Guardar en Base de Datos'}
-            </button>
+            <div className="flex items-center">
+              {hasSaveDisabled && (
+                <div className="save-warning mr-4">
+                  <svg className="inline-block w-5 h-5 mr-1 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="text-sm text-amber-700">
+                    {countUncategorizedTransactions} transacción{countUncategorizedTransactions !== 1 ? 'es' : ''} sin categoría
+                  </span>
+                </div>
+              )}
+              <button 
+                onClick={handleSaveTransactions} 
+                disabled={savingTransactions || hasSaveDisabled}
+                className="save-button"
+                title={hasSaveDisabled ? "Clasifica todas las transacciones antes de guardar" : ""}
+              >
+                {savingTransactions ? 'Guardando...' : 'Guardar en Base de Datos'}
+              </button>
+            </div>
           </div>
           
           {saveStatus && (
             <div className={`save-status ${saveStatus.includes('Error') ? 'error' : 'success'}`}>
               {saveStatus}
+            </div>
+          )}
+          
+          {hasSaveDisabled && (
+            <div className="save-status warning">
+              <p className="font-medium">No se pueden guardar transacciones sin categoría</p>
+              <p className="text-sm mt-1">Por favor, clasifica todas las transacciones para continuar.</p>
             </div>
           )}
           
@@ -684,31 +712,43 @@ export default function ContableApp() {
               </tr>
             </thead>
             <tbody>
-              {data.map((item, index) => (
-                <tr 
-                  key={index} 
-                  className={item.Tipo?.toLowerCase() || ''}
-                  style={{
-                    borderLeft: item.category_color 
-                      ? `4px solid ${item.category_color}` 
-                      : 'none'
-                  }}
-                >
-                  <td>{item.Fecha }</td>
-                  <td>{item.Descripción }</td>
-                  <td>{formatAmount(item.Monto || item.Cargo || item.Abono)}</td>
-                  <td>{item.Tipo || "-"}</td>
-                  <td>
-                    <span className="category-tag" style={{ 
-                      backgroundColor: item.category_color || getCategoryColor(item.category_name || "Sin categoría"),
-                      color: item.category_name ==='Sin categoría'? '#FF0000' :'black'// Red color for "Sin categoría"
-                    }}>
-                      {item.category_name || "Sin categoría"}
-                    </span>
-                  </td>
-                  <td>{item.subcategory_name || "Sin subcategoría"}</td>
-                </tr>
-              ))}
+              {data.map((item, index) => {
+                // Determine if item is uncategorized
+                const isUncategorized = !item.category_name || 
+                  item.category_name === "Sin categoría" || 
+                  item.subcategory_id === -1;
+                
+                return (
+                  <tr 
+                    key={index} 
+                    className={`${item.Tipo?.toLowerCase() || ''} ${isUncategorized ? 'uncategorized-row' : ''}`}
+                    style={{
+                      borderLeft: item.category_color 
+                        ? `4px solid ${item.category_color}` 
+                        : 'none'
+                    }}
+                  >
+                    <td>{item.Fecha}</td>
+                    <td>{item.Descripción}</td>
+                    <td>{formatAmount(item.Monto || item.Cargo || item.Abono)}</td>
+                    <td>{item.Tipo || "-"}</td>
+                    <td>
+                      <span className="category-tag" style={{ 
+                        backgroundColor: item.category_color || getCategoryColor(item.category_name || "Sin categoría"),
+                        color: item.category_name === 'Sin categoría' ? '#FF0000' : 'black'
+                      }}>
+                        {item.category_name || "Sin categoría"}
+                        {isUncategorized && 
+                          <svg className="inline-block w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                        }
+                      </span>
+                    </td>
+                    <td>{item.subcategory_name || "Sin subcategoría"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </>
@@ -783,11 +823,12 @@ export default function ContableApp() {
         .save-button:disabled {
           background-color: #a5d6a7;
           cursor: not-allowed;
+          opacity: 0.7;
         }
         
         .save-status {
           margin: 0.5rem 0 1rem;
-          padding: 0.5rem;
+          padding: 0.75rem 1rem;
           border-radius: 4px;
         }
         
@@ -800,6 +841,26 @@ export default function ContableApp() {
           background-color: #ffebee;
           border-left: 4px solid #f44336;
           color: #c62828;
+        }
+        
+        .save-status.warning {
+          background-color: #fff8e1;
+          border-left: 4px solid #ffc107;
+          color: #f57c00;
+        }
+        
+        .save-warning {
+          display: flex;
+          align-items: center;
+          color: #f57c00;
+        }
+        
+        .uncategorized-row {
+          background-color: rgba(255, 193, 7, 0.05);
+        }
+        
+        .uncategorized-row:hover {
+          background-color: rgba(255, 193, 7, 0.1);
         }
         
         table {
