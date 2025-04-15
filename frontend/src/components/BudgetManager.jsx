@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PatternIgnoreTable from './PatternIgnoreTable';
 import BudgetAccordion from './BudgetAccordion';
 import BudgetSummary from './BudgetSummary';
+import './BudgetManager.css'; // Import a CSS file instead
 
 const BUDGET_CONFIG_QUERY = `
   query GetBudgetConfig($userId: Int!) {
@@ -38,7 +39,7 @@ export default function BudgetManager({ initialBudgetData, initialPatternIgnores
   const [budgetData, setBudgetData] = useState(initialBudgetData || []);
   const [patternIgnores, setPatternIgnores] = useState(initialPatternIgnores || []);
   const [totals, setTotals] = useState(initialTotals || { totalBudgeted: 0, totalSpent: 0, totalRemaining: 0 });
-  const [userId, setUserId] = useState(1);
+  const [userId, setUserId] = useState(0); // Initialize with 0 instead of hardcoded 1
   const [currentUser, setCurrentUser] = useState(null);
   
   // State for modals
@@ -56,16 +57,17 @@ export default function BudgetManager({ initialBudgetData, initialPatternIgnores
   const [currentSubcategory, setCurrentSubcategory] = useState({ id: null, name: '', categoryId: null });
   const [currentPatternIgnore, setCurrentPatternIgnore] = useState({ id: null, expName: '', description: '' });
 
-  // Function to get current user from localStorage
+  // Improved function to get current user from localStorage
   const getCurrentUserFromLocalStorage = () => {
     try {
       const userFromStorage = localStorage.getItem('currentUser');
       if (userFromStorage) {
         const parsedUser = JSON.parse(userFromStorage);
         if (parsedUser && parsedUser.id) {
-          setUserId(parseInt(parsedUser.id));
+          const parsedUserId = parseInt(parsedUser.id);
+          setUserId(parsedUserId);
           setCurrentUser(parsedUser);
-          console.log("User ID set from localStorage:", parsedUser.id);
+          console.log("User ID set from localStorage:", parsedUserId);
           return true;
         }
       }
@@ -77,13 +79,16 @@ export default function BudgetManager({ initialBudgetData, initialPatternIgnores
     }
   };
 
-  // Load user data from localStorage on component mount
+  // Load user data from localStorage on component mount and reload on changes
   useEffect(() => {
     const userFound = getCurrentUserFromLocalStorage();
     if (userFound) {
-      reloadDataWithUserId(userId);
+      // Only reload data if we have a valid userId
+      if (userId > 0) {
+        reloadDataWithUserId(userId);
+      }
     }
-  }, []);
+  }, [userId]); // Add userId to dependency array to reload when it changes
 
   // GraphQL fetch function
   const fetchGraphQL = async (query, variables = {}) => {
@@ -620,37 +625,7 @@ export default function BudgetManager({ initialBudgetData, initialPatternIgnores
       )}
 
       {/* Similar modals for edit pattern, delete pattern, etc. */}
-      
-      {/* CSS for modals and other UI elements */}
-      <style jsx>{`
-        .modal {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-color: rgba(0, 0, 0, 0.5);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          z-index: 1000;
-        }
-        
-        .modal-content {
-          background-color: white;
-          padding: 20px;
-          border-radius: 8px;
-          max-width: 500px;
-          width: 100%;
-        }
-        
-        .button-group {
-          display: flex;
-          justify-content: flex-end;
-          gap: 10px;
-          margin-top: 20px;
-        }
-      `}</style>
     </div>
   );
 }
+

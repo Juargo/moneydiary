@@ -6,10 +6,15 @@ export default function PatternIgnoreTable({
   onEditPatternIgnore, 
   onDeletePatternIgnore 
 }) {
-  // Format date
+  // Add a consistent date formatter function
   const formatDate = (dateString) => {
+    if (!dateString) return '';
+    
+    // Use toLocaleDateString with explicit options to ensure consistency
     const date = new Date(dateString);
-    return date.toLocaleDateString();
+    
+    // Format as YYYY-MM-DD to avoid locale differences
+    return date.toISOString().split('T')[0];
   };
   
   return (
