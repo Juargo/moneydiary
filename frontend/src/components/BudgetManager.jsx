@@ -34,13 +34,14 @@ const PATTERN_IGNORES_QUERY = `
   }
 `;
 
-export default function BudgetManager({ initialBudgetData, initialPatternIgnores, initialTotals }) {
-  // State for data
-  const [budgetData, setBudgetData] = useState(initialBudgetData || []);
-  const [patternIgnores, setPatternIgnores] = useState(initialPatternIgnores || []);
-  const [totals, setTotals] = useState(initialTotals || { totalBudgeted: 0, totalSpent: 0, totalRemaining: 0 });
-  const [userId, setUserId] = useState(0); // Initialize with 0 instead of hardcoded 1
+export default function BudgetManager() {
+  // State for data - initialize with empty arrays/objects instead of using props
+  const [budgetData, setBudgetData] = useState([]);
+  const [patternIgnores, setPatternIgnores] = useState([]);
+  const [totals, setTotals] = useState({ totalBudgeted: 0, totalSpent: 0, totalRemaining: 0 });
+  const [userId, setUserId] = useState(0); 
   const [currentUser, setCurrentUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // State for modals
   const [showPatternModal, setShowPatternModal] = useState(false);
@@ -87,6 +88,9 @@ export default function BudgetManager({ initialBudgetData, initialPatternIgnores
       if (userId > 0) {
         reloadDataWithUserId(userId);
       }
+    } else {
+      // If no user found, still mark loading as complete
+      setIsLoading(false);
     }
   }, [userId]); // Add userId to dependency array to reload when it changes
 
@@ -119,6 +123,8 @@ export default function BudgetManager({ initialBudgetData, initialPatternIgnores
   // Function to reload data with the correct user ID
   const reloadDataWithUserId = async (userId) => {
     if (!userId) return;
+    
+    setIsLoading(true);
     
     try {
       // Fetch budget config for the actual user
@@ -216,6 +222,8 @@ export default function BudgetManager({ initialBudgetData, initialPatternIgnores
       }
     } catch (error) {
       console.error('Error reloading data with user ID:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -541,90 +549,97 @@ export default function BudgetManager({ initialBudgetData, initialPatternIgnores
 
   return (
     <div>
-      <div className="mb-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">Administra tus Presupuestos</h1>
-          <button className="bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg flex items-center">
-            <i className="fas fa-plus mr-2"></i> Nuevo Presupuesto
-          </button>
+      {isLoading ? (
+        <div className="flex items-center justify-center p-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          <p className="ml-3">Cargando datos del presupuesto...</p>
         </div>
-      </div>
-
-  
-      
-      {/* Pattern Ignores Section */}
-      <PatternIgnoreTable 
-        patternIgnores={patternIgnores}
-        onAddPatternIgnore={() => {
-          setCurrentPatternIgnore({ id: null, expName: '', description: '' });
-          setShowPatternIgnoreModal(true);
-        }}
-        onEditPatternIgnore={(pattern) => {
-          setCurrentPatternIgnore(pattern);
-          setShowPatternIgnoreModal(true);
-        }}
-        onDeletePatternIgnore={(pattern) => {
-          setCurrentPatternIgnore(pattern);
-          setShowDeletePatternIgnoreModal(true);
-        }}
-      />
-      
-      {/* Budget Accordion */}
-      <BudgetAccordion 
-        budgetData={budgetData}
-        onAddPattern={(subcategoryId, subcategoryName) => {
-          setCurrentPattern({ id: null, expName: '', subcategoryId });
-          setShowPatternModal(true);
-        }}
-        onEditPattern={(pattern, subcategoryId) => {
-          setCurrentPattern({ ...pattern, subcategoryId });
-          setShowEditPatternModal(true);
-        }}
-        onDeletePattern={(pattern) => {
-          setCurrentPattern(pattern);
-          setShowDeletePatternModal(true);
-        }}
-        onAddSubcategory={(categoryId) => {
-          setCurrentSubcategory({ id: null, name: '', categoryId });
-          setShowSubcategoryModal(true);
-        }}
-        onEditSubcategory={(subcategory) => {
-          setCurrentSubcategory(subcategory);
-          setShowEditSubcategoryModal(true);
-        }}
-        onDeleteSubcategory={(subcategory) => {
-          setCurrentSubcategory(subcategory);
-          setShowDeleteSubcategoryModal(true);
-        }}
-      />
-
-      {/* All modals - rendered conditionally */}
-      {showPatternModal && (
-        <div className="modal">
-          <div className="modal-content">
-            <h2>Add Pattern</h2>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              handleCreatePattern(currentPattern);
-              setShowPatternModal(false);
-            }}>
-              <input
-                type="text"
-                value={currentPattern.expName}
-                onChange={(e) => setCurrentPattern({...currentPattern, expName: e.target.value})}
-                placeholder="Pattern expression"
-                required
-              />
-              <div className="button-group">
-                <button type="button" onClick={() => setShowPatternModal(false)}>Cancel</button>
-                <button type="submit">Save</button>
-              </div>
-            </form>
+      ) : (
+        <>
+          <div className="mb-6">
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl font-bold text-gray-800">Administra tus Presupuestos</h1>
+              <button className="bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg flex items-center">
+                <i className="fas fa-plus mr-2"></i> Nuevo Presupuesto
+              </button>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* Similar modals for edit pattern, delete pattern, etc. */}
+          {/* Pattern Ignores Section */}
+          <PatternIgnoreTable 
+            patternIgnores={patternIgnores}
+            onAddPatternIgnore={() => {
+              setCurrentPatternIgnore({ id: null, expName: '', description: '' });
+              setShowPatternIgnoreModal(true);
+            }}
+            onEditPatternIgnore={(pattern) => {
+              setCurrentPatternIgnore(pattern);
+              setShowPatternIgnoreModal(true);
+            }}
+            onDeletePatternIgnore={(pattern) => {
+              setCurrentPatternIgnore(pattern);
+              setShowDeletePatternIgnoreModal(true);
+            }}
+          />
+          
+          {/* Budget Accordion */}
+          <BudgetAccordion 
+            budgetData={budgetData}
+            onAddPattern={(subcategoryId, subcategoryName) => {
+              setCurrentPattern({ id: null, expName: '', subcategoryId });
+              setShowPatternModal(true);
+            }}
+            onEditPattern={(pattern, subcategoryId) => {
+              setCurrentPattern({ ...pattern, subcategoryId });
+              setShowEditPatternModal(true);
+            }}
+            onDeletePattern={(pattern) => {
+              setCurrentPattern(pattern);
+              setShowDeletePatternModal(true);
+            }}
+            onAddSubcategory={(categoryId) => {
+              setCurrentSubcategory({ id: null, name: '', categoryId });
+              setShowSubcategoryModal(true);
+            }}
+            onEditSubcategory={(subcategory) => {
+              setCurrentSubcategory(subcategory);
+              setShowEditSubcategoryModal(true);
+            }}
+            onDeleteSubcategory={(subcategory) => {
+              setCurrentSubcategory(subcategory);
+              setShowDeleteSubcategoryModal(true);
+            }}
+          />
+
+          {/* All modals - rendered conditionally */}
+          {showPatternModal && (
+            <div className="modal">
+              <div className="modal-content">
+                <h2>Add Pattern</h2>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  handleCreatePattern(currentPattern);
+                  setShowPatternModal(false);
+                }}>
+                  <input
+                    type="text"
+                    value={currentPattern.expName}
+                    onChange={(e) => setCurrentPattern({...currentPattern, expName: e.target.value})}
+                    placeholder="Pattern expression"
+                    required
+                  />
+                  <div className="button-group">
+                    <button type="button" onClick={() => setShowPatternModal(false)}>Cancel</button>
+                    <button type="submit">Save</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Similar modals for edit pattern, delete pattern, etc. */}
+        </>
+      )}
     </div>
   );
 }
