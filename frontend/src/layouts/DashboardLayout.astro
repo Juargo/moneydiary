@@ -121,7 +121,6 @@ const budgetSummaryUrl = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '')
               <h3 class="text-xl font-semibold mb-4">Resumen Presupuestario</h3>
               <DashboardBudgetSummary 
                 client:load 
-                userId={userId} 
                 budgetSummaryUrl={budgetSummaryUrl}
                 initialMonth={currentMonth}
               />

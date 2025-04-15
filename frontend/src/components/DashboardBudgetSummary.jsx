@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import BudgetSummary from './BudgetSummary';
 
-const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
+const DashboardBudgetSummary = ({ budgetSummaryUrl, initialMonth }) => {
   const [currentMonth, setCurrentMonth] = useState(initialMonth || new Date().toISOString().substring(0, 7));
+  const [userId, setUserId] = useState(0); // Add userId state
   const [budgetSummary, setBudgetSummary] = useState([]);
   const [budgetConfig, setBudgetConfig] = useState([]);
   const [userBanks, setUserBanks] = useState([]);
@@ -219,9 +220,32 @@ const DashboardBudgetSummary = ({ userId, budgetSummaryUrl, initialMonth }) => {
     }
   };
 
+  // Get userId from localStorage
+  useEffect(() => {
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      if (currentUser && currentUser.id) {
+        console.log('Using userId from localStorage:', currentUser.id);
+        setUserId(currentUser.id);
+      } else {
+        console.warn('No user ID found in localStorage');
+        setUserId(0);
+      }
+    } catch (error) {
+      console.error('Error parsing user from localStorage:', error);
+      setUserId(0);
+    }
+  }, []);
+
   // Load data when month changes or component mounts
   useEffect(() => {
     const loadData = async () => {
+      // Only fetch data if we have a valid userId
+      if (!userId) {
+        console.warn('Skipping data fetch - no valid userId available');
+        return;
+      }
+      
       setIsLoading(true);
       await fetchUserBanks();
       await fetchBudgetConfig(); // Fetch budget configuration
