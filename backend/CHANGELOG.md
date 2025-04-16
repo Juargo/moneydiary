@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0](https://github.com/Juargo/moneydiary/compare/v0.3.0...v0.4.0) (2025-04-16)
+
+
+### Features
+
+* **budget:** add budget configuration fetching and state management in DashboardBudgetSummary ([94ccf5d](https://github.com/Juargo/moneydiary/commit/94ccf5d5c797f9fcf85d294a5450d3a58f079d0e))
+* **budget:** enhance budget summary to include budget amounts for categories and subcategories ([5e5ed16](https://github.com/Juargo/moneydiary/commit/5e5ed16e834f1b74675caa19d01a898ca1089d20))
+* **budget:** include previous month's salary in budget summary response ([79a19d8](https://github.com/Juargo/moneydiary/commit/79a19d8515f19816ad1aafdd84f738b499794c5f))
+* **budget:** update budget summary to include subcategory and category budget amounts directly from the view ([a5c848b](https://github.com/Juargo/moneydiary/commit/a5c848b8edfec89578fa552694e1ab5ceeef3454))
+* **ContableApp:** include user_id in bank report upload for improved transaction processing ([50fab14](https://github.com/Juargo/moneydiary/commit/50fab14daba97a2503447e0e590a6ec73795a85c))
+* **ContableApp:** include user_id in bank report upload for improved transaction processing ([e5c07ad](https://github.com/Juargo/moneydiary/commit/e5c07ada569db148459ff86e06dab965b930566b))
+* **transactions:** add pattern_id to transaction categorization and bulk creation ([862f018](https://github.com/Juargo/moneydiary/commit/862f018208388fd9475400c2d3260e8d4bc33fe5))
+* **user_bank:** add pattern_name_file field to UserBank model and GraphQL schema ([1f62a3e](https://github.com/Juargo/moneydiary/commit/1f62a3e5835c1ea4bc73917b2d0403eee6682f1f))
+
+
+### Bug Fixes
+
+* **budget:** update BudgetSummary component to include budgetConfig prop for enhanced data handling ([9cd1853](https://github.com/Juargo/moneydiary/commit/9cd1853309c5288ba87533b2557954ba5f86749a))
+* **query:** enhance SQL query construction for budget configuration with dialect support and error handling ([c7e78ea](https://github.com/Juargo/moneydiary/commit/c7e78eadf56ca35fe3abef3272f15b0a7235b925))
+* **transactions:** update pattern matching to check for exact matches instead of partial matches ([47a8348](https://github.com/Juargo/moneydiary/commit/47a8348c11a6f1d43492e8787f4365b7d4c9474d))
+
 ## [0.3.0](https://github.com/Juargo/moneydiary/compare/v0.2.0...v0.3.0) (2025-04-08)
 
 
