@@ -37,6 +37,7 @@ const budgetSummaryUrl = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '')
             <!-- Logo -->
             <div class="flex items-center">
               <h1 class="text-2xl font-bold">MoneyDiary</h1>
+              <h2 class="text-lg font-semibold">{title}</h2>
             </div>
             
             <!-- Navigation Links -->
@@ -45,16 +46,10 @@ const budgetSummaryUrl = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '')
                 <i class="fas fa-home w-5 mr-1 text-blue-300"></i> Dashboard
               </a>
               <a href="/transactions" class="px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
-                <i class="fas fa-exchange-alt w-5 mr-1 text-blue-300"></i> Transacciones
+                <i class="fas fa-exchange-alt w-5 mr-1 text-blue-300"></i> Subir Transacciones
               </a>
               <a href="/budget" class="px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
-                <i class="fas fa-chart-pie w-5 mr-1 text-blue-300"></i> Presupuestos
-              </a>
-              <a href="/reports" class="px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
-                <i class="fas fa-chart-line w-5 mr-1 text-blue-300"></i> Informes
-              </a>
-              <a href="/settings" class="px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center">
-                <i class="fas fa-cog w-5 mr-1 text-blue-300"></i> Configuración
+                <i class="fas fa-chart-pie w-5 mr-1 text-blue-300"></i> Configurar Presupuestos
               </a>
             </div>
             
@@ -86,57 +81,54 @@ const budgetSummaryUrl = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '')
                 <i class="fas fa-home w-5 mr-3 text-blue-300"></i> Dashboard
               </a>
               <a href="/transactions" class="block px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
-                <i class="fas fa-exchange-alt w-5 mr-3 text-blue-300"></i> Transacciones
+                <i class="fas fa-exchange-alt w-5 mr-3 text-blue-300"></i> Subir Transacciones
               </a>
               <a href="/budget" class="block px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
-                <i class="fas fa-chart-pie w-5 mr-3 text-blue-300"></i> Presupuestos
-              </a>
-              <a href="/reports" class="block px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
-                <i class="fas fa-chart-line w-5 mr-3 text-blue-300"></i> Informes
-              </a>
-              <a href="/settings" class="block px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200">
-                <i class="fas fa-cog w-5 mr-3 text-blue-300"></i> Configuración
+                <i class="fas fa-chart-pie w-5 mr-3 text-blue-300"></i> Configurar Presupuestos
               </a>
             </div>
-          </div>
-        </div>
-        <div class="flex justify-between items-center mb-6">
-          <div>
-            <h1 class="text-2xl font-bold text-gray-800">Bienvenido a tu MoneyDiary</h1>
-            <p class="text-gray-600">Consulta un resumen de tus finanzas personales</p>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="text-right">
-              <p class="text-sm text-gray-600">Usuario actual:</p>
-              <p id="user-info" class="font-medium"></p>
-            </div>
-            <button 
-              id="change-user-button" 
-              class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Cambiar usuario
-            </button>
-            <button 
-              id="logout-button" 
-              class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Cerrar sesión
-            </button>
           </div>
         </div>
       </nav>
+     
 
       <!-- Main Content -->
       <div class="flex-1">
         <!-- Page Title Header -->
         <header class="bg-white shadow">
-          <div class="container mx-auto px-4 py-4">
-            <h2 class="text-lg font-semibold">{title}</h2>
+          <div class="container mx-auto">
+            <div class="container mx-auto">
+              <div class="bg-white shadow rounded-lg p-4 mb-6 flex flex-col md:flex-row justify-between items-center" id="user-info-container">
+                <div class="mb-4 md:mb-0">
+                  <h1 class="text-2xl font-bold text-gray-800">Bienvenido a tu MoneyDiary</h1>
+                  <p class="text-gray-600">Consulta un resumen de tus finanzas personales</p>
+                </div>
+                <div class="flex items-center gap-2 md:gap-4 flex-wrap justify-center md:justify-end">
+                  <div class="text-right">
+                    <p class="text-sm text-gray-600">Usuario actual:</p>
+                    <p id="user-info" class="font-medium"></p>
+                  </div>
+                  <button 
+                    id="change-user-button" 
+                    class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Cambiar usuario
+                  </button>
+                  <button 
+                    id="logout-button" 
+                    class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
+          
         </header>
 
         <!-- Page Content -->
-        <main class="container mx-auto px-4 py-6">
+        <main class="container mx-auto">
           <!-- Budget Summary Dashboard Widget -->
           {title === "Dashboard" && (
             <div class="mt-8">
