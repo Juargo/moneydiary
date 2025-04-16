@@ -10,8 +10,6 @@ const { title } = Astro.props;
 
 // Get current month in YYYY-MM format for the budget summary
 const currentMonth = new Date().toISOString().substring(0, 7);
-// Set the user ID for the budget summary
-const userId = 1; // Replace with actual user ID from your auth system
 // Set the API URL for the budget summary
 const budgetSummaryUrl = import.meta.env.PUBLIC_API_URL?.replace('/graphql', '') || 'http://localhost:8000';
 
