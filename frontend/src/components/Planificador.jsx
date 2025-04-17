@@ -1,6 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ProyeccionesGastos from './ProyeccionesGastos';
 
 const Planificador = () => {
+  const [mostrarProyecciones, setMostrarProyecciones] = useState(false);
+  
+  const handleVolverClick = () => {
+    setMostrarProyecciones(false);
+  };
+  
+  if (mostrarProyecciones) {
+    return <ProyeccionesGastos onVolver={handleVolverClick} />;
+  }
+  
   return (
     <div style={{ padding: "1.5rem 0" }}>
       <div style={{ maxWidth: "80rem", margin: "0 auto", padding: "0 1rem" }}>
@@ -46,7 +57,7 @@ const Planificador = () => {
                   Proyección de Gastos
                 </h3>
                 <p style={{ color: "#4b5563", marginBottom: "1rem" }}>Anticipa tus gastos futuros basado en el histórico.</p>
-                <button className="purple-button">
+                <button className="purple-button" onClick={() => setMostrarProyecciones(true)}>
                   Ver Proyecciones
                 </button>
               </div>
