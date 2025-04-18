@@ -1,0 +1,11 @@
+{
+  "bootstrap-sha": "",
+  "release-type": "node",
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "package-name": "moneydiary"
+    }
+  },
+  "plugins": ["sentence-case"]
+}
