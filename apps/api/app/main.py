@@ -3,40 +3,49 @@ from fastapi.middleware.cors import CORSMiddleware
 import strawberry
 from strawberry.fastapi import GraphQLRouter
 from .version import __version__
+from .config import settings
 
-# Esquema GraphQL de ejemplo
+# Placeholder para el esquema GraphQL
 @strawberry.type
 class Query:
     @strawberry.field
-    def hello() -> str:
-        return "Hello, MoneyDiary!"
+    def version(self) -> str:
+        return __version__
+
+    @strawberry.field
+    def hello(self) -> str:
+        return "Hello from MoneyDiary API!"
 
 schema = strawberry.Schema(query=Query)
-graphql_app = GraphQLRouter(schema)
+graphql_router = GraphQLRouter(schema)
 
-# Crear aplicación FastAPI
 app = FastAPI(
     title="MoneyDiary API",
-    description="API para la gestión de finanzas personales",
-    version=__version__
+    description="API para el sistema MoneyDiary de finanzas personales",
+    version=__version__,
+    debug=settings.DEBUG
 )
 
-# Configurar CORS
+# Configuración CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Añadir ruta GraphQL
-app.include_router(graphql_app, prefix="/graphql")
+# Rutas
+app.include_router(graphql_router, prefix="/graphql")
 
 @app.get("/")
 async def root():
     return {
-        "app": "MoneyDiary API", 
-        "version": __version__,
+        "message": f"MoneyDiary API v{__version__}",
+        "environment": settings.ENVIRONMENT,
         "graphql_endpoint": "/graphql"
-        }
+    }
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}

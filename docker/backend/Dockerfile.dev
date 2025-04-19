@@ -2,10 +2,31 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY apps/api/requirements.txt /app/apps/api/requirements.txt
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir -r /app/apps/api/requirements.txt
+# Copiar requisitos pero no el código (se montará como volumen)
+COPY apps/api/requirements.txt .
 
+# Instalar dependencias
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install uvicorn watchdog[watchmedo]
+
+# Configuración para desarrollo
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    ENVIRONMENT=development \
+    DEBUG=true
+
+# El código se montará como volumen en docker-compose
+# COPY apps/api/ /app/apps/api/
+
+# Puerto para la API
 EXPOSE 8000
 
-CMD ["uvicorn", "apps.api.app.main:app", "--host", "0.0.0.0", "--reload"]
+# Comando para iniciar la API con hot-reload
+CMD ["uvicorn", "apps.api.app.main:app", "--host", "0.0.0.0", "--reload", "--reload-dir", "apps/api"]

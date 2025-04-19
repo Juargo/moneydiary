@@ -1,0 +1,80 @@
+# docker/compose/docker-compose.prod.yml
+version: "3.8"
+
+services:
+  db:
+    container_name: moneydiary-prod-db
+    restart: always
+    volumes:
+      - /var/data/moneydiary/postgres:/var/lib/postgresql/data # Ruta persistente en host
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+
+  api:
+    container_name: moneydiary-prod-api
+    restart: always
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  web:
+    container_name: moneydiary-prod-web
+    restart: always
+    environment:
+      - NODE_ENV=production
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  # Servicios adicionales para producción
+  nginx:
+    image: nginx:alpine
+    container_name: moneydiary-prod-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+      - ./docker/nginx/certificates:/etc/nginx/certificates
+      - ./docker/nginx/logs:/var/log/nginx
+    depends_on:
+      - web
+      - api
+    networks:
+      - moneydiary-network
+
+  prometheus: # Monitoreo
+    image: prom/prometheus:latest
+    container_name: moneydiary-prod-prometheus
+    volumes:
+      - ./docker/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    networks:
+      - moneydiary-network
+
+volumes:
+  prometheus_data:
+    name: moneydiary-prod-prometheus-data

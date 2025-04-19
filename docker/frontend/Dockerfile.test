@@ -1,0 +1,36 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Instalar pnpm y herramientas necesarias
+RUN npm install -g pnpm
+RUN apk add --no-cache git
+
+# Copiar archivos de configuración del monorepo
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* ./
+
+# Copiar configuración de todos los paquetes
+COPY packages/ ./packages/
+
+# Copiar el código del frontend
+COPY apps/web/ ./apps/web/
+
+# Instalar dependencias (incluidas de desarrollo para tests)
+RUN pnpm install
+
+# Configuración para testing
+ENV NODE_ENV=test \
+    CI=true
+
+# Exponer puerto
+EXPOSE 3000
+
+# Directorio de trabajo
+WORKDIR /app/apps/web
+
+# Script de entrada para tests
+COPY docker/frontend/entrypoint-test.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Comando por defecto: ejecutar tests y luego servir para tests e2e
+ENTRYPOINT ["/app/entrypoint.sh"]

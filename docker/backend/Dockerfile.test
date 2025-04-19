@@ -1,0 +1,43 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar dependencias del sistema y herramientas de desarrollo
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    netcat-traditional \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requisitos e instalar dependencias
+COPY apps/api/requirements.txt /app/requirements.txt
+COPY apps/api/requirements-test.txt /app/requirements-test.txt
+
+# Instalar dependencias regulares y de testing
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir -r requirements-test.txt \
+    && pip install pytest-cov pytest-asyncio httpx
+
+# Configuración para entorno de testing
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    ENVIRONMENT=testing \
+    PYTEST_ADDOPTS="--color=yes"
+
+# Copiar todo el código fuente
+COPY apps/api/ /app/apps/api/
+
+# Script de espera para asegurar que la base de datos esté lista
+COPY docker/backend/wait-for-it.sh /app/wait-for-it.sh
+RUN chmod +x /app/wait-for-it.sh
+
+# Script para ejecutar pruebas o la API
+COPY docker/backend/entrypoint-test.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Puerto para la API
+EXPOSE 8000
+
+# Comando para ejecutar pruebas por defecto
+CMD ["/app/entrypoint.sh"]
