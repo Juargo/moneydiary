@@ -41,4 +41,4 @@ END;
 $body$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Permisos para el esquema de auditoría
-GRANT USAGE ON SCHEMA audit TO moneydiary;
+GRANT USAGE ON SCHEMA audit TO moneydiary_user;

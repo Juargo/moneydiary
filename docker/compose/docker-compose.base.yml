@@ -9,14 +9,14 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_USER: moneydiary
+      POSTGRES_USER: moneydiary_user
       POSTGRES_PASSWORD: moneydiary_password
       POSTGRES_DB: moneydiary
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U moneydiary"]
+      test: ["CMD-SHELL", "pg_isready -U moneydiary_user"]
       interval: 10s
       timeout: 5s
 

@@ -1,4 +1,3 @@
-
 FROM postgres:15
 
 # Configuración de localización para soporte de caracteres
@@ -7,11 +6,6 @@ ENV LANG en_US.utf8
 
 # Copiar scripts de inicialización
 COPY ./init/ /docker-entrypoint-initdb.d/
-
-# Variables de entorno para configuración
-ENV POSTGRES_USER=moneydiary
-ENV POSTGRES_PASSWORD=moneydiary_password
-ENV POSTGRES_DB=moneydiary
 
 # Puerto por defecto de PostgreSQL
 EXPOSE 5432
