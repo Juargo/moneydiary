@@ -2,26 +2,23 @@ version: "3.8"
 
 services:
   db:
-    image: postgres:15-alpine
+    build:
+      context: ../../docker/db
+      dockerfile: Dockerfile
+    container_name: moneydiary_postgres
+    ports:
+      - "5433:5432"
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - PGDATA=/var/lib/postgresql/data/pgdata
+      POSTGRES_USER: moneydiary
+      POSTGRES_PASSWORD: moneydiary_password
+      POSTGRES_DB: moneydiary
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/db/init:/docker-entrypoint-initdb.d
-      - ./docker/db/postgresql.conf:/etc/postgresql/postgresql.conf
-    ports:
-      - "${DB_PORT:-5432}:5432"
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U moneydiary"]
       interval: 10s
       timeout: 5s
-      retries: 5
-    command: postgres -c config_file=/etc/postgresql/postgresql.conf
-    networks:
-      - moneydiary-network
 
   api:
     build:

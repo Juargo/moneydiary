@@ -4,7 +4,7 @@ services:
   db:
     container_name: moneydiary-dev-db
     ports:
-      - "5432:5432" # Expuesto para desarrollo local
+      - "5433:5432" # Expuesto para desarrollo local
 
   api:
     container_name: moneydiary-dev-api
