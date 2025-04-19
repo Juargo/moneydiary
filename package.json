@@ -7,7 +7,9 @@
     "build": "node scripts/update-versions.js && pnpm -r run build",
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "android:build": "cd apps/android && ./gradlew assembleDebug",
+    "ios:build": "cd apps/ios && xcodebuild -workspace MoneyDiary.xcworkspace -scheme MoneyDiary -configuration Debug build"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.7.1",
