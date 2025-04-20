@@ -1,9 +1,7 @@
-version: "3.8"
-
 services:
   db:
     build:
-      context: ../../docker/db
+      context: ../db
       dockerfile: Dockerfile
     container_name: moneydiary_postgres
     ports:
@@ -22,7 +20,7 @@ services:
 
   api:
     build:
-      context: .
+      context: ../../
       dockerfile: ${API_DOCKERFILE:-docker/backend/Dockerfile}
       args:
         - APP_VERSION=${APP_VERSION:-0.1.0}
@@ -47,7 +45,7 @@ services:
 
   web:
     build:
-      context: .
+      context: ../../
       dockerfile: ${WEB_DOCKERFILE:-docker/frontend/Dockerfile}
       args:
         - APP_VERSION=${APP_VERSION:-0.1.0}

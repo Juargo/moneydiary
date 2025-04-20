@@ -1,10 +1,6 @@
-version: "3.8"
-
 services:
   db:
     container_name: moneydiary-dev-db
-    ports:
-      - "5433:5432" # Expuesto para desarrollo local
 
   api:
     container_name: moneydiary-dev-api
@@ -16,32 +12,19 @@ services:
       - DEBUG=true
     command: uvicorn apps.api.app.main:app --host 0.0.0.0 --reload
 
-  web:
-    container_name: moneydiary-dev-web
-    build:
-      dockerfile: docker/frontend/Dockerfile.dev
-    volumes:
-      - ./apps/web:/app/apps/web # Montaje para hot-reload
-    environment:
-      - NODE_ENV=development
-    command: npm run dev
+  # web:
+  #   container_name: moneydiary-dev-web
+  #   build:
+  #     dockerfile: docker/frontend/Dockerfile.dev
+  #   volumes:
+  #     - ./apps/web:/app/apps/web # Montaje para hot-reload
+  #   environment:
+  #     - NODE_ENV=development
+  #   command: npm run dev
 
-  pgadmin: # Solo para desarrollo
-    image: dpage/pgadmin4:latest
-    container_name: moneydiary-dev-pgadmin
-    environment:
-      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@moneydiary.com}
-      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin_password}
-      - PGADMIN_CONFIG_SERVER_MODE=False
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
-    restart: unless-stopped
-    networks:
-      - moneydiary-network
+networks:
+  moneydiary-network:
+    name: moneydiary-dev-network
 
 volumes:
   pgadmin_data:
