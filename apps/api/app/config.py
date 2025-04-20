@@ -4,7 +4,8 @@ import sys
 from pydantic_settings import BaseSettings
 from typing import List, Optional, Union, Any, ClassVar
 from functools import lru_cache
-from pydantic import Field
+from pydantic import Field, computed_field
+from .database import DATABASE_URL as DB_URL  # Renombra la importación para evitar conflictos
 
 # Debug helper to print to stderr where it will always be visible
 def debug_print(message):
@@ -26,6 +27,7 @@ class Settings(BaseSettings):
     # Campos con anotaciones de tipo apropiadas
     ALLOWED_HOSTS_RAW: str = "localhost,127.0.0.1"
     ENVIRONMENT: str = Field(default="development")
+    # Eliminamos DATABASE_URL de los campos base para evitar conflictos
     
     # Otras configuraciones que podrías necesitar
     DEBUG: bool = Field(default=False)
@@ -44,6 +46,18 @@ class Settings(BaseSettings):
     @property
     def CORS_ORIGINS_LIST(self) -> List[str]:
         return parse_to_list(self.CORS_ORIGINS)
+    
+    # Usamos el valor importado directamente
+    @property
+    def DATABASE_URL(self) -> str:
+        debug_print(f"DEBUG - DATABASE_URL: {DB_URL}")
+        return DB_URL
+    
+    @property
+    def SECRET_KEY(self) -> str:
+        # Aquí puedes agregar lógica para construir la clave secreta
+        # Por ejemplo, podrías cargarla desde un archivo o generarla
+        return self.SECRET_KEY
     
     model_config = {
         "env_file": ".env",
