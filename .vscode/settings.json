@@ -14,5 +14,14 @@
     {
       "text": "Use conventional commit format. Keep all lines under 100 characters."
     }
-  ]
+  ],
+  "github.copilot.enable": true,
+  "github.copilot.inlineSuggest.enable": true,
+  "github.copilot.editorSuggestions": "enabled",
+  "github.copilot.enableCompletions": true,
+  "github.copilot.advanced": {
+    "length": 100,
+    "maxPrefixLines": 20,
+    "maxSuffixLines": 20
+  }
 }
