@@ -6,11 +6,18 @@ from typing import List, Optional
 from ..database import get_db
 from ..version import __version__
 
-# Importa los tipos de datos y resolvers específicos
+# Importamos todos los tipos
 from .types import (
     UserType,
     AccountType,
-    # Otros tipos...
+    AccountTypeType,
+    CategoryGroupType,
+    CategoryType,
+    SubcategoryType,
+    FinancialMethodType,
+    TransactionType,
+    TransactionStatusType
+    # Otros tipos según se vayan implementando
 )
 
 @strawberry.type
@@ -23,15 +30,16 @@ class Query:
     def hello(self) -> str:
         return "Hello from MoneyDiary API!"
     
-    # Agrega tus queries aquí
+    # Ejemplo básico de query
     # @strawberry.field
     # def users(self, info: Info) -> List[UserType]:
     #     db = next(get_db())
     #     # Implementa la lógica para obtener usuarios
+    #     return []
 
 @strawberry.type
 class Mutation:
-    # Agrega tus mutaciones aquí
+    # Las mutaciones se implementarán más adelante
     pass
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
