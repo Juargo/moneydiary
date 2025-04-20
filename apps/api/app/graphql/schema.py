@@ -42,4 +42,5 @@ class Mutation:
     # Las mutaciones se implementarán más adelante
     pass
 
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+# schema = strawberry.Schema(query=Query, mutation=Mutation)
+schema = strawberry.Schema(query=Query)

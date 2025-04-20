@@ -7,7 +7,7 @@ services:
     build:
       dockerfile: docker/backend/Dockerfile.dev
     volumes:
-      - ./apps/api:/app/apps/api # Montaje para hot-reload
+      - ../../apps/api:/app/apps/api # Montaje para hot-reload
     environment:
       - DEBUG=true
     command: uvicorn apps.api.app.main:app --host 0.0.0.0 --reload

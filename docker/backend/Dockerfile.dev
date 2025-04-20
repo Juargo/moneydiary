@@ -6,10 +6,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    python3-dev \
-    libssl-dev \
     libffi-dev \
+    libpq-dev \
+    libssl-dev \
     pkg-config \
+    python3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,13 +25,14 @@ RUN pip install --no-cache-dir -r requirements.txt \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     ENVIRONMENT=development \
-    DEBUG=true
+    DEBUG=true \
+    PYTHONPATH=/app
 
 # El código se montará como volumen en docker-compose
-# COPY apps/api/ /app/apps/api/
+COPY apps/api/ /app/apps/api/
 
 # Puerto para la API
 EXPOSE 8000
 
 # Comando para iniciar la API con hot-reload
-CMD ["uvicorn", "apps.api.app.main:app", "--host", "0.0.0.0", "--reload", "--reload-dir", "apps/api"]
+CMD ["uvicorn", "apps.api.app.main:app", "--host", "0.0.0.0", "--reload"]

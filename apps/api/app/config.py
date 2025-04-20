@@ -1,39 +1,55 @@
 import os
+import json
+import sys
 from pydantic_settings import BaseSettings
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any, ClassVar
 from functools import lru_cache
+from pydantic import Field
+
+# Debug helper to print to stderr where it will always be visible
+def debug_print(message):
+    print(message, file=sys.stderr, flush=True)
+
+debug_print("Starting config.py module load")
+
+# Simple function to parse string into list - works with comma-separated or single value
+def parse_to_list(value):
+    if not value:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    return [str(value)]
 
 class Settings(BaseSettings):
-    # Ambiente
-    ENVIRONMENT: str = "development"
-    DEBUG: bool = True
-
-    # API
-    API_PORT: int = 8000
-    SECRET_KEY: str = "desarrollo-inseguro-key"
-    ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1"]
-
-    # Database
-    DB_HOST: str = "localhost"
-    DB_PORT: int = 5432
-    DB_NAME: str = "moneydiary"
-    DB_USER: str = "moneydiary"
-    DB_PASSWORD: str = "moneydiary_password"
-    DATABASE_URL: Optional[str] = None
-
-    # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        
-        # Construir DATABASE_URL si no está definido explícitamente
-        if not self.DATABASE_URL:
-            self.DATABASE_URL = f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+    # Campos con anotaciones de tipo apropiadas
+    ALLOWED_HOSTS_RAW: str = "localhost,127.0.0.1"
+    ENVIRONMENT: str = Field(default="development")
+    
+    # Otras configuraciones que podrías necesitar
+    DEBUG: bool = Field(default=False)
+    SECRET_KEY: str = Field(default="default-insecure-key")
+    CORS_ORIGINS: str = Field(default="http://localhost:3000")
+    
+    # Property para computar hosts permitidos
+    @property
+    def ALLOWED_HOSTS(self) -> List[str]:
+        debug_print(f"DEBUG - Computing ALLOWED_HOSTS from raw value: {repr(self.ALLOWED_HOSTS_RAW)}")
+        hosts = parse_to_list(self.ALLOWED_HOSTS_RAW)
+        debug_print(f"DEBUG - Computed ALLOWED_HOSTS: {hosts}")
+        return hosts
+    
+    # Property para computar origenes CORS
+    @property
+    def CORS_ORIGINS_LIST(self) -> List[str]:
+        return parse_to_list(self.CORS_ORIGINS)
+    
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "ignore"  # Permite campos extra en el entorno
+    }
 
 @lru_cache()
 def get_settings():

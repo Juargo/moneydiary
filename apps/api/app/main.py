@@ -8,11 +8,11 @@ from .version import __version__
 from .config import settings
 from .database import engine, Base, get_db
 from .graphql.schema import schema as graphql_schema
-from .api import api_router
+# from .api import api_router
 
 # Crear tablas en la BD al iniciar (en desarrollo, para producción usar Alembic)
-if settings.ENVIRONMENT != "production":
-    Base.metadata.create_all(bind=engine)
+# if settings.ENVIRONMENT != "production":
+#     Base.metadata.create_all(bind=engine)
 
 # Configuración de la aplicación FastAPI
 app = FastAPI(
@@ -36,7 +36,7 @@ graphql_router = GraphQLRouter(graphql_schema)
 
 # Incluir rutas
 app.include_router(graphql_router, prefix="/graphql")
-app.include_router(api_router, prefix="/api")
+# app.include_router(api_router, prefix="/api")
 
 @app.get("/")
 async def root():
