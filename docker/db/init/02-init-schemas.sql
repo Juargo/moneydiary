@@ -4,6 +4,7 @@ CREATE SCHEMA IF NOT EXISTS audit;
 
 -- Set search path
 ALTER DATABASE moneydiary SET search_path TO app, public;
+ALTER DATABASE moneydiary SET timezone TO 'UTC';
 
 -- Create read-only user for reporting
 CREATE USER moneydiary_readonly WITH PASSWORD 'readonly_password';
