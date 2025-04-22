@@ -1,8 +1,15 @@
 services:
   db:
+    extends:
+      file: docker-compose.base.yml
+      service: db
     container_name: moneydiary-dev-db
-
+    networks:
+      - moneydiary-network
   api:
+    extends:
+      file: docker-compose.base.yml
+      service: api
     container_name: moneydiary-dev-api
     build:
       dockerfile: docker/backend/Dockerfile.dev
@@ -10,9 +17,17 @@ services:
       - ../../apps/api:/app/apps/api # Montaje para hot-reload
     environment:
       - DEBUG=true
-    command: uvicorn apps.api.app.main:app --host 0.0.0.0 --reload
-
+      - DB_HOST=db
+      - DB_USER=moneydiary_user
+      - SQLALCHEMY_ECHO=true
+    command: uvicorn apps.api.app.main:app --host 0.0.0.0 --reload --log-level debug
+    networks:
+      - moneydiary-network
+  # web service commented out as it's not needed for database connection testing
   # web:
+  #   extends:
+  #     file: docker-compose.base.yml
+  #     service: web
   #   container_name: moneydiary-dev-web
   #   build:
   #     dockerfile: docker/frontend/Dockerfile.dev
@@ -21,11 +36,15 @@ services:
   #   environment:
   #     - NODE_ENV=development
   #   command: npm run dev
+  #   networks:
+  #     - moneydiary-network
 
 networks:
   moneydiary-network:
-    name: moneydiary-dev-network
+    name: moneydiary-network
 
 volumes:
+  postgres_data:
+    name: moneydiary-dev-postgres-data
   pgadmin_data:
     name: moneydiary-dev-pgadmin-data

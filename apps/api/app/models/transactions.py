@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text, Decimal, Boolean, TIMESTAMP
+from decimal import Decimal
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text, Numeric, Boolean, TIMESTAMP
 from sqlalchemy.orm import relationship
 from apps.api.app.database import Base
 
@@ -25,7 +26,7 @@ class Transaction(Base):
     recurring_pattern_id = Column(Integer, ForeignKey('recurring_patterns.id'))
     import_id = Column(Integer, ForeignKey('csv_imports.id'))
     external_id = Column(String)
-    amount = Column(Decimal, nullable=False)
+    amount = Column(Numeric, nullable=False)
     description = Column(Text)
     notes = Column(Text)
     transaction_date = Column(Date, nullable=False)

@@ -22,6 +22,7 @@ debug_print(f"Attempting to connect to database: {DB_HOST}:{DB_PORT}/{DB_NAME} a
 # Opciones del engine para mejor rendimiento y robustez
 engine = create_engine(
     DATABASE_URL,
+    echo=True,             # Enable SQL logging for debugging
     pool_pre_ping=True,    # Verifica que las conexiones están vivas
     pool_size=5,           # Reducir el tamaño del pool para desarrollo
     max_overflow=10,       # Reducir conexiones adicionales

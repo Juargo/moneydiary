@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, Text, Date, Decimal, ForeignKey, Boolean, TIMESTAMP
+from sqlalchemy import Column, Integer, String, Text, Date, ForeignKey, Boolean, TIMESTAMP
 from sqlalchemy.orm import relationship
 from apps.api.app.database import Base
 
-class CsvImports(Base):
+class CsvImport(Base):
     __tablename__ = 'csv_imports'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -20,10 +20,11 @@ class CsvImports(Base):
     created_at = Column(TIMESTAMP)
     updated_at = Column(TIMESTAMP)
 
-    user = relationship("Users", back_populates="csv_imports")
-    profile = relationship("CsvImportProfiles", back_populates="csv_imports")
+    user = relationship("User", back_populates="csv_imports")
+    profile = relationship("CsvImportProfile", back_populates="csv_imports")
+    transactions = relationship("Transaction", back_populates="import_data")
 
-class CsvImportProfiles(Base):
+class CsvImportProfile(Base):
     __tablename__ = 'csv_import_profiles'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -38,10 +39,11 @@ class CsvImportProfiles(Base):
     created_at = Column(TIMESTAMP)
     updated_at = Column(TIMESTAMP)
 
-    user = relationship("Users", back_populates="csv_import_profiles")
-    csv_imports = relationship("CsvImports", back_populates="profile")
+    user = relationship("User", back_populates="csv_import_profiles")
+    csv_imports = relationship("CsvImport", back_populates="profile")
+    column_mappings = relationship("CsvColumnMapping", back_populates="profile")
 
-class CsvColumnMappings(Base):
+class CsvColumnMapping(Base):
     __tablename__ = 'csv_column_mappings'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -54,9 +56,9 @@ class CsvColumnMappings(Base):
     created_at = Column(TIMESTAMP)
     updated_at = Column(TIMESTAMP)
 
-    profile = relationship("CsvImportProfiles", back_populates="column_mappings")
+    profile = relationship("CsvImportProfile", back_populates="column_mappings")
 
-class ImportErrors(Base):
+class ImportError(Base):
     __tablename__ = 'import_errors'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -65,3 +67,5 @@ class ImportErrors(Base):
     error_message = Column(Text, nullable=False)
     raw_data = Column(Text)
     created_at = Column(TIMESTAMP)
+
+    import_data = relationship("CsvImport", backref="errors")
