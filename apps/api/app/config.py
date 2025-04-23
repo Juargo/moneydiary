@@ -53,11 +53,8 @@ class Settings(BaseSettings):
         debug_print(f"DEBUG - DATABASE_URL: {DB_URL}")
         return DB_URL
     
-    @property
-    def SECRET_KEY(self) -> str:
-        # Aquí puedes agregar lógica para construir la clave secreta
-        # Por ejemplo, podrías cargarla desde un archivo o generarla
-        return self.SECRET_KEY
+    # The SECRET_KEY property was causing a circular reference
+    # Removed to use the field definition on line 34 directly
     
     model_config = {
         "env_file": ".env",
