@@ -1,7 +1,7 @@
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 
 from alembic import context
 
@@ -62,18 +62,33 @@ def run_migrations_online():
         poolclass=pool.NullPool,
     )
 
+    # Función para filtrar qué objetos incluir en la migración
+    def include_object(object, name, type_, reflected, compare_to):
+        # Solo incluir objetos en el schema 'app' o 'audit'
+        if type_ == "table" and object.schema not in ("app", "audit", None):
+            return False
+        # Excluir tablas del sistema
+        if name == "alembic_version" and object.schema != "app":
+            return False
+        return True
+
     with connectable.connect() as connection:
+        # Establecer search_path antes de la configuración
+        connection.execute(text("SET search_path TO app, public"))
+        
         context.configure(
             connection=connection, 
             target_metadata=target_metadata,
-            # usar schema 'app' para todas las tablas
+            # Configuración para el manejo de schemas
             include_schemas=True,
-            version_table_schema="app"
+            include_object=include_object,
+            version_table="alembic_version",
+            version_table_schema="app",
+            # Crear la tabla alembic_version en el schema app
+            schema_translate_map={"schema": "app"}
         )
 
         with context.begin_transaction():
-            # Registro de la versión actual de la aplicación
-            context.execute(f"SET search_path TO app, public")
             context.run_migrations()
 
 
