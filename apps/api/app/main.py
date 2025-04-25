@@ -4,42 +4,25 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from .database import engine, get_db, Base, DB_HOST, DB_PORT, DB_NAME, DB_USER
+# Imports mejorados
+from .db_config import DB_HOST, DB_PORT, DB_NAME, DB_USER
+from .database import engine, Base, get_db
 from .config import settings
 
-# Version definition
+# Importamos todos los modelos de una vez
+from .models import *
+
+# Versión
 VERSION = "0.1.0"
 
-# Create app
+# Crear app
 app = FastAPI(
     title="MoneyDiary API",
     description="API for the MoneyDiary app",
     version=VERSION
 )
 
-# Import all models to ensure they're registered with SQLAlchemy
-# Import models in dependency order
-from .models.financial_methods import (
-    FinancialMethod, MethodFiftyThirtyTwenty, MethodEnvelope,
-    MethodZeroBased, MethodKakebo, MethodPayYourselfFirst
-)
-from .models.account_types import AccountType
-from .models.categories import CategoryGroup, Category, Subcategory
-from .models.users import User
-from .models.accounts import Account
-from .models.envelopes import Envelope
-from .models.recurring_patterns import RecurringPattern
-from .models.csv_imports import CsvImport, CsvImportProfile, CsvColumnMapping, ImportError
-from .models.transactions import TransactionStatus, Transaction
-from .models.budget import BudgetPlan, BudgetItem
-from .models.financial_goals import FinancialGoal, GoalContribution
-from .models.projections import ProjectionSettings, MonthlyProjections, ProjectionDetails
-from .models.simulations import (
-    FinancialSimulation, SimulationScenario,
-    SimulationParameter, SimulationResult
-)
-
-# Create tables in development mode (for production, use Alembic)
+# Crear tablas en modo desarrollo (para producción, usar Alembic)
 if settings.ENVIRONMENT != "production":
     try:
         Base.metadata.create_all(bind=engine)

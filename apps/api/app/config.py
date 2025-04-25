@@ -5,13 +5,9 @@ from pydantic_settings import BaseSettings
 from typing import List, Optional, Union, Any, ClassVar
 from functools import lru_cache
 from pydantic import Field, computed_field
-from .database import DATABASE_URL as DB_URL  # Renombra la importación para evitar conflictos
 
-# Debug helper to print to stderr where it will always be visible
-def debug_print(message):
-    print(message, file=sys.stderr, flush=True)
-
-debug_print("Starting config.py module load")
+# Importar la URL de la base de datos desde db_config
+from .db_config import DATABASE_URL as DB_URL, debug_print
 
 # Simple function to parse string into list - works with comma-separated or single value
 def parse_to_list(value):
@@ -27,7 +23,6 @@ class Settings(BaseSettings):
     # Campos con anotaciones de tipo apropiadas
     ALLOWED_HOSTS_RAW: str = "localhost,127.0.0.1"
     ENVIRONMENT: str = Field(default="development")
-    # Eliminamos DATABASE_URL de los campos base para evitar conflictos
     
     # Otras configuraciones que podrías necesitar
     DEBUG: bool = Field(default=False)
@@ -37,7 +32,6 @@ class Settings(BaseSettings):
     # Property para computar hosts permitidos
     @property
     def ALLOWED_HOSTS(self) -> List[str]:
-        debug_print(f"DEBUG - Computing ALLOWED_HOSTS from raw value: {repr(self.ALLOWED_HOSTS_RAW)}")
         hosts = parse_to_list(self.ALLOWED_HOSTS_RAW)
         debug_print(f"DEBUG - Computed ALLOWED_HOSTS: {hosts}")
         return hosts
@@ -50,16 +44,13 @@ class Settings(BaseSettings):
     # Usamos el valor importado directamente
     @property
     def DATABASE_URL(self) -> str:
-        debug_print(f"DEBUG - DATABASE_URL: {DB_URL}")
+        debug_print(f"DEBUG - Using DATABASE_URL: {DB_URL}")
         return DB_URL
-    
-    # The SECRET_KEY property was causing a circular reference
-    # Removed to use the field definition on line 34 directly
     
     model_config = {
         "env_file": ".env",
         "case_sensitive": True,
-        "extra": "ignore"  # Permite campos extra en el entorno
+        "extra": "ignore"
     }
 
 @lru_cache()
