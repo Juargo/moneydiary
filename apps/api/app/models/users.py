@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from apps.api.app.database import Base
+from app.models.base import Base
 
 class User(Base):
     __tablename__ = 'users'

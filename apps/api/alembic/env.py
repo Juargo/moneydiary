@@ -13,6 +13,27 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models.base import Base
 from app.config import settings
 
+# Import all models to ensure they are registered with Base.metadata
+from app.models.users import User
+from app.models.accounts import Account
+from app.models.account_types import AccountType
+from app.models.envelopes import Envelope
+from app.models.csv_imports import CsvImport, CsvImportProfile, CsvColumnMapping, ImportError
+from app.models.transactions import Transaction, TransactionStatus
+from app.models.categories import CategoryGroup, Category, Subcategory
+from app.models.financial_methods import (
+    FinancialMethod, MethodFiftyThirtyTwenty, MethodEnvelope,
+    MethodZeroBased, MethodKakebo, MethodPayYourselfFirst
+)
+from app.models.financial_goals import FinancialGoal, GoalContribution
+from app.models.budget import BudgetPlan, BudgetItem
+from app.models.projections import ProjectionSettings, MonthlyProjections, ProjectionDetails
+from app.models.simulations import (
+    FinancialSimulation, SimulationScenario,
+    SimulationParameter, SimulationResult
+)
+from app.models.recurring_patterns import RecurringPattern
+
 # este es el objeto Alembic Config que provee
 # acceso a los valores dentro del archivo .ini
 config = context.config
