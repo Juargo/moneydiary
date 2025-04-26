@@ -159,3 +159,6 @@ xlrd==2.0.1
 yarl==1.9.2
 zope.interface==5.5.2
 psycopg2-binary==2.9.9
+fastapi-oauth2
+python-jose[cryptography]
+httpx

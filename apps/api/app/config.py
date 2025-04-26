@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     DEBUG: bool = Field(default=False)
     SECRET_KEY: str = Field(default="default-insecure-key")
     CORS_ORIGINS: str = Field(default="http://localhost:3000")
+
+     # OAuth2 Google settings
+    google_client_id: str
+    google_client_secret: str
+    google_redirect_uri: str
     
     # Property para computar hosts permitidos
     @property
