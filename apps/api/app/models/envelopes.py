@@ -1,7 +1,7 @@
 from decimal import Decimal
 from sqlalchemy import Column, Integer, String, ForeignKey, Numeric, TIMESTAMP, Boolean
 from sqlalchemy.orm import relationship
-from app.models.base import Base
+from apps.api.app.models.base import Base
 
 class Envelope(Base):
     __tablename__ = 'envelopes'

@@ -2,7 +2,7 @@
 Módulo de modelos para la aplicación MoneyDiary.
 
 Este módulo expone todos los modelos de la aplicación a través de un único punto de entrada,
-permitiendo imports más limpios como `from app.models import User, Account`.
+permitiendo imports más limpios como `from apps.api.app.models import User, Account`.
 """
 
 # Base model
