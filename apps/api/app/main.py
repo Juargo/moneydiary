@@ -7,9 +7,6 @@ from .routers import basic
 from .init_db import initialize_database
 from .middleware import setup_middleware
 
-# Importamos todos los modelos de una vez
-from .models import *
-
 # Crear app
 app = FastAPI(
     title="MoneyDiary API",
