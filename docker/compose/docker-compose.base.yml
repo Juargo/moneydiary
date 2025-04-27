@@ -7,54 +7,55 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_USER: moneydiary_user
-      POSTGRES_PASSWORD: moneydiary_password
-      POSTGRES_DB: moneydiary
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U moneydiary_user -d moneydiary"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
 
   api:
     build:
       context: ../../
-      dockerfile: ${API_DOCKERFILE:-docker/backend/Dockerfile}
+      dockerfile: ${API_DOCKERFILE}
       args:
-        - APP_VERSION=${APP_VERSION:-0.1.0}
+        - APP_VERSION=${APP_VERSION}
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "${API_PORT}:8000"
     environment:
-      # Configuraciones existentes
-      - ENVIRONMENT=${ENVIRONMENT:-development}
-      - DEBUG=${DEBUG:-false}
-      - DB_HOST=${DB_HOST:-db}
+      # Basic configuration
+      - ENVIRONMENT=${ENVIRONMENT}
+      - DEBUG=${DEBUG}
+      - DB_HOST=${DB_HOST}
       - DB_PORT=5432
-      - DB_NAME=${POSTGRES_DB:-moneydiary}
-      - DB_USER=${POSTGRES_USER:-moneydiary}
-      - DB_PASSWORD=${POSTGRES_PASSWORD:-moneydiary_password}
-      - SECRET_KEY=${SECRET_KEY:-default-insecure-key}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - DB_NAME=${POSTGRES_DB}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - ALLOWED_HOSTS_RAW=${ALLOWED_HOSTS_RAW}
 
-      # Configuraciones OAuth2 Google
-      - google_client_id=${GOOGLE_CLIENT_ID:-}
-      - google_client_secret=${GOOGLE_CLIENT_SECRET:-}
-      - google_redirect_uri=${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/v1/auth/google/callback}
-      - google_auth_scopes=${GOOGLE_AUTH_SCOPES:-openid email profile}
+      # OAuth2 Google settings
+      - google_client_id=${GOOGLE_CLIENT_ID}
+      - google_client_secret=${GOOGLE_CLIENT_SECRET}
+      - google_redirect_uri=${GOOGLE_REDIRECT_URI}
+      - google_auth_scopes=${GOOGLE_AUTH_SCOPES}
 
-      # Configuraciones JWT
-      - jwt_secret_key=${JWT_SECRET_KEY:-}
-      - jwt_algorithm=${JWT_ALGORITHM:-HS256}
-      - jwt_access_token_expire_minutes=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-      - jwt_refresh_token_expire_days=${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      # JWT settings
+      - jwt_secret_key=${JWT_SECRET_KEY}
+      - jwt_algorithm=${JWT_ALGORITHM}
+      - jwt_access_token_expire_minutes=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES}
+      - jwt_refresh_token_expire_days=${JWT_REFRESH_TOKEN_EXPIRE_DAYS}
 
-      # Configuraciones para la redirección al frontend
-      - frontend_url=${FRONTEND_URL:-http://localhost:3000}
-      - frontend_auth_callback_path=${FRONTEND_AUTH_CALLBACK_PATH:-/auth/callback}
-      - frontend_auth_error_path=${FRONTEND_AUTH_ERROR_PATH:-/auth/error}
+      # Frontend redirect settings
+      - frontend_url=${FRONTEND_URL}
+      - frontend_auth_callback_path=${FRONTEND_AUTH_CALLBACK_PATH}
+      - frontend_auth_error_path=${FRONTEND_AUTH_ERROR_PATH}
     depends_on:
       db:
         condition: service_healthy
@@ -64,12 +65,12 @@ services:
   web:
     build:
       context: ../../
-      dockerfile: ${WEB_DOCKERFILE:-docker/frontend/Dockerfile}
+      dockerfile: ${WEB_DOCKERFILE}
       args:
-        - APP_VERSION=${APP_VERSION:-0.1.0}
-        - API_URL=${API_URL:-http://localhost:8000}
+        - APP_VERSION=${APP_VERSION}
+        - API_URL=${API_URL}
     ports:
-      - "${WEB_PORT:-3000}:80"
+      - "${WEB_PORT}:80"
     depends_on:
       - api
     networks:
@@ -77,8 +78,8 @@ services:
 
 networks:
   moneydiary-network:
-    name: ${NETWORK_NAME:-moneydiary-network}
+    name: ${NETWORK_NAME}
 
 volumes:
   postgres_data:
-    name: ${POSTGRES_VOLUME:-moneydiary-postgres-data}
+    name: ${POSTGRES_VOLUME}

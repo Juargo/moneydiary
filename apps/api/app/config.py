@@ -20,31 +20,29 @@ def parse_to_list(value):
     return [str(value)]
 
 class Settings(BaseSettings):
-    # Campos con anotaciones de tipo apropiadas
-    ALLOWED_HOSTS_RAW: str = "localhost,127.0.0.1"
-    ENVIRONMENT: str = Field(default="development")
-    
-    # Otras configuraciones que podrías necesitar
-    DEBUG: bool = Field(default=False)
-    SECRET_KEY: str = Field(default="default-insecure-key")
-    CORS_ORIGINS: str = Field(default="http://localhost:3000")
+    # Environment variables without default values - all are required
+    ALLOWED_HOSTS_RAW: str
+    ENVIRONMENT: str
+    DEBUG: bool
+    SECRET_KEY: str
+    CORS_ORIGINS: str
 
-    # OAuth2 Google settings
-    google_client_id: str = Field(default="")
-    google_client_secret: str = Field(default="")
-    google_redirect_uri: str = Field(default="http://localhost:8000/api/v1/auth/google/callback")
-    google_auth_scopes: str = Field(default="openid email profile")
+    # OAuth2 Google settings - all required
+    google_client_id: str
+    google_client_secret: str
+    google_redirect_uri: str
+    google_auth_scopes: str
     
-    # Frontend application settings
-    frontend_url: str = Field(default="http://localhost:3000")
-    frontend_auth_callback_path: str = Field(default="/auth/callback")
-    frontend_auth_error_path: str = Field(default="/auth/error")
+    # Frontend application settings - all required
+    frontend_url: str
+    frontend_auth_callback_path: str
+    frontend_auth_error_path: str
     
-    # JWT settings
-    jwt_secret_key: str = Field(default="")  # Mejor no usar SECRET_KEY por defecto
-    jwt_algorithm: str = Field(default="HS256")
-    jwt_access_token_expire_minutes: int = Field(default=30)
-    jwt_refresh_token_expire_days: int = Field(default=7)
+    # JWT settings - all required
+    jwt_secret_key: str
+    jwt_algorithm: str
+    jwt_access_token_expire_minutes: int
+    jwt_refresh_token_expire_days: int
     
     # Property para computar hosts permitidos
     @property
@@ -64,13 +62,9 @@ class Settings(BaseSettings):
         debug_print(f"DEBUG - Using DATABASE_URL: {DB_URL}")
         return DB_URL
     
-    # Property para JWT secret más seguro
+    # Property para JWT secret
     @property
     def get_jwt_secret(self) -> str:
-        if not self.jwt_secret_key:
-            if self.ENVIRONMENT == "production":
-                raise ValueError("JWT Secret key must be set in production environment!")
-            return self.SECRET_KEY
         return self.jwt_secret_key
     
     # Property para obtener Google scopes como lista
@@ -95,6 +89,14 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings():
-    return Settings()
+    try:
+        return Settings()
+    except Exception as e:
+        print(f"\n{'='*50}")
+        print("ERROR: Missing required environment variables")
+        print(f"Please ensure all required variables are defined in the .env file")
+        print(f"Error details: {str(e)}")
+        print(f"{'='*50}\n")
+        sys.exit(1)
 
 settings = get_settings()
