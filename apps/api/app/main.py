@@ -1,13 +1,17 @@
+# FastAPI
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+# SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-# Imports mejorados
+# Imports internos
 from .db_config import DB_HOST, DB_PORT, DB_NAME, DB_USER
 from .database import engine, Base, get_db
 from .config import settings
+from contextlib import asynccontextmanager
 
 # Importamos todos los modelos de una vez
 from .models import *
@@ -15,33 +19,9 @@ from .models import *
 # Versión
 VERSION = "0.1.0"
 
-# Crear app
-app = FastAPI(
-    title="MoneyDiary API",
-    description="API for the MoneyDiary app",
-    version=VERSION
-)
-
-# Crear tablas en modo desarrollo (para producción, usar Alembic)
-if settings.ENVIRONMENT != "production":
-    try:
-        Base.metadata.create_all(bind=engine)
-    except SQLAlchemyError as e:
-        print(f"Error creating database tables: {e}")
-        raise
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS_LIST,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-@app.on_event("startup")
-async def log_startup_config():
-    """Log application configuration on startup"""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle startup and shutdown events"""
     # Create configuration dictionary excluding sensitive information
     config_dict = {
         "VERSION": VERSION,
@@ -63,6 +43,35 @@ async def log_startup_config():
     for key, value in config_dict.items():
         print(f"{key}: {value}")
     print(f"{'='*50}\n")
+    
+    # Startup code finished, yield control back to FastAPI
+    yield
+    # Shutdown code would go here (if needed in the future)
+
+# Crear app
+app = FastAPI(
+    title="MoneyDiary API",
+    description="API for the MoneyDiary app",
+    version=VERSION,
+    lifespan=lifespan
+)
+
+# Crear tablas en modo desarrollo (para producción, usar Alembic)
+if settings.ENVIRONMENT != "production":
+    try:
+        Base.metadata.create_all(bind=engine)
+    except SQLAlchemyError as e:
+        print(f"Error creating database tables: {e}")
+        raise
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS_LIST,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 @app.get("/")
 async def root():
