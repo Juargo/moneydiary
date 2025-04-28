@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from app.models.base import Base
 import datetime
 
 class InvalidatedToken(Base):

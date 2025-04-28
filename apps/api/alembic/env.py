@@ -15,12 +15,42 @@ from app.models import Base
 from app.models import *
 from app.config import settings
 
+# Determinar el ambiente actual
+ENV = os.environ.get("APP_ENV", "development")
+print(f"Running migrations in {ENV} environment")
+
+# Obtener credenciales desde variables de entorno según el ambiente
+def get_db_url_from_env(env):
+    if env == "development":
+        db_host = os.environ.get("DEV_DB_HOST", "localhost")
+        db_port = os.environ.get("DEV_DB_PORT", "5432")
+        db_name = os.environ.get("DEV_DB_NAME", "moneydiary_dev")
+        db_user = os.environ.get("DEV_DB_USER", "postgres")
+        db_pass = os.environ.get("DEV_DB_PASS", "postgres")
+    elif env == "testing":
+        db_host = os.environ.get("TEST_DB_HOST", "localhost")
+        db_port = os.environ.get("TEST_DB_PORT", "5432")
+        db_name = os.environ.get("TEST_DB_NAME", "moneydiary_test")
+        db_user = os.environ.get("TEST_DB_USER", "postgres")
+        db_pass = os.environ.get("TEST_DB_PASS", "postgres")
+    elif env == "production":
+        db_host = os.environ.get("PROD_DB_HOST", "localhost")
+        db_port = os.environ.get("PROD_DB_PORT", "5432")
+        db_name = os.environ.get("PROD_DB_NAME", "moneydiary")
+        db_user = os.environ.get("PROD_DB_USER", "postgres")
+        db_pass = os.environ.get("PROD_DB_PASS", "postgres")
+    else:
+        raise ValueError(f"Unknown environment: {env}")
+    
+    return f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+
 # este es el objeto Alembic Config que provee
 # acceso a los valores dentro del archivo .ini
 config = context.config
 
-# sobreescribir la url de conexión con la de las variables de entorno
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Sobreescribir la URL de la base de datos según el ambiente
+db_url = get_db_url_from_env(ENV)
+config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpretar el archivo de configuración para Python logging
 if config.config_file_name is not None:

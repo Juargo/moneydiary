@@ -8,8 +8,12 @@ permitiendo imports más limpios como `from apps.api.app.models import User, Acc
 # Base model
 from .base import Base
 
-# Usuarios
+# Usuarios y autenticación
 from .users import User
+from .role import Role
+from .permission import Permission
+from .oauth2_token import OAuth2Token
+from .invalidated_token import InvalidatedToken
 
 # Cuentas y tipos
 from .account_types import AccountType
@@ -50,8 +54,8 @@ __all__ = [
     # Base
     'Base',
     
-    # Usuarios
-    'User',
+    # Usuarios y autenticación
+    'User', 'Role', 'Permission', 'OAuth2Token', 'InvalidatedToken',
     
     # Cuentas
     'AccountType', 'Account',

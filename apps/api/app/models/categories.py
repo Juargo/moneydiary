@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from app.models.base import Base
 
 class CategoryGroup(Base):
     __tablename__ = 'category_groups'
