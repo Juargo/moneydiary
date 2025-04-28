@@ -1,3 +1,8 @@
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import MetaData
+from sqlalchemy.orm import declarative_base
 
-Base = declarative_base()
+# Create metadata with schema naming convention
+metadata = MetaData(schema="app")
+
+# Create Base with schema explicitly set to 'app'
+Base = declarative_base(metadata=metadata)

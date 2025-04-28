@@ -1,51 +1,68 @@
 import os
+import subprocess
 import sys
 import argparse
-import subprocess
-import shlex
 
-def run_migration(env, command):
-    """Ejecuta un comando de alembic en el ambiente especificado."""
-    os.environ["APP_ENV"] = env
-    print(f"Running migration in {env} environment: 'alembic {command}'")
+def run_alembic_command(env, command, extra_args=[]):
+    """Ejecuta un comando de Alembic con las variables de entorno configuradas."""
+    env_str = f"--env {env}" if env else ""
+    cmd_str = f"alembic {command}"
     
-    # Convertir el comando en lista de argumentos
-    cmd_parts = ["alembic"] + shlex.split(command)
+    if extra_args:
+        cmd_str += f" {' '.join(extra_args)}"
+    
+    full_cmd = cmd_str
+    
+    print(f"Running migration in {env} environment: '{full_cmd}'")
+    
+    # Add database connection verification
+    if env == "development":
+        import psycopg2
+        try:
+            conn = psycopg2.connect(
+                host=os.environ.get("DEV_DB_HOST", "localhost"),
+                port=os.environ.get("DEV_DB_PORT", "5432"),
+                dbname=os.environ.get("DEV_DB_NAME", "moneydiary_dev"),
+                user=os.environ.get("DEV_DB_USER", "postgres"),
+                password=os.environ.get("DEV_DB_PASS", "postgres")
+            )
+            cursor = conn.cursor()
+            cursor.execute("CREATE SCHEMA IF NOT EXISTS app;")
+            conn.commit()
+            print(f"Database connection verified and schema 'app' created")
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Database connection error: {str(e)}")
     
     try:
-        result = subprocess.run(cmd_parts, check=True, text=True,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        print(result.stdout)
-        if result.stderr:
-            print(f"Warnings: {result.stderr}")
-        print(f"Migration command executed successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing migration: {e}")
-        print(f"STDERR: {e.stderr}")
+        # Ejecutar el comando Alembic en un subproceso
+        process = subprocess.Popen(
+            full_cmd.split(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy(),  # Ensure environment variables are passed to subprocess
+        )
+        stdout, stderr = process.communicate()
+        
+        if process.returncode != 0:
+            print(f"Error executing migration: Command {full_cmd!r} returned non-zero exit status {process.returncode}.")
+            if stderr:
+                print(f"STDERR: {stderr.decode()}")
+            sys.exit(1)
+        
+        print(stdout.decode())
+        return True
+    except Exception as e:
+        print(f"Error executing migration: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Ejecutar migraciones de Alembic")
-    parser.add_argument("--env", choices=["development", "testing", "production"], 
-                        default="development", help="Ambiente de ejecución")
-    parser.add_argument("command", choices=["upgrade", "downgrade", "revision", "current", "history", "merge"],
-                        help="Comando de Alembic")
-    parser.add_argument("--message", help="Mensaje para el comando 'revision'")
-    parser.add_argument("--rev", help="Revisión para comandos 'upgrade' y 'downgrade'")
-    parser.add_argument("--autogenerate", action="store_true", help="Usar --autogenerate con revision")
+    parser = argparse.ArgumentParser(description="Execute Alembic migrations with environment configuration")
+    parser.add_argument("--env", type=str, default="development", help="Environment (development, testing, production)")
     
-    args = parser.parse_args()
+    # Parse only the known arguments
+    args, unknown = parser.parse_known_args()
     
-    alembic_cmd = args.command
-    if args.command == "revision":
-        if args.message:
-            alembic_cmd += f" --message '{args.message}'"
-        if args.autogenerate:
-            alembic_cmd += " --autogenerate"
-    elif args.command in ["upgrade", "downgrade"]:
-        if args.rev:
-            alembic_cmd += f" {args.rev}"
-        else:
-            alembic_cmd += " head" if args.command == "upgrade" else " -1"
-    
-    run_migration(args.env, alembic_cmd)
+    # Run the migration command with any remaining arguments
+    run_alembic_command(args.env, " ".join(unknown))

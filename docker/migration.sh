@@ -69,6 +69,11 @@ create_database_if_not_exists() {
     PGPASSWORD="$password" psql -h "$host" -p "$port" -U "$user" -c "CREATE DATABASE $dbname;"
     echo "Base de datos $dbname creada exitosamente."
   fi
+
+  # Crear el schema app si no existe
+  echo "Verificando y creando el esquema 'app' si no existe..."
+  PGPASSWORD="$password" psql -h "$host" -p "$port" -U "$user" -d "$dbname" -c "CREATE SCHEMA IF NOT EXISTS app;"
+  echo "Esquema 'app' verificado/creado exitosamente."
 }
 
 
