@@ -3,6 +3,7 @@ import subprocess
 import sys
 import argparse
 import shlex
+import datetime
 
 def run_alembic_command(env, command, extra_args=[]):
     """Ejecuta un comando de Alembic con las variables de entorno configuradas."""
@@ -13,7 +14,11 @@ def run_alembic_command(env, command, extra_args=[]):
     # Build the command with proper arguments
     cmd_parts = ["alembic", "-c", config_file]
     
-    # Add the command (e.g., 'current', 'upgrade', etc.)
+    # Add debug flag if enabled (posición correcta: ANTES del comando)
+    if os.environ.get("ALEMBIC_DEBUG") == "1":
+        cmd_parts.extend(["-x", "debug=True"])
+    
+    # Add the command AFTER any global options
     if isinstance(command, str):
         cmd_parts.extend(shlex.split(command))
     else:
@@ -106,10 +111,16 @@ def run_alembic_command(env, command, extra_args=[]):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Execute Alembic migrations with environment configuration")
     parser.add_argument("--env", type=str, default="development", help="Environment (development, testing, production)")
-    
+    parser.add_argument("--debug", action="store_true", help="Activar modo depuración detallado")
+
     # Parse only the known arguments
     args, unknown = parser.parse_known_args()
     
-    # Run the migration command with any remaining arguments
-    # Pass the unknown arguments as a list instead of joining them
+    # Configurar el modo debug si está activado
+    if args.debug:
+        os.environ["ALEMBIC_DEBUG"] = "1"
+        debug_log_file = f"alembic_debug_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.log"
+        print(f"Modo depuración activado. Log: {debug_log_file}")
+    
+    # Ejecutar el comando una sola vez
     run_alembic_command(args.env, unknown)

@@ -21,6 +21,16 @@ from app.models import Base
 from app.models import *
 from app.config import settings
 
+# Set up more detailed logging
+logging.basicConfig(
+    level=logging.DEBUG,  # Cambiar de INFO a DEBUG
+    format='%(levelname)s [%(name)s] %(message)s'
+)
+logger = logging.getLogger('alembic')
+# También configurar el logging para SQLAlchemy
+logging.getLogger('sqlalchemy').setLevel(logging.INFO)
+logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+
 # Determine the current environment
 ENV = os.environ.get("ENVIRONMENT", os.environ.get("APP_ENV", "development"))
 print(f"Running migrations in {ENV} environment")
@@ -138,9 +148,19 @@ def run_migrations_online():
             conn.execute(text("SET search_path TO app, public"))
             logger.info("Set search_path to app, public")
             
-            # Set search_path at database level so it persists
-            conn.execute(text("ALTER DATABASE moneydiary_dev SET search_path TO app, public"))
-            logger.info("Set database-level search_path")
+            # Obtener nombre de la base de datos según el entorno actual
+            if ENV == "development":
+                db_name = os.environ.get("DEV_DB_NAME", "moneydiary_dev")
+            elif ENV == "testing":
+                db_name = os.environ.get("TEST_DB_NAME", "moneydiary_test")
+            elif ENV == "production":
+                db_name = os.environ.get("PROD_DB_NAME", "moneydiary")
+            else:
+                db_name = "moneydiary_dev"  # fallback
+            
+            # Set search_path at database level so it persists (using dynamic db_name)
+            conn.execute(text(f"ALTER DATABASE {db_name} SET search_path TO app, public"))
+            logger.info(f"Set database-level search_path for database {db_name}")
             
             # Verify schema creation
             result = conn.execute(text("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'app'"))
@@ -175,7 +195,12 @@ def run_migrations_online():
                 version_table_schema="app",
                 schema_translate_map={None: "app", "app": "app"},
                 compare_type=True,
-                compare_server_default=True
+                compare_server_default=True,
+                # Agregar estas opciones para debugging:
+                template_args={"opts": {"compare_type": True, "compare_server_default": True}},
+                render_as_batch=True,
+                include_name=True,
+                include_symbol=True
             )
             
             logger.info("Alembic context configured successfully")
@@ -214,7 +239,7 @@ def run_migrations_online():
             conn.execute(text("SET search_path TO app, public"))
             logger.info("Set search_path to app, public")
             
-            # Get the database name from environment based on current env
+            # Obtener nombre de la base de datos según el entorno actual
             if ENV == "development":
                 db_name = os.environ.get("DEV_DB_NAME", "moneydiary_dev")
             elif ENV == "testing":
@@ -227,3 +252,71 @@ def run_migrations_online():
             # Set search_path at database level so it persists (using dynamic db_name)
             conn.execute(text(f"ALTER DATABASE {db_name} SET search_path TO app, public"))
             logger.info(f"Set database-level search_path for database {db_name}")
+            
+def inspect_database(connection):
+    """Inspecciona la base de datos para comparar con los modelos."""
+    logger.info("=== ESTRUCTURA ACTUAL DE LA BASE DE DATOS ===")
+    inspector = inspect(connection)
+    
+    # Verificar schemas
+    schemas = inspector.get_schema_names()
+    logger.info(f"Schemas en la base de datos: {schemas}")
+    
+    # Verificar tablas en cada schema
+    for schema in schemas:
+        tables = inspector.get_table_names(schema=schema)
+        logger.info(f"Tablas en schema '{schema}': {tables}")
+        
+        for table in tables:
+            logger.info(f"Detalles de tabla '{schema}.{table}':")
+            # Columnas
+            columns = inspector.get_columns(table, schema=schema)
+            for column in columns:
+                logger.info(f"  - Columna: {column['name']}, Tipo: {column['type']}")
+            
+            # Primary keys
+            pks = inspector.get_pk_constraint(table, schema=schema)
+            logger.info(f"  - Primary keys: {pks['constrained_columns']}")
+            
+            # Foreign keys
+            fks = inspector.get_foreign_keys(table, schema=schema)
+            for fk in fks:
+                logger.info(f"  - FK: {fk['constrained_columns']} -> {fk['referred_schema']}.{fk['referred_table']}.{fk['referred_columns']}")
+    
+    logger.info("=====================")
+
+# En run_migrations_online, agregar esta llamada después de conectar pero antes de configurar el contexto
+# Ensure connectable is defined before this block
+connectable = engine_from_config(
+    config.get_section(config.config_ini_section),
+    prefix="sqlalchemy.",
+    poolclass=pool.NullPool,
+    isolation_level="AUTOCOMMIT",
+    connect_args={"options": "-c timezone=utc -c search_path=app,public"},
+)
+
+with connectable.connect() as connection:
+    try:
+        # Log connection information
+        logger.info(f"Connected to database for inspection: {connection.engine.url}")
+        inspect_database(connection)
+        
+        # El resto del código...
+    except Exception as e:
+        logger.error(f"Error during database inspection: {str(e)}")
+
+# Depuración de modelos SQLAlchemy
+logger.info("=== MODELOS CARGADOS ===")
+model_count = 0
+for table_name, table in Base.metadata.tables.items():
+    model_count += 1
+    logger.info(f"Modelo: {table_name} (Schema: {table.schema})")
+    # Listar las columnas
+    for column in table.columns:
+        logger.info(f"  - Columna: {column.name}, Tipo: {column.type}, Nullable: {column.nullable}")
+    # Listar las foreign keys
+    for fk in table.foreign_keys:
+        logger.info(f"  - FK: {fk.column} -> {fk.target_fullname}")
+
+logger.info(f"Total de modelos cargados: {model_count}")
+logger.info("=====================")
