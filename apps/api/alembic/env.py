@@ -22,8 +22,9 @@ from app.models import *
 from app.config import settings
 
 # Determine the current environment
-ENV = os.environ.get("APP_ENV", "development")
+ENV = os.environ.get("ENVIRONMENT", os.environ.get("APP_ENV", "development"))
 print(f"Running migrations in {ENV} environment")
+print(f"Configured database connection: ", end="")
 
 # Get credentials from environment variables based on environment
 def get_db_url_from_env(env):
@@ -47,6 +48,9 @@ def get_db_url_from_env(env):
         db_pass = os.environ.get("PROD_DB_PASS", "postgres")
     else:
         raise ValueError(f"Unknown environment: {env}")
+    
+    # Log the connection details (without password)
+    print(f"{db_host}:{db_port}/{db_name} as {db_user}")
     
     return f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 
@@ -154,9 +158,7 @@ def run_migrations_online():
     # Now proceed with migration connection
     with connectable.connect() as connection:
         try:
-            # Log connection information
-            logger.info(f"Connected to database for migrations: {connection.engine.url}")
-            # Log connection information
+            # Log connection information (only once)
             logger.info(f"Connected to database for migrations: {connection.engine.url}")
             
             # Make sure search_path is set for this connection too
@@ -205,11 +207,23 @@ def run_migrations_online():
                 
         except Exception as e:
             logger.error(f"Error during migration: {str(e)}")
-            logger.error(traceback.format_exc())
-            raise
-
-
-if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
+            # Simple schema setup - just create schema and set search_path
+            conn.execute(text("CREATE SCHEMA IF NOT EXISTS app"))
+            logger.info("Created schema 'app' if it didn't exist")
+            
+            conn.execute(text("SET search_path TO app, public"))
+            logger.info("Set search_path to app, public")
+            
+            # Get the database name from environment based on current env
+            if ENV == "development":
+                db_name = os.environ.get("DEV_DB_NAME", "moneydiary_dev")
+            elif ENV == "testing":
+                db_name = os.environ.get("TEST_DB_NAME", "moneydiary_test")
+            elif ENV == "production":
+                db_name = os.environ.get("PROD_DB_NAME", "moneydiary")
+            else:
+                db_name = "moneydiary_dev"  # fallback
+            
+            # Set search_path at database level so it persists (using dynamic db_name)
+            conn.execute(text(f"ALTER DATABASE {db_name} SET search_path TO app, public"))
+            logger.info(f"Set database-level search_path for database {db_name}")
