@@ -76,6 +76,13 @@ config.set_main_option("sqlalchemy.url", db_url)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+print("MODELOS SIENDO IMPORTADOS:")
+for tablename, table in Base.metadata.tables.items():
+    print(f"  Table: {tablename}, Schema: {table.schema}")
+
+# Vaciar cualquier caché de SQLAlchemy
+Base.metadata.clear()
+
 # Add all models you want to include in migrations here
 target_metadata = Base.metadata
 
@@ -194,13 +201,12 @@ def run_migrations_online():
                 version_table="alembic_version",
                 version_table_schema="app",
                 schema_translate_map={None: "app", "app": "app"},
+                # Opciones adicionales para forzar comparación detallada
                 compare_type=True,
                 compare_server_default=True,
-                # Agregar estas opciones para debugging:
-                template_args={"opts": {"compare_type": True, "compare_server_default": True}},
-                render_as_batch=True,
-                include_name=True,
-                include_symbol=True
+                include_symbol=True,  # Incluir todos los objetos
+                include_name=True,    # Incluir todos los nombres
+                render_as_batch=True  # Usar modo batch más detallado
             )
             
             logger.info("Alembic context configured successfully")
