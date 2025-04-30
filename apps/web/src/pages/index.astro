@@ -1,5 +1,7 @@
 ---
-
+import Layout from '../layouts/Layout.astro';
+import LoginButton from '../components/auth/LoginButton.vue';
+import UserMenu from '../components/auth/UserMenu.vue';
 ---
 
 <html lang="en">
@@ -11,6 +13,38 @@
 		<title>Astro</title>
 	</head>
 	<body>
-		<h1>Astro</h1>
+		<Layout title="MoneyDiary - Tu gestor de finanzas personales">
+			<main class="container mx-auto px-4 py-8">
+			  <div class="flex justify-between items-center mb-8">
+				<h1 class="text-3xl font-bold text-gray-800">MoneyDiary</h1>
+				<div data-vue-app>
+				  <UserMenu client:load />
+				</div>
+			  </div>
+		  
+			  <div class="bg-white p-8 rounded-lg shadow-md max-w-3xl mx-auto">
+				<h2 class="text-2xl font-semibold text-gray-700 mb-4">Bienvenido a MoneyDiary</h2>
+				<p class="text-gray-600 mb-6">
+				  Tu solución completa para gestionar tus finanzas personales. Controla tus gastos, 
+				  establece presupuestos y alcanza tus metas financieras.
+				</p>
+				
+				<div data-vue-app class="mt-6">
+				  <LoginButton client:load />
+				</div>
+				
+				<div class="mt-8">
+				  <h3 class="text-lg font-medium text-gray-700 mb-2">Características principales:</h3>
+				  <ul class="list-disc pl-5 text-gray-600 space-y-1">
+					<li>Seguimiento de ingresos y gastos</li>
+					<li>Múltiples métodos de gestión financiera</li>
+					<li>Categorización automática de transacciones</li>
+					<li>Reportes y análisis detallados</li>
+					<li>Establecimiento de metas financieras</li>
+				  </ul>
+				</div>
+			  </div>
+			</main>
+		  </Layout>
 	</body>
 </html>

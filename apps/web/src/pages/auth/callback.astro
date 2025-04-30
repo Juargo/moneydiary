@@ -1,0 +1,37 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Autenticación en proceso...">
+  <div class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="text-center">
+      <h1 class="text-2xl font-bold mb-4">Procesando tu inicio de sesión...</h1>
+      <p class="text-gray-600 mb-8">Por favor espera mientras completamos el proceso.</p>
+      <div class="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin mx-auto"></div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { handleAuthCallback } from '../../services/authService';
+  
+  async function processCallback() {
+    try {
+      const success = await handleAuthCallback();
+      
+      if (success) {
+        // Redirigir al dashboard después de autenticación exitosa
+        window.location.href = '/dashboard';
+      } else {
+        // Redirigir a la página de inicio en caso de error
+        window.location.href = '/?auth_error=true';
+      }
+    } catch (error) {
+      console.error('Error al procesar la autenticación:', error);
+      window.location.href = '/?auth_error=true';
+    }
+  }
+  
+  // Ejecutar cuando el documento esté listo
+  document.addEventListener('DOMContentLoaded', processCallback);
+</script>

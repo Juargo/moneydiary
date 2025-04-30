@@ -5,19 +5,9 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..version import __version__
 
-# Importamos todos los tipos
-from .types import (
-    UserType,
-    AccountType,
-    AccountTypeType,
-    CategoryGroupType,
-    CategoryType,
-    SubcategoryType,
-    FinancialMethodType,
-    TransactionType,
-    TransactionStatusType
-    # Otros tipos según se vayan implementando
-)
+# Importar consultas y mutaciones de autenticación
+from .queries.auth import get_me
+from .mutations.auth import refresh_token, logout
 
 @strawberry.type
 class Query:
@@ -29,17 +19,14 @@ class Query:
     def hello(self) -> str:
         return "Hello from MoneyDiary API!"
     
-    # Ejemplo básico de query
-    # @strawberry.field
-    # def users(self, info: Info) -> List[UserType]:
-    #     db = next(get_db())
-    #     # Implementa la lógica para obtener usuarios
-    #     return []
+    # Consulta para obtener el usuario autenticado actual
+    me = strawberry.field(resolver=get_me)
 
 @strawberry.type
 class Mutation:
-    # Las mutaciones se implementarán más adelante
-    pass
+    # Mutaciones de autenticación
+    refresh_token = strawberry.field(resolver=refresh_token)
+    logout = strawberry.field(resolver=logout)
 
-# schema = strawberry.Schema(query=Query, mutation=Mutation)
-schema = strawberry.Schema(query=Query)
+# Actualiza para incluir las mutaciones
+schema = strawberry.Schema(query=Query, mutation=Mutation)

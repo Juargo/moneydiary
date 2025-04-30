@@ -1,0 +1,59 @@
+---
+import Layout from '../layouts/Layout.astro';
+import UserMenu from '../components/auth/UserMenu.vue';
+---
+
+<Layout title="Dashboard | MoneyDiary">
+  <div class="min-h-screen bg-gray-100">
+    <header class="bg-white shadow">
+      <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-800">MoneyDiary</h1>
+        <div data-vue-app>
+          <UserMenu client:load />
+        </div>
+      </div>
+    </header>
+    
+    <main class="container mx-auto px-4 py-8">
+      <h2 class="text-xl font-semibold mb-6">Dashboard</h2>
+      
+      <div data-vue-app id="dashboard-app">
+        <!-- Aquí irían los componentes del dashboard -->
+        <div class="bg-white shadow rounded-lg p-6 mb-6">
+          <h3 class="text-lg font-medium mb-4">Bienvenido a tu panel de control</h3>
+          <p>Este es tu dashboard donde podrás gestionar todas tus finanzas.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  import { createApp } from 'vue';
+  import { pinia } from '../stores/pinia';
+  import { useAuthStore } from '../stores/authStore';
+  import { loadUserInfo } from '../services/authService';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const app = createApp({
+      setup() {
+        const authStore = useAuthStore();
+        
+        // Si el usuario está autenticado pero no tenemos sus datos, cargarlos
+        if (authStore.isAuthenticated && !authStore.user) {
+          loadUserInfo();
+        }
+        
+        // Si no está autenticado, redirigir al inicio
+        if (!authStore.isAuthenticated) {
+          window.location.href = '/?auth_required=true';
+        }
+
+        return {};
+      }
+    });
+
+    app.use(pinia);
+    app.mount('#dashboard-app');
+  });
+</script>
