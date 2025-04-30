@@ -13,6 +13,12 @@ class FinancialMethod(Base):
     created_at = Column(TIMESTAMP)
     updated_at = Column(TIMESTAMP)
 
+    users = relationship(
+        "User",
+        secondary="user_financial_methods",  # tabla de unión
+        back_populates="financial_methods"
+    )
+
 class MethodFiftyThirtyTwenty(Base):
     __tablename__ = 'method_fifty_thirty_twenty'
 

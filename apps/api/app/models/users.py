@@ -36,6 +36,12 @@ class User(Base):
     oauth_tokens = relationship("OAuth2Token", back_populates="user", cascade="all, delete-orphan")
     invalidated_tokens = relationship("InvalidatedToken", back_populates="user", cascade="all, delete-orphan")
     
+    financial_methods = relationship(
+        "FinancialMethod",
+        secondary="user_financial_methods",  # tabla de unión
+        back_populates="users"
+    )
+    
     @property
     def permissions(self):
         """Obtiene todos los permisos del usuario a través de su rol"""

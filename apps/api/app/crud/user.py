@@ -52,58 +52,59 @@ def create_oauth2_token(db: Session, user_id: int, provider: str, token_data: Di
     db.refresh(db_token)
     return db_token
 
-def create_user_oauth(db: Session, user_data: Dict[str, Any], token_data: Dict[str, Any] = None) -> User:
+def create_user_oauth(db: Session, user_data: dict) -> User:
     """
-    Crea un nuevo usuario a partir de datos de OAuth2 o actualiza uno existente
+    Crea o actualiza un usuario a partir de datos de OAuth
     
     Args:
-        db (Session): Sesión de base de datos
-        user_data (Dict[str, Any]): Datos del usuario obtenidos del proveedor OAuth
-        token_data (Dict[str, Any], optional): Datos de token OAuth2. Defaults to None.
+        db: Sesión de base de datos
+        user_data: Datos del usuario devueltos por el proveedor OAuth
         
     Returns:
-        User: El usuario creado o actualizado
+        User: Usuario creado o actualizado
     """
-    # Verificar si el usuario ya existe por correo electrónico
-    db_user = get_user_by_email(db, email=user_data["email"])
-    
-    if db_user:
-        # Actualizar información del usuario existente
-        if user_data.get("name") and not db_user.name:
-            db_user.name = user_data["name"]
+    try:
+        print(f"Procesando usuario OAuth con email: {user_data.get('email', 'NO EMAIL')}")
         
-        if user_data.get("profile_image"):
-            db_user.profile_image = user_data["profile_image"]
+        # Verificar que el email existe
+        if not user_data.get('email'):
+            raise ValueError("El email es requerido para crear un usuario")
+            
+        # Buscar usuario existente por email
+        db_user = get_user_by_email(db, user_data["email"])
         
-        # Marcar el correo como verificado si viene de OAuth2
-        db_user.email_verified = True
-        
-        # Actualizar fecha de último acceso
-        db_user.updated_at = datetime.utcnow()
-        
-        db.commit()
-        db.refresh(db_user)
-    else:
-        # Crear nuevo usuario
-        db_user = User(
-            email=user_data["email"],
-            name=user_data.get("name", ""),
-            profile_image=user_data.get("profile_image"),
-            password_hash="",  # No se necesita contraseña para usuarios OAuth
-            email_verified=True,  # Los correos de proveedores OAuth ya están verificados
-            is_active=True
-        )
-        db.add(db_user)
-        db.commit()
-        db.refresh(db_user)
-    
-    # Si se proporcionaron datos del token, almacenarlos
-    if token_data and "access_token" in token_data:
-        create_oauth2_token(
-            db=db,
-            user_id=db_user.id,
-            provider=user_data.get("provider", "google"),
-            token_data=token_data
-        )
-    
-    return db_user
+        if db_user:
+            # Actualizar usuario existente
+            db_user.name = user_data.get("name", db_user.name)
+            db_user.profile_image = user_data.get("profile_image", db_user.profile_image)
+            db_user.provider = user_data.get("provider", db_user.provider)
+            db_user.provider_user_id = user_data.get("provider_user_id", db_user.provider_user_id)
+            db_user.is_active = True
+            db_user.last_login = datetime.now()
+            
+            db.commit()
+            db.refresh(db_user)
+            print(f"Usuario actualizado: ID={db_user.id}, Email={db_user.email}")
+            return db_user
+        else:
+            # Crear nuevo usuario
+            new_user = User(
+                email=user_data["email"],
+                name=user_data.get("name", ""),
+                profile_image=user_data.get("profile_image", ""),
+                provider=user_data.get("provider", "google"),
+                provider_user_id=user_data.get("provider_user_id", ""),
+                is_active=True,
+                email_verified=user_data.get("email_verified", False),
+                last_login=datetime.now()
+            )
+            
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            print(f"Nuevo usuario creado: ID={new_user.id}, Email={new_user.email}")
+            return new_user
+    except Exception as e:
+        db.rollback()
+        print(f"Error al crear/actualizar usuario OAuth: {str(e)}")
+        raise

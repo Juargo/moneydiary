@@ -4,7 +4,8 @@ from strawberry.fastapi import GraphQLRouter
 
 # Imports internos
 from .lifecycle import lifespan, VERSION
-from .routers import basic, auth
+from .routers import basic
+from .api.endpoints import auth
 from .init_db import initialize_database
 from .middleware import setup_middleware
 from .middleware import setup_middleware
@@ -28,7 +29,7 @@ setup_middleware(app)
 
 # Include routers
 app.include_router(basic.router)
-app.include_router(auth.router)
+# app.include_router(auth.router)
 
 # GraphQL endpoint
 graphql_router = GraphQLRouter(

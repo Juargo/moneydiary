@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 import requests
+import traceback
 from urllib.parse import urlencode
 
 from ...database import get_db
@@ -26,26 +27,22 @@ async def login_google():
 async def google_callback(request: Request, code: str = None, error: str = None, db: Session = Depends(get_db)):
     """
     Endpoint de callback para el flujo de autenticación de Google
-    
-    Procesa el código de autorización recibido de Google y:
-    1. Obtiene tokens e información del usuario de Google
-    2. Crea o actualiza el usuario en nuestra base de datos
-    3. Genera tokens JWT para nuestra aplicación
-    4. Redirige al frontend con los tokens
     """
     # Si hay un error en la autenticación de Google
     if error:
-        redirect_url = f"{settings.frontend_url}{settings.frontend_auth_error_path}?error={error}"
+        error_encoded = urlencode({'message': f"Error de Google: {error}"})
+        redirect_url = f"{settings.frontend_url}{settings.frontend_auth_error_path}?error={error_encoded}"
         return RedirectResponse(redirect_url)
     
     # Si no hay código, es un error
     if not code:
-        redirect_url = f"{settings.frontend_url}{settings.frontend_auth_error_path}?error=no_code"
+        error_encoded = urlencode({'message': "No se recibió código de autorización"})
+        redirect_url = f"{settings.frontend_url}{settings.frontend_auth_error_path}?error={error_encoded}"
         return RedirectResponse(redirect_url)
     
     try:
         # Obtener información del usuario y tokens de Google
-        user_info, _ = await get_google_user_and_tokens(code)
+        user_info, token_info = await get_google_user_and_tokens(code)
         
         # Crear o actualizar usuario en nuestra base de datos
         db_user = create_user_oauth(db, user_info)
@@ -66,11 +63,23 @@ async def google_callback(request: Request, code: str = None, error: str = None,
         return RedirectResponse(redirect_url)
         
     except Exception as e:
-        # Si hay algún error, redirigir con mensaje de error
+        # Si hay algún error, redirigir con mensaje de error detallado
         error_message = str(e)
-        redirect_url = f"{settings.frontend_url}{settings.frontend_auth_error_path}?error={error_message}"
+        error_type = type(e).__name__
+        error_details = {
+            'message': f"Error de autenticación: {error_message}",
+            'type': error_type,
+            'details': traceback.format_exc()
+        }
+        
+        # Log del error para depuración del servidor
+        print(f"ERROR DE AUTENTICACIÓN: {error_type}: {error_message}")
+        print(f"DETALLES: {traceback.format_exc()}")
+        
+        error_encoded = urlencode({'message': error_message})
+        redirect_url = f"{settings.frontend_url}{settings.frontend_auth_error_path}?error={error_encoded}"
         return RedirectResponse(redirect_url)
-
+    
 @router.post("/refresh-token")
 async def refresh_token_endpoint(refresh_token: str, db: Session = Depends(get_db)):
     """

@@ -23,7 +23,7 @@ function getClient() {
 export function getGoogleLoginUrl() {
   return `${
     import.meta.env.PUBLIC_API_URL || "http://localhost:8000"
-  }/auth/google/login`;
+  }/api/v1/auth/google/login`;
 }
 
 // Iniciar sesión con Google (redirecciona al usuario)
