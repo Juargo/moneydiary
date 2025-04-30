@@ -51,6 +51,11 @@ def get_google_user_and_tokens(code: str) -> Tuple[Dict[str, Any], Dict[str, Any
     """
     # Paso 1: Intercambiar el código por tokens
     token_url = "https://oauth2.googleapis.com/token"
+
+     # Añade logs para depuración
+    print(f"Realizando solicitud de token a Google con código: {code[:10]}...")
+    print(f"Redirect URI: {settings.google_redirect_uri}")
+    
     token_data = {
         "client_id": settings.google_client_id,
         "client_secret": settings.google_client_secret,
@@ -61,6 +66,16 @@ def get_google_user_and_tokens(code: str) -> Tuple[Dict[str, Any], Dict[str, Any
     
     try:
         token_response = requests.post(token_url, data=token_data)
+
+         # Imprimir detalles de error si la solicitud falla
+        if token_response.status_code != 200:
+            print(f"Error en la respuesta del token: {token_response.status_code}")
+            print(f"Respuesta de error: {token_response.text}")
+            token_response.raise_for_status()
+            
+        token_json = token_response.json()
+        print("Token obtenido exitosamente")
+        
         token_response.raise_for_status()
         token_json = token_response.json()
     except requests.RequestException as e:
