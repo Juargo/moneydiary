@@ -1,8 +1,23 @@
-import { useAuthStore } from "../stores/authStore";
-import { ME_QUERY, REFRESH_TOKEN_MUTATION } from "../utils/graphql/auth";
-import { createGraphQLClient } from "../utils/graphql/client";
+import { createSSRGraphQLClient } from "../utils/graphql/client";
+import {
+  ME_QUERY,
+  REFRESH_TOKEN_MUTATION,
+  LOGOUT_MUTATION,
+} from "../utils/graphql/auth";
 
-const client = createGraphQLClient();
+// Cliente para SSR (sin autenticación)
+const ssrClient = createSSRGraphQLClient();
+
+// Función para obtener el cliente apropiado
+function getClient() {
+  if (typeof window === "undefined") {
+    return ssrClient;
+  }
+
+  // Importación dinámica solo en cliente
+  const { createGraphQLClient } = require("../utils/graphql/client");
+  return createGraphQLClient();
+}
 
 // Obtener la URL para iniciar sesión con Google
 export function getGoogleLoginUrl() {
@@ -13,11 +28,16 @@ export function getGoogleLoginUrl() {
 
 // Iniciar sesión con Google (redirecciona al usuario)
 export function loginWithGoogle() {
-  window.location.href = getGoogleLoginUrl();
+  if (typeof window !== "undefined") {
+    window.location.href = getGoogleLoginUrl();
+  }
 }
 
 // Procesar la redirección de callback después de auth con Google
 export async function handleAuthCallback() {
+  if (typeof window === "undefined") return false;
+
+  const { useAuthStore } = await import("../stores/authStore");
   const authStore = useAuthStore();
 
   const params = new URLSearchParams(window.location.search);
@@ -47,7 +67,11 @@ export async function handleAuthCallback() {
 
 // Cargar información del usuario autenticado
 export async function loadUserInfo() {
+  if (typeof window === "undefined") return false;
+
+  const { useAuthStore } = await import("../stores/authStore");
   const authStore = useAuthStore();
+  const client = getClient();
 
   try {
     const result = await client.query(ME_QUERY, {}).toPromise();
@@ -68,40 +92,4 @@ export async function loadUserInfo() {
   return false;
 }
 
-// Refrescar token cuando expire
-export async function refreshAuthToken() {
-  const authStore = useAuthStore();
-
-  if (!authStore.refreshToken) {
-    return false;
-  }
-
-  try {
-    const result = await client
-      .mutation(REFRESH_TOKEN_MUTATION, {
-        refreshToken: authStore.refreshToken,
-      })
-      .toPromise();
-
-    if (result.error) {
-      console.error("Error al refrescar token:", result.error);
-      return false;
-    }
-
-    if (result.data?.refreshToken) {
-      authStore.updateTokens(result.data.refreshToken);
-      return true;
-    }
-  } catch (error) {
-    console.error("Error al refrescar token:", error);
-  }
-
-  return false;
-}
-
-// Cerrar sesión
-export function logout() {
-  const authStore = useAuthStore();
-  authStore.logout();
-  window.location.href = "/";
-}
+// Exporta otras funciones con el mismo patrón de importación condicional
