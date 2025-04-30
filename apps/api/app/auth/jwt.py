@@ -3,9 +3,11 @@ from typing import Dict, Any, Optional, Union
 from jose import jwt, JWTError
 from strawberry.types import Info
 from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 
 from ..models.users import User
 from ..config import settings
+from ..crud.user import get_user_by_id
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """
@@ -132,3 +134,39 @@ def decode_token(token: str) -> Dict[str, Any]:
             detail=f"Error decoding token: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+def get_user_from_token(db: Session, token: str) -> Optional[User]:
+    """
+    Obtiene un usuario a partir de un token JWT
+    
+    Args:
+        db (Session): Sesión de base de datos
+        token (str): Token JWT a verificar
+        
+    Returns:
+        Optional[User]: El usuario si el token es válido, None en caso contrario
+    """
+    try:
+        payload = decode_token(token)
+        user_id = payload.get("sub")
+        
+        if not user_id:
+            return None
+            
+        user = get_user_by_id(db, int(user_id))
+        return user
+    except Exception:
+        return None
+
+def get_current_user_from_context(info) -> Optional[User]:
+    """
+    Helper para obtener el usuario actual desde el contexto de GraphQL
+    
+    Args:
+        info: Información del contexto de GraphQL
+        
+    Returns:
+        Optional[User]: Usuario autenticado o None
+    """
+    context = info.context
+    return getattr(context, "user", None)

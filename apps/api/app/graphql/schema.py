@@ -1,13 +1,11 @@
 import strawberry
 from strawberry.types import Info
-from sqlalchemy.orm import Session
 
-from ..database import get_db
 from ..version import __version__
 
 # Importar consultas y mutaciones de autenticación
 from .queries.auth import get_me
-from .mutations.auth import refresh_token, logout
+from .mutations.auth import refresh_token, logout, google_auth
 
 @strawberry.type
 class Query:
@@ -25,6 +23,7 @@ class Query:
 @strawberry.type
 class Mutation:
     # Mutaciones de autenticación
+    google_auth = strawberry.field(resolver=google_auth)
     refresh_token = strawberry.field(resolver=refresh_token)
     logout = strawberry.field(resolver=logout)
 
