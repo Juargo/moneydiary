@@ -92,4 +92,29 @@ export async function loadUserInfo() {
   return false;
 }
 
-// Exporta otras funciones con el mismo patrón de importación condicional
+// Cerrar sesión
+export async function logout() {
+  if (typeof window === "undefined") return false;
+
+  const { useAuthStore } = await import("../stores/authStore");
+  const authStore = useAuthStore();
+  const client = getClient();
+
+  try {
+    // Intentar hacer logout en el servidor
+    await client.mutation(LOGOUT_MUTATION, {}).toPromise();
+  } catch (error) {
+    // Incluso si falla, continuamos con el logout local
+    console.error("Error al cerrar sesión en el servidor:", error);
+  }
+
+  // Cerrar sesión localmente (borra tokens y datos de usuario)
+  authStore.logout();
+
+  // Opcional: Redirigir al usuario a la página principal
+  if (typeof window !== "undefined") {
+    window.location.href = "/";
+  }
+
+  return true;
+}
