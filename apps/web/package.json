@@ -11,9 +11,13 @@
     "lint": "eslint src --ext .js,.ts,.astro"
   },
   "dependencies": {
-    "@moneydiary/shared-ui": "workspace:*",
+    "@moneydiary/api-client": "workspace:*",
     "@moneydiary/financial-utils": "workspace:*",
-    "@moneydiary/api-client": "workspace:*"
+    "@moneydiary/shared-ui": "workspace:*",
+    "@urql/vue": "^1.4.3",
+    "graphql": "^16.11.0",
+    "jwt-decode": "^4.0.0",
+    "pinia": "^3.0.2"
   },
   "devDependencies": {
     "@astrojs/tailwind": "^5.0.0",
