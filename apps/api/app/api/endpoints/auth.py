@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 from ...database import get_db
 from ...auth.oauth import get_google_auth_url, get_google_user_and_tokens
 from ...auth.jwt import create_access_token, create_refresh_token
-from ...crud.user import create_user_oauth, get_user_by_email
+from ...crud.user import create_user_oauth, get_user_by_email, get_user_by_id
 from ...config import settings
 
 router = APIRouter()
