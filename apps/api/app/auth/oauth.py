@@ -1,6 +1,7 @@
 import requests
 from datetime import datetime
 from fastapi import HTTPException, status
+from typing import Dict, Any, Tuple
 
 from ..config import settings
 
@@ -31,7 +32,7 @@ def get_google_auth_url() -> str:
     
     return google_auth_url
 
-async def get_google_user_and_tokens(code: str):
+def get_google_user_and_tokens(code: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     Intercambia el código de autorización por tokens y obtiene información del usuario
     
@@ -43,7 +44,7 @@ async def get_google_user_and_tokens(code: str):
         code (str): Código de autorización recibido de Google
         
     Returns:
-        dict: Diccionario con datos del usuario y tokens
+        Tuple[Dict[str, Any], Dict[str, Any]]: Tuple con datos del usuario y tokens
         
     Raises:
         HTTPException: Si ocurre un error en alguna de las peticiones a Google
@@ -60,7 +61,7 @@ async def get_google_user_and_tokens(code: str):
     
     try:
         token_response = requests.post(token_url, data=token_data)
-        token_response.raise_for_status()  # Levanta una excepción si el status code no es 2xx
+        token_response.raise_for_status()
         token_json = token_response.json()
     except requests.RequestException as e:
         raise HTTPException(
@@ -82,19 +83,39 @@ async def get_google_user_and_tokens(code: str):
             detail=f"Error al obtener información del usuario de Google: {str(e)}"
         )
     
-    # Devolver datos estructurados
-    return {
-        "user_data": {
-            "email": user_data["email"],
-            "name": user_data.get("name"),
-            "profile_image": user_data.get("picture"),
-            "provider": "google",
-            "provider_user_id": user_data["id"]
-        },
-        "token_data": {
-            "access_token": token_json["access_token"],
-            "refresh_token": token_json.get("refresh_token"),
-            "expires_in": token_json.get("expires_in", 3600),
-            "scope": token_json.get("scope")
-        }
+    # Estructurar datos del usuario
+    user_info = {
+        "email": user_data["email"],
+        "name": user_data.get("name"),
+        "profile_image": user_data.get("picture"),
+        "provider": "google",
+        "provider_user_id": user_data["id"],
+        "email_verified": user_data.get("verified_email", False)
     }
+    
+    # Estructurar datos de token
+    token_info = {
+        "access_token": token_json["access_token"],
+        "refresh_token": token_json.get("refresh_token"),
+        "expires_in": token_json.get("expires_in", 3600),
+        "scope": token_json.get("scope")
+    }
+    
+    return user_info, token_info
+
+# Para compatibilidad con el código existente que espera get_google_user
+def get_google_user(code: str) -> Dict[str, Any]:
+    """
+    Obtiene información del usuario de Google utilizando un código de autorización.
+    
+    Esta función es un wrapper para get_google_user_and_tokens que solo devuelve 
+    la información del usuario.
+    
+    Args:
+        code (str): Código de autorización de Google OAuth2
+        
+    Returns:
+        Dict[str, Any]: Información del usuario
+    """
+    user_info, _ = get_google_user_and_tokens(code)
+    return user_info

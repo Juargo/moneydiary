@@ -1,7 +1,10 @@
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from jose import jwt, JWTError
+from strawberry.types import Info
+from fastapi import HTTPException, status
 
+from ..models.users import User
 from ..config import settings
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -67,3 +70,65 @@ def create_refresh_token(data: Dict[str, Any], expires_delta: Optional[timedelta
     )
     
     return encoded_jwt
+
+def get_current_user_from_context(info: Info) -> Optional[User]:
+    """
+    Extracts the authenticated user from the GraphQL context
+    
+    Args:
+        info (Info): GraphQL resolver info object containing the context
+        
+    Returns:
+        Optional[User]: The authenticated user or None if not authenticated
+    """
+    # Access the user from the context, which should have been set by authentication middleware
+    context = info.context
+    
+    # Check if context has a user attribute
+    if hasattr(context, 'user'):
+        return context.user
+    
+    # If using a dict-like context, check for 'user' key
+    if isinstance(context, dict) and 'user' in context:
+        return context['user']
+    
+    # If using a request-based context, check for user in request state
+    if hasattr(context, 'request') and hasattr(context.request, 'state'):
+        if hasattr(context.request.state, 'user'):
+            return context.request.state.user
+    
+    # No user found in context
+    return None
+
+def decode_token(token: str) -> Dict[str, Any]:
+    """
+    Verifica y decodifica un token JWT
+    
+    Args:
+        token (str): El token JWT a decodificar
+        
+    Returns:
+        Dict[str, Any]: El payload decodificado del token
+        
+    Raises:
+        HTTPException: Si el token es inválido o ha expirado
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm]
+        )
+        return payload
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Error decoding token: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

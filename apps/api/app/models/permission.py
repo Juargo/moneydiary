@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import relationship
-from app.models.base import Base
-from app.models.role import roles_permissions
+from apps.api.app.models.base import Base
+from apps.api.app.models.role import roles_permissions
 import datetime
 
 class Permission(Base):

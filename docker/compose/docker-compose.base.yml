@@ -30,8 +30,9 @@ services:
       # Basic configuration
       - ENVIRONMENT=${ENVIRONMENT}
       - DEBUG=${DEBUG}
+      - APP_VERSION=${APP_VERSION}
       - DB_HOST=${DB_HOST}
-      - DB_PORT=5432
+      - DB_PORT=${DB_PORT}
       - DB_NAME=${POSTGRES_DB}
       - DB_USER=${POSTGRES_USER}
       - DB_PASSWORD=${POSTGRES_PASSWORD}
@@ -39,6 +40,7 @@ services:
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
       - CORS_ORIGINS=${CORS_ORIGINS}
       - ALLOWED_HOSTS_RAW=${ALLOWED_HOSTS_RAW}
+      - API_PORT=${API_PORT}
 
       # OAuth2 Google settings
       - google_client_id=${GOOGLE_CLIENT_ID}
