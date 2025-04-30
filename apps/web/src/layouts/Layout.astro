@@ -1,0 +1,47 @@
+---
+import { ViewTransitions } from 'astro:transitions';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { 
+  title = "MoneyDiary - Controla tus finanzas", 
+  description = "Aplicación para el control y gestión de finanzas personales"
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <ViewTransitions />
+  </head>
+  <body class="min-h-screen bg-gray-50">
+    <slot />
+
+    <script>
+      import { pinia } from '../stores/pinia';
+      import { createApp } from 'vue';
+      import urql from '@urql/vue';
+      import { createGraphQLClient } from '../utils/graphql/client';
+      
+      // Inicializar Vue para componentes client:load
+      document.addEventListener('astro:page-load', () => {
+        // Busca todos los elementos con data-vue-app
+        document.querySelectorAll('[data-vue-app]').forEach((el) => {
+          const app = createApp({});
+          app.use(pinia);
+          app.use(urql, createGraphQLClient());
+          app.mount(el);
+        });
+      });
+    </script>
+  </body>
+</html>

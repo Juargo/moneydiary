@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ...database import get_db
 from ..types.auth import AuthUserType
 from ...auth.jwt import get_current_user_from_context
-from ...models.user import User
+from ...models.users import User
 
 @strawberry.type
 class AuthQueries:
