@@ -1,11 +1,16 @@
 # FastAPI
 from fastapi import FastAPI
+from strawberry.fastapi import GraphQLRouter
 
 # Imports internos
 from .lifecycle import lifespan, VERSION
-from .routers import basic
+from .routers import basic, auth
 from .init_db import initialize_database
 from .middleware import setup_middleware
+from .middleware import setup_middleware
+from .graphql.schema import schema
+from .graphql.context import get_context
+from .api.router import api_router
 
 # Crear app
 app = FastAPI(
@@ -23,6 +28,13 @@ setup_middleware(app)
 
 # Include routers
 app.include_router(basic.router)
+app.include_router(auth.router)
 
-# Additional routers can be included as they are implemented
-# app.include_router(api_router, prefix="/api")
+# GraphQL endpoint
+graphql_router = GraphQLRouter(
+    schema=schema,
+    context_getter=get_context,
+    graphiql=True  # Activar GraphiQL para desarrollo
+)
+app.include_router(graphql_router, prefix="/graphql")
+app.include_router(api_router, prefix="/api")

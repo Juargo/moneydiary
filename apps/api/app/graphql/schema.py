@@ -1,7 +1,6 @@
 import strawberry
 from strawberry.types import Info
 from sqlalchemy.orm import Session
-from typing import List, Optional
 
 from ..database import get_db
 from ..version import __version__
