@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     # Property para obtener Google scopes como lista
     @property
     def GOOGLE_AUTH_SCOPES_LIST(self) -> List[str]:
+        debug_print(f"DEBUG - Computed GOOGLE_AUTH_SCOPES_LIST: {self.google_auth_scopes}")
         return parse_to_list(self.google_auth_scopes)
     
     # Property para construir la URL completa de callback del frontend

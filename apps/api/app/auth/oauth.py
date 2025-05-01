@@ -13,7 +13,7 @@ def get_google_auth_url() -> str:
     from urllib.parse import quote_plus
     
     # Los scopes deben estar separados por espacios según la especificación de OAuth2
-    scopes = " ".join(settings.google_auth_scopes.split(","))
+    scopes = " ".join(settings.GOOGLE_AUTH_SCOPES_LIST)
     encoded_scopes = quote_plus(scopes)
     
     # Construir la URL de autorización con todos los parámetros necesarios
@@ -31,7 +31,7 @@ def get_google_auth_url() -> str:
     print(f"URL de autorización de Google: {google_auth_url}")
     print(f"Client ID: {settings.google_client_id}")
     print(f"Redirect URI: {settings.google_redirect_uri}")
-    print(f"Scopes solicitados: {settings.google_auth_scopes}")
+    print(f"Scopes solicitados: {settings.GOOGLE_AUTH_SCOPES_LIST}")
     print(f"Scopes codificados: {encoded_scopes}")
 
     return google_auth_url

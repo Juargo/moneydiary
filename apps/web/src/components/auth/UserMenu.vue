@@ -46,6 +46,29 @@
   </div>
 </template>
 
+<!-- /**
+ * This Vue component represents a user menu for authentication-related actions.
+ *
+ * Script Setup:
+ * - Imports:
+ *   - `ref` and `computed` from Vue for reactive state and computed properties.
+ *   - `useAuthStore` from the authentication store to access user data.
+ *   - `logout` from the authentication service to handle user logout.
+ *   - `LoginButton` component for rendering a login button.
+ *
+ * - Reactive State:
+ *   - `isOpen`: A boolean ref to track whether the user menu is open or closed.
+ *
+ * - Computed Properties:
+ *   - `userName`: Computes the display name of the user. It prioritizes the user's name, 
+ *     falls back to the email username (before the "@" symbol), or defaults to "Usuario".
+ *   - `userInitials`: Computes the initials of the user's name. If the name has multiple parts, 
+ *     it uses the first letter of the first two parts. Otherwise, it uses the first two letters 
+ *     of the name or email username. Defaults to "U" if no user data is available.
+ *
+ * - Methods:
+ *   - `handleLogout`: Logs the user out by calling the `logout` function and closes the user menu.
+ */ -->
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAuthStore } from "../../stores/authStore";

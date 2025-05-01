@@ -29,6 +29,19 @@
   </button>
 </template>
 
+<!-- /**
+ * This component provides a login button functionality for Google authentication.
+ * 
+ * Functions:
+ * - `handleLogin`: A secure method to handle login by redirecting the user to the Google login URL.
+ * - Ensures compatibility with Server-Side Rendering (SSR) by checking if the `window` object is available.
+ * 
+ * Dependencies:
+ * - `getGoogleLoginUrl` (imported from "../../services/authService"): A function that returns the Google login URL.
+ * 
+ * Usage:
+ * - This component should be used in a client-side environment to initiate the Google login process.
+ */ -->
 <script setup>
 import { getGoogleLoginUrl } from "../../services/authService";
 

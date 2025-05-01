@@ -30,11 +30,12 @@ class User(Base):
     financial_goals = relationship("FinancialGoal", back_populates="user")
     budget_plans = relationship("BudgetPlan", back_populates="user")
     csv_imports = relationship("CsvImport", back_populates="user")
-    projections = relationship("ProjectionSetting", back_populates="user")
+    projections = relationship("ProjectionSettings", back_populates="user")
     financial_simulations = relationship("FinancialSimulation", back_populates="user")
     role_relation = relationship("Role", back_populates="users")
     oauth_tokens = relationship("OAuth2Token", back_populates="user", cascade="all, delete-orphan")
     invalidated_tokens = relationship("InvalidatedToken", back_populates="user", cascade="all, delete-orphan")
+    monthly_projections = relationship("MonthlyProjections", back_populates="user")
     
     financial_methods = relationship(
         "FinancialMethod",

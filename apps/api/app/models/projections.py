@@ -15,7 +15,7 @@ class ProjectionSettings(Base):
     created_at = Column(TIMESTAMP)
     updated_at = Column(TIMESTAMP)
 
-    user = relationship("User", back_populates="projection_settings")
+    user = relationship("User", back_populates="projections")
 
 class MonthlyProjections(Base):
     __tablename__ = 'monthly_projections'
