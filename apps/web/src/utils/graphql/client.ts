@@ -14,27 +14,32 @@ export const createSSRGraphQLClient = () => {
 };
 
 // Cliente con autenticación para uso solo en el cliente
-export function createGraphQLClient() {
+export async function createGraphQLClient() {
   // Comprobación para ejecutarse solo en el cliente
   if (typeof window === "undefined") {
     return createSSRGraphQLClient();
   }
 
   // Importación dinámica para evitar evaluación SSR
-  const { useAuthStore } = require("../../stores/authStore");
-  const authStore = useAuthStore();
+  const { createClient } = await import("@urql/core");
+  const { fetchExchange, cacheExchange } = await import("@urql/core");
 
-  return createClient({
+  // Importar el store de autenticación
+  const { useAuthStore } = await import("../../stores/authStore");
+
+  // Obtener el store y acceder a los tokens
+  const authStore = useAuthStore();
+  const token = authStore.accessToken;
+
+  const client = createClient({
     url: API_URL,
     exchanges: [cacheExchange, fetchExchange],
-    fetchOptions: () => {
-      const token = authStore.accessToken;
-
-      return {
-        headers: {
-          authorization: token ? `Bearer ${token}` : "",
-        },
-      };
-    },
+    fetchOptions: () => ({
+      headers: {
+        authorization: token ? `Bearer ${token}` : "",
+      },
+    }),
   });
+
+  return client;
 }

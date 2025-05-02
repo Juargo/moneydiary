@@ -57,8 +57,15 @@ async def google_callback(request: Request, code: str = None, error: str = None,
             "refresh_token": refresh_token,
             "token_type": "bearer"
         }
+
+        print(f"FRONTEND URL: {settings.frontend_url}")
+        print(f"CALLBACK PATH: {settings.frontend_auth_callback_path}")
+        print(f"QUERY PARAMS: {query_params}")
+
+
         redirect_url = f"{settings.frontend_url}{settings.frontend_auth_callback_path}?{urlencode(query_params)}"
-        
+        print(f"SUCCESS REDIRECT: {redirect_url}")
+
         # Redirigir al frontend
         return RedirectResponse(redirect_url)
         
