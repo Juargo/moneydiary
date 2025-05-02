@@ -19,6 +19,9 @@ class FinancialMethod(Base):
         secondary=user_financial_methods,  # Using the imported table object
         back_populates="financial_methods"
     )
+    financial_simulations = relationship("FinancialSimulation", back_populates="financial_method")
+    
+    budget_plans = relationship("BudgetPlan", back_populates="financial_method")
 
 class MethodFiftyThirtyTwenty(Base):
     __tablename__ = 'method_fifty_thirty_twenty'

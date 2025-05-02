@@ -8,19 +8,19 @@ permitiendo imports más limpios como `from apps.api.app.models import User, Acc
 # Base model
 from .base import Base
 
-# Usuarios y autenticación
-from .users import User
-from .role import Role
+# Usuarios y autenticación - primero
 from .permission import Permission
+from .role import Role
+from .users import User
 from .oauth2_token import OAuth2Token
 from .invalidated_token import InvalidatedToken
+
+# Categorías - segundo
+from .categories import CategoryGroup, Category, Subcategory
 
 # Cuentas y tipos
 from .account_types import AccountType
 from .accounts import Account
-
-# Categorías
-from .categories import CategoryGroup, Category, Subcategory
 
 # Métodos financieros
 from .financial_methods import (
@@ -29,17 +29,21 @@ from .financial_methods import (
 )
 from .user_financial_methods import user_financial_methods
 
+# Importación de CSV
+from .csv_imports import CsvImport, CsvImportProfile, CsvColumnMapping, ImportError
 
 # Presupuestos y sobres
 from .envelopes import Envelope
 from .budget import BudgetPlan, BudgetItem
 
-# Transacciones y patrones
-from .transactions import TransactionStatus, Transaction
-from .recurring_patterns import RecurringPattern
-
 # Metas financieras
 from .financial_goals import FinancialGoal, GoalContribution
+
+# Patrones recurrentes
+from .recurring_patterns import RecurringPattern
+
+# Transacciones - último ya que depende de muchos modelos anteriores
+from .transactions import TransactionStatus, Transaction
 
 # Proyecciones y simulaciones
 from .projections import ProjectionSettings, MonthlyProjections, ProjectionDetails
@@ -47,9 +51,6 @@ from .simulations import (
     FinancialSimulation, SimulationScenario,
     SimulationParameter, SimulationResult
 )
-
-# Importación de CSV
-from .csv_imports import CsvImport, CsvImportProfile, CsvColumnMapping, ImportError
 
 # Lista de todos los modelos para facilitar imports
 __all__ = [

@@ -19,3 +19,4 @@ class Envelope(Base):
     user = relationship("User", back_populates="envelopes")
     category = relationship("Category", back_populates="envelopes")
     transactions = relationship("Transaction", back_populates="envelope")
+    budget_items = relationship("BudgetItem", back_populates="envelope")

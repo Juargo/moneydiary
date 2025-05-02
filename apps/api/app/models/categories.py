@@ -28,6 +28,9 @@ class Category(Base):
     category_group = relationship("CategoryGroup", back_populates="categories")
     subcategories = relationship("Subcategory", order_by="Subcategory.id", back_populates="category")
     envelopes = relationship("Envelope", back_populates="category")
+    budget_items = relationship("BudgetItem", back_populates="category")
+    transactions = relationship("Transaction", back_populates="category")
+    financial_goals = relationship("FinancialGoal", back_populates="category")
 
 class Subcategory(Base):
     __tablename__ = 'subcategories'
@@ -40,6 +43,7 @@ class Subcategory(Base):
     updated_at = Column(DateTime)
 
     category = relationship("Category", back_populates="subcategories")
+    budget_items = relationship("BudgetItem", back_populates="subcategory")
+    transactions = relationship("Transaction", back_populates="subcategory")
 
 CategoryGroup.categories = relationship("Category", order_by=Category.id, back_populates="category_group")
-Category.subcategories = relationship("Subcategory", order_by=Subcategory.id, back_populates="category")

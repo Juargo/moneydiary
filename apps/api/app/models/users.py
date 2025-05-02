@@ -31,6 +31,7 @@ class User(Base):
     financial_goals = relationship("FinancialGoal", back_populates="user")
     budget_plans = relationship("BudgetPlan", back_populates="user")
     csv_imports = relationship("CsvImport", back_populates="user")
+    csv_import_profiles = relationship("CsvImportProfile", back_populates="user")  # Agregar esta línea
     projections = relationship("ProjectionSettings", back_populates="user")
     financial_simulations = relationship("FinancialSimulation", back_populates="user")
     role_relation = relationship("Role", back_populates="users")
@@ -44,8 +45,9 @@ class User(Base):
         back_populates="users"
     )
     transactions = relationship("Transaction", back_populates="user")
+    recurring_patterns = relationship("RecurringPattern", back_populates="user")
     envelopes = relationship("Envelope", back_populates="user")
-    
+
     @property
     def permissions(self):
         """Obtiene todos los permisos del usuario a través de su rol"""

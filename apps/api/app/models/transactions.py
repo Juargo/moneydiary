@@ -12,6 +12,8 @@ class TransactionStatus(Base):
     created_at = Column(TIMESTAMP)
     updated_at = Column(TIMESTAMP)
 
+    transactions = relationship("Transaction", back_populates="status")
+
 class Transaction(Base):
     __tablename__ = 'transactions'
 
@@ -46,4 +48,5 @@ class Transaction(Base):
     envelope = relationship("Envelope", back_populates="transactions")
     status = relationship("TransactionStatus", back_populates="transactions")
     recurring_pattern = relationship("RecurringPattern", back_populates="transactions")
-    import_data = relationship("CSVImport", back_populates="transactions")
+    import_data = relationship("CsvImport", back_populates="transactions")
+    goal_contributions = relationship("GoalContribution", back_populates="transaction")
