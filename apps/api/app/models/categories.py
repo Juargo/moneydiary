@@ -26,6 +26,8 @@ class Category(Base):
     updated_at = Column(DateTime)
 
     category_group = relationship("CategoryGroup", back_populates="categories")
+    subcategories = relationship("Subcategory", order_by="Subcategory.id", back_populates="category")
+    envelopes = relationship("Envelope", back_populates="category")
 
 class Subcategory(Base):
     __tablename__ = 'subcategories'

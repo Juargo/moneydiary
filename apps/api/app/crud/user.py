@@ -1,15 +1,63 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
+import traceback
+from sqlalchemy import text
 from typing import Dict, Any
+from sqlalchemy.dialects import postgresql
 
 from ..models.users import User
 from ..models.oauth2_token import OAuth2Token
 
 def get_user_by_email(db: Session, email: str) -> User:
     """
-    Busca un usuario por su correo electrónico
+    Busca un usuario por su correo electrónico con depuración extendida
     """
-    return db.query(User).filter(User.email == email).first()
+    try:
+        print(f"Buscando usuario por email: {email}")
+        
+        # Construir la query pero no ejecutarla aún
+        query = db.query(User).filter(User.email == email)
+        
+        # Obtener la consulta SQL real que ejecutará SQLAlchemy
+        sql = str(query.statement.compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={"literal_binds": True}
+        ))
+        
+        print(f"SQL generado: {sql}")
+        
+        # Ejecutar directamente con SQL nativo para verificar
+        raw_result = db.execute(text(f"SELECT * FROM users WHERE email = :email"), {"email": email})
+        result_count = raw_result.rowcount
+        print(f"Consulta SQL nativa - Filas encontradas: {result_count}")
+        
+        # Ejecutar la consulta original
+        result = query.first()
+        print(f"Resultado: {result}")
+        
+        return result
+        
+    except Exception as e:
+        print(f"ERROR en get_user_by_email: {str(e)}")
+        print(f"Tipo de error: {type(e).__name__}")
+        print(f"Detalles del error: {traceback.format_exc()}")
+        
+        # Verificar si la tabla existe
+        try:
+            tables = db.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")).fetchall()
+            print(f"Tablas disponibles: {[t[0] for t in tables]}")
+        except Exception as table_error:
+            print(f"Error al verificar tablas: {str(table_error)}")
+        
+        # Verificar estructura de la tabla users si existe
+        try:
+            columns = db.execute(text("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'users'")).fetchall()
+            print(f"Estructura de tabla users: {columns}")
+        except Exception as col_error:
+            print(f"Error al verificar columnas: {str(col_error)}")
+            
+        # Re-lanzar la excepción para mantener el comportamiento original
+        raise
 
 def get_user_by_id(db: Session, user_id: int) -> User:
     """
@@ -73,8 +121,11 @@ def create_user_oauth(db: Session, user_data: dict) -> User:
         # Buscar usuario existente por email
         db_user = get_user_by_email(db, user_data["email"])
         
+        print(f"Usuario encontrado: {db_user.email if db_user else 'Ninguno'}")
+        # Si el usuario ya existe, actualizar sus datos
         if db_user:
             # Actualizar usuario existente
+            print(f"Actualizando usuario existente: ID={db_user.id}, Email={db_user.email}")
             db_user.name = user_data.get("name", db_user.name)
             db_user.profile_image = user_data.get("profile_image", db_user.profile_image)
             db_user.provider = user_data.get("provider", db_user.provider)
@@ -88,6 +139,7 @@ def create_user_oauth(db: Session, user_data: dict) -> User:
             return db_user
         else:
             # Crear nuevo usuario
+            print(f"Creando nuevo usuario: Email={user_data['email']}")
             new_user = User(
                 email=user_data["email"],
                 name=user_data.get("name", ""),

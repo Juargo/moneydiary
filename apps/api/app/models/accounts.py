@@ -18,4 +18,10 @@ class Account(Base):
 
     user = relationship("User", back_populates="accounts")
     account_type = relationship("AccountType", back_populates="accounts")
-    transactions = relationship("Transaction", back_populates="account")
+    transactions = relationship("Transaction", 
+                               back_populates="account", 
+                               foreign_keys="Transaction.account_id")
+    
+    incoming_transfers = relationship("Transaction", 
+                                     back_populates="transfer_account", 
+                                     foreign_keys="Transaction.transfer_account_id")

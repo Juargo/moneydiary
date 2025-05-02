@@ -43,6 +43,8 @@ class User(Base):
         secondary=user_financial_methods,  # Now using the imported table object
         back_populates="users"
     )
+    transactions = relationship("Transaction", back_populates="user")
+    envelopes = relationship("Envelope", back_populates="user")
     
     @property
     def permissions(self):

@@ -1,6 +1,7 @@
 # FastAPI
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
+from sqlalchemy.orm import configure_mappers
 
 # Imports internos
 from .lifecycle import lifespan, VERSION
@@ -13,6 +14,21 @@ from .graphql.schema import schema
 from .graphql.context import get_context
 from .api.router import api_router
 
+# Función para inicializar la aplicación y configurar mappers
+def initialize_app():
+    # Importar todos los modelos para asegurar que SQLAlchemy los vea
+    import apps.api.app.models
+    
+    # Forzar la configuración de mappers antes de usar la BD
+    print("Configurando mappers de SQLAlchemy...")
+    configure_mappers()
+    
+    # Inicializar base de datos
+    print("Inicializando base de datos...")
+    initialize_database()
+    
+    print("Inicialización completada")
+
 # Crear app
 app = FastAPI(
     title="MoneyDiary API",
@@ -22,7 +38,7 @@ app = FastAPI(
 )
 
 # Initialize database
-initialize_database()
+initialize_app()
 
 # Configure middleware
 setup_middleware(app)

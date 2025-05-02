@@ -35,8 +35,12 @@ class Transaction(Base):
     kakebo_emotion = Column(String)
 
     user = relationship("User", back_populates="transactions")
-    account = relationship("Account", back_populates="transactions")
-    transfer_account = relationship("Account", foreign_keys=[transfer_account_id])
+    account = relationship("Account", 
+                          back_populates="transactions", 
+                          foreign_keys=[account_id])    
+    transfer_account = relationship("Account", 
+                                  back_populates="incoming_transfers", 
+                                  foreign_keys=[transfer_account_id])
     category = relationship("Category", back_populates="transactions")
     subcategory = relationship("Subcategory", back_populates="transactions")
     envelope = relationship("Envelope", back_populates="transactions")
