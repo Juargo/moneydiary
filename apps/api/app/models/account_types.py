@@ -4,7 +4,8 @@ from .base import Base
 
 class AccountType(Base):
     __tablename__ = 'account_types'
-
+    __table_args__ = {'schema': 'app'}
+    
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
     description = Column(String)

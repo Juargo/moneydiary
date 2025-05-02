@@ -6,6 +6,7 @@ import datetime
 
 class User(Base):
     __tablename__ = 'users'
+    __table_args__ = {'schema': 'app'}  
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
@@ -16,8 +17,9 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     
     # Campos adicionales para OAuth2/JWT
-    is_active = Column(Boolean, default=True)
-    email_verified = Column(Boolean, default=False)
+    profile_image = Column(String, nullable=True)
+    is_active = Column(Boolean, nullable=True)
+    email_verified = Column(Boolean, nullable=True)
     last_login = Column(DateTime, nullable=True)
     role_id = Column(Integer, ForeignKey('roles.id'), nullable=True)
 

@@ -5,6 +5,7 @@ import datetime
 
 class OAuth2Token(Base):
     __tablename__ = 'oauth2_tokens'
+    __table_args__ = {'schema': 'app'}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)

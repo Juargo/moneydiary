@@ -128,8 +128,8 @@ def create_user_oauth(db: Session, user_data: dict) -> User:
             print(f"Actualizando usuario existente: ID={db_user.id}, Email={db_user.email}")
             db_user.name = user_data.get("name", db_user.name)
             db_user.profile_image = user_data.get("profile_image", db_user.profile_image)
-            db_user.provider = user_data.get("provider", db_user.provider)
-            db_user.provider_user_id = user_data.get("provider_user_id", db_user.provider_user_id)
+            # db_user.provider = user_data.get("provider", db_user.provider)
+            # db_user.provider_user_id = user_data.get("provider_user_id", db_user.provider_user_id)
             db_user.is_active = True
             db_user.last_login = datetime.now()
             
@@ -144,8 +144,8 @@ def create_user_oauth(db: Session, user_data: dict) -> User:
                 email=user_data["email"],
                 name=user_data.get("name", ""),
                 profile_image=user_data.get("profile_image", ""),
-                provider=user_data.get("provider", "google"),
-                provider_user_id=user_data.get("provider_user_id", ""),
+                # provider=user_data.get("provider", "google"),
+                # provider_user_id=user_data.get("provider_user_id", ""),
                 is_active=True,
                 email_verified=user_data.get("email_verified", False),
                 last_login=datetime.now()

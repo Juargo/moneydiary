@@ -5,6 +5,7 @@ from .base import Base
 
 class BudgetPlan(Base):
     __tablename__ = 'budget_plans'
+    __table_args__ = {'schema': 'app'}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
