@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from .base import Base
+from .user_financial_methods import user_financial_methods  
 import datetime
 
 class User(Base):
@@ -39,7 +40,7 @@ class User(Base):
     
     financial_methods = relationship(
         "FinancialMethod",
-        secondary="user_financial_methods",  # tabla de unión
+        secondary=user_financial_methods,  # Now using the imported table object
         back_populates="users"
     )
     

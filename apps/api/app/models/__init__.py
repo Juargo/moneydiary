@@ -27,6 +27,8 @@ from .financial_methods import (
     FinancialMethod, MethodFiftyThirtyTwenty, MethodEnvelope,
     MethodZeroBased, MethodKakebo, MethodPayYourselfFirst
 )
+from .user_financial_methods import user_financial_methods
+
 
 # Presupuestos y sobres
 from .envelopes import Envelope

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Table, ForeignKey
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from .base import Base
 import datetime
 
 # Tabla de relación muchos a muchos entre roles y permisos

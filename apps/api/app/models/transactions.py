@@ -1,7 +1,7 @@
 from decimal import Decimal
 from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text, Numeric, Boolean, TIMESTAMP
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from .base import Base
 
 class TransactionStatus(Base):
     __tablename__ = 'transaction_statuses'

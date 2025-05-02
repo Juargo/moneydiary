@@ -1,7 +1,7 @@
 from decimal import Decimal
 from sqlalchemy import Column, Integer, String, ForeignKey, Numeric, TIMESTAMP, Boolean, Text
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from .base import Base
 
 class RecurringPattern(Base):
     __tablename__ = 'recurring_patterns'

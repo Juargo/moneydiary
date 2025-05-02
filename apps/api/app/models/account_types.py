@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, TIMESTAMP
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from .base import Base
 
 class AccountType(Base):
     __tablename__ = 'account_types'

@@ -1,7 +1,8 @@
 from decimal import Decimal
 from sqlalchemy import Column, Integer, String, Text, Numeric, ForeignKey, Boolean, Date, TIMESTAMP
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from .base import Base
+from .user_financial_methods import user_financial_methods
 
 class FinancialMethod(Base):
     __tablename__ = 'financial_methods'
@@ -15,7 +16,7 @@ class FinancialMethod(Base):
 
     users = relationship(
         "User",
-        secondary="user_financial_methods",  # tabla de unión
+        secondary=user_financial_methods,  # Using the imported table object
         back_populates="financial_methods"
     )
 

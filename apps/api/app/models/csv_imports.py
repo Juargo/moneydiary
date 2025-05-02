@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, Date, ForeignKey, Boolean, TIMESTAMP
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from .base import Base
 
 class CsvImport(Base):
     __tablename__ = 'csv_imports'

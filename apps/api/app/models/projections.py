@@ -1,7 +1,7 @@
 from decimal import Decimal
 from sqlalchemy import Column, Integer, String, Numeric, Date, ForeignKey, Boolean, Text, TIMESTAMP
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from .base import Base
 
 class ProjectionSettings(Base):
     __tablename__ = 'projection_settings'

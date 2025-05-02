@@ -1,7 +1,7 @@
 from decimal import Decimal
 from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, Date, Text, Boolean, TIMESTAMP
 from sqlalchemy.orm import relationship
-from apps.api.app.models.base import Base
+from .base import Base
 
 class FinancialGoal(Base):
     __tablename__ = 'financial_goals'
