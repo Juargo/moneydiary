@@ -1,6 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import UserMenu from '../components/auth/UserMenu.vue';
+
+// Server-side checks (SSR)
+// Note: Only import things that are safe for SSR here
+let initialRedirect = false;
+
+// We can't access localStorage here, so client-side auth checks will happen in the script
 ---
 
 <Layout title="Dashboard | MoneyDiary">
@@ -30,30 +36,37 @@ import UserMenu from '../components/auth/UserMenu.vue';
 
 <script>
   import { createApp } from 'vue';
-  import { pinia } from '../stores/pinia';
-  import { useAuthStore } from '../stores/authStore';
+  import { pinia, initPinia } from '../stores/pinia';
   import { loadUserInfo } from '../services/authService';
 
-  document.addEventListener('DOMContentLoaded', async () => {
-    const app = createApp({
-      setup() {
-        const authStore = useAuthStore();
-        
-        // Si el usuario está autenticado pero no tenemos sus datos, cargarlos
-        if (authStore.isAuthenticated && !authStore.user) {
-          loadUserInfo();
-        }
-        
-        // Si no está autenticado, redirigir al inicio
-        if (!authStore.isAuthenticated) {
-          window.location.href = '/?auth_required=true';
-        }
+  // Ensure we're running in the browser
+  if (typeof window !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Initialize Pinia before accessing any stores
+      initPinia();
+      
+      // Now safely import and use the auth store
+      const { useAuthStore } = await import('../stores/authStore');
+      const authStore = useAuthStore();
+      
+      const app = createApp({
+        setup() {
+          // Si el usuario está autenticado pero no tenemos sus datos, cargarlos
+          if (authStore.isAuthenticated && !authStore.user) {
+            loadUserInfo();
+          }
+          
+          // Si no está autenticado, redirigir al inicio
+          if (!authStore.isAuthenticated) {
+            window.location.href = '/?auth_required=true';
+          }
 
-        return {};
-      }
+          return {};
+        }
+      });
+
+      app.use(pinia);
+      app.mount('#dashboard-app');
     });
-
-    app.use(pinia);
-    app.mount('#dashboard-app');
-  });
+  }
 </script>

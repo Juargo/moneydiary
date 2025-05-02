@@ -17,6 +17,26 @@ interface User {
   email_verified: boolean;
 }
 
+// Utility function for safe localStorage access
+const safeLocalStorage = {
+  getItem(key: string): string | null {
+    if (typeof localStorage !== "undefined") {
+      return localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem(key: string, value: string): void {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(key, value);
+    }
+  },
+  removeItem(key: string): void {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(key);
+    }
+  },
+};
+
 export const useAuthStore = defineStore("auth", () => {
   // Estado
   const accessToken = ref<string | null>(null);
@@ -50,9 +70,9 @@ export const useAuthStore = defineStore("auth", () => {
     accessToken.value = tokenData.access_token;
     refreshToken.value = tokenData.refresh_token;
 
-    // Guardar en localStorage
-    localStorage.setItem("access_token", tokenData.access_token);
-    localStorage.setItem("refresh_token", tokenData.refresh_token);
+    // Guardar en localStorage de forma segura
+    safeLocalStorage.setItem("access_token", tokenData.access_token);
+    safeLocalStorage.setItem("refresh_token", tokenData.refresh_token);
   }
 
   function logout() {
@@ -60,18 +80,18 @@ export const useAuthStore = defineStore("auth", () => {
     refreshToken.value = null;
     user.value = null;
 
-    // Limpiar localStorage
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    // Limpiar localStorage de forma segura
+    safeLocalStorage.removeItem("access_token");
+    safeLocalStorage.removeItem("refresh_token");
   }
 
   function updateTokens(tokenData: TokenData) {
     accessToken.value = tokenData.access_token;
     refreshToken.value = tokenData.refresh_token;
 
-    // Actualizar en localStorage
-    localStorage.setItem("access_token", tokenData.access_token);
-    localStorage.setItem("refresh_token", tokenData.refresh_token);
+    // Actualizar en localStorage de forma segura
+    safeLocalStorage.setItem("access_token", tokenData.access_token);
+    safeLocalStorage.setItem("refresh_token", tokenData.refresh_token);
   }
 
   function setUser(userData: User) {
@@ -80,8 +100,13 @@ export const useAuthStore = defineStore("auth", () => {
 
   // Inicializar estado desde localStorage
   function init() {
-    const storedAccessToken = localStorage.getItem("access_token");
-    const storedRefreshToken = localStorage.getItem("refresh_token");
+    // Verificar que estamos en un entorno con localStorage
+    if (typeof window === "undefined") {
+      return; // No inicializar en SSR
+    }
+
+    const storedAccessToken = safeLocalStorage.getItem("access_token");
+    const storedRefreshToken = safeLocalStorage.getItem("refresh_token");
 
     if (storedAccessToken) {
       accessToken.value = storedAccessToken;
@@ -95,8 +120,10 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  // Inicializar al crear el store
-  init();
+  // Inicializar al crear el store solo si no es SSR
+  if (typeof window !== "undefined") {
+    init();
+  }
 
   return {
     accessToken,

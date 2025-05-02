@@ -30,15 +30,23 @@ const {
       import { pinia } from '../stores/pinia';
       import { createApp } from 'vue';
       import urql from '@urql/vue';
-      import { createGraphQLClient } from '../utils/graphql/client';
+      import { createSSRGraphQLClient } from '../utils/graphql/client';
       
       // Inicializar Vue para componentes client:load
-      document.addEventListener('astro:page-load', () => {
+      document.addEventListener('astro:page-load', async () => {
+        // Import dynamically to avoid SSR issues
+        const { createGraphQLClient } = await import('../utils/graphql/client');
+        
+        // Create the GraphQL client asynchronously
+        const client = await createGraphQLClient();
+        
         // Busca todos los elementos con data-vue-app
         document.querySelectorAll('[data-vue-app]').forEach((el) => {
           const app = createApp({});
           app.use(pinia);
-          app.use(urql, createGraphQLClient());
+          
+          // Use the client that has been properly initialized
+          app.use(urql, client);
           app.mount(el);
         });
       });
