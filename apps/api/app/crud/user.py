@@ -140,6 +140,14 @@ def create_user_oauth(db: Session, user_data: dict) -> User:
         else:
             # Crear nuevo usuario
             print(f"Creando nuevo usuario: Email={user_data['email']}")
+
+            # Generar un hash seguro aleatorio para satisfacer la restricción NOT NULL
+            import secrets
+            import hashlib
+            # Genera un hash seguro para cumplir con la restricción de password_hash
+            random_password = secrets.token_hex(16)  # 32 caracteres aleatorios
+            password_hash = hashlib.sha256(random_password.encode()).hexdigest()
+
             new_user = User(
                 email=user_data["email"],
                 name=user_data.get("name", ""),
@@ -148,6 +156,7 @@ def create_user_oauth(db: Session, user_data: dict) -> User:
                 # provider_user_id=user_data.get("provider_user_id", ""),
                 is_active=True,
                 email_verified=user_data.get("email_verified", False),
+                password_hash=password_hash, 
                 last_login=datetime.now()
             )
             
