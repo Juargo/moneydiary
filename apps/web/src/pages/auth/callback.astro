@@ -24,11 +24,11 @@ import Layout from '../../layouts/Layout.astro';
         window.location.href = '/dashboard';
       } else {
         // Redirigir a la página de inicio en caso de error
-        // window.location.href = '/?auth_error=true';
+        window.location.href = '/?auth_error=true';
       }
     } catch (error) {
       console.error('Error al procesar la autenticación:', error);
-      // window.location.href = '/?auth_error=true';
+      window.location.href = '/?auth_error=true';
     }
   }
   

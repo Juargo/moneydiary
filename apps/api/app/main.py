@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
 from sqlalchemy.orm import configure_mappers
+import logging
 
 # Imports internos
 from .lifecycle import lifespan, VERSION
@@ -9,10 +10,17 @@ from .routers import basic
 from .api.endpoints import auth
 from .init_db import initialize_database
 from .middleware import setup_middleware
-from .middleware import setup_middleware
 from .graphql.schema import schema
 from .graphql.context import get_context
+from .graphql.client_utils import SnakeCaseGraphQLMiddleware
+# Import debug functions instead of QueryDebugExtension
+from .graphql.debug import debug_query, debug_result
 from .api.router import api_router
+
+# Configure more detailed logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("moneydiary.api")
+logger.setLevel(logging.DEBUG)
 
 # Función para inicializar la aplicación y configurar mappers
 def initialize_app():
@@ -71,15 +79,23 @@ initialize_app()
 # Configure middleware
 setup_middleware(app)
 
+# Add the SnakeCaseGraphQLMiddleware to handle snake_case/camelCase conversion
+# Fix the middleware initialization by passing app
+app.add_middleware(SnakeCaseGraphQLMiddleware)
+
 # Include routers
 app.include_router(basic.router)
 # app.include_router(auth.router)
 
-# GraphQL endpoint
+# GraphQL endpoint with proper configuration and debugging
 graphql_router = GraphQLRouter(
     schema=schema,
     context_getter=get_context,
-    graphiql=True  # Activar GraphiQL para desarrollo
+    graphiql=True,  # Activar GraphiQL para desarrollo
+    debug=True
 )
 app.include_router(graphql_router, prefix="/graphql")
 app.include_router(api_router, prefix="/api/v1", tags=["api"])
+
+# Log application startup for debugging
+logger.debug("MoneyDiary API initialized with GraphQL debugging")
