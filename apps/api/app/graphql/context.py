@@ -1,12 +1,12 @@
 from fastapi import Request
 from sqlalchemy.orm import Session
-import strawberry
+from strawberry.fastapi import BaseContext
 from typing import Optional, Dict, Any
 
 from ..database import get_db
 from ..auth.jwt import get_user_from_token
 
-class GraphQLContext:
+class GraphQLContext(BaseContext):  # Add inheritance from BaseContext
     """
     Contexto para las operaciones GraphQL
     
@@ -16,6 +16,7 @@ class GraphQLContext:
     - La solicitud HTTP original
     """
     def __init__(self, db: Session, request: Request, user: Optional[Dict[str, Any]] = None):
+        super().__init__()  # Important: call the parent constructor
         self.db = db
         self.request = request
         self.user = user
