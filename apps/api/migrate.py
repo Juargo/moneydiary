@@ -24,33 +24,65 @@ def run_alembic_command(env, command, extra_args=[]):
     else:
         cmd_parts.extend(command)
     
-    # Add any extra arguments
+    # Debug information about arguments
+    print("\n===== DEBUG: ARGUMENT PROCESSING =====")
+    print(f"Original extra_args: {extra_args}")
+    print(f"Type: {type(extra_args)}")
+    
+    # Add any extra arguments with special handling for --message
     if extra_args:
         if isinstance(extra_args, list):
-            cmd_parts.extend(extra_args)
+            # Handle --message flag specially to ensure proper quoting
+            i = 0
+            while i < len(extra_args):
+                arg = extra_args[i]
+                print(f"Processing arg[{i}]: '{arg}' (type: {type(arg)})")
+                
+                if arg == '--message' or arg == '-m':
+                    print(f"  Found message flag: {arg}")
+                    # Add the message flag
+                    cmd_parts.append(arg)
+                    # If there's a next argument, add it as a quoted string
+                    if i + 1 < len(extra_args):
+                        message_value = extra_args[i+1]
+                        print(f"  Message content: '{message_value}'")
+                        quoted_message = f'"{message_value}"'
+                        print(f"  Adding quoted message: {quoted_message}")
+                        cmd_parts.append(quoted_message)
+                        i += 2  # Skip the message value in the next iteration
+                        continue
+                    else:
+                        print("  Warning: --message flag without value")
+                else:
+                    print(f"  Adding regular arg: {arg}")
+                    cmd_parts.append(arg)
+                i += 1
         else:
+            print(f"Extra args is not a list, using shlex.split: {extra_args}")
             cmd_parts.extend(shlex.split(extra_args))
     
     # Create a readable command string for logging
     full_cmd_str = " ".join(cmd_parts)
     
+    print("\n===== DEBUG: COMMAND CONSTRUCTION =====")
+    print(f"Final cmd_parts: {cmd_parts}")
+    print(f"Command string: '{full_cmd_str}'")
+    print("=====================================\n")
+    
     print(f"Running migration in {env} environment: '{full_cmd_str}'")
     
     # Add database connection verification
-    if env == "development":
+    if env == "dev":
         import psycopg2
         try:
             conn = psycopg2.connect(
-                host=os.environ.get("DEV_DB_HOST", "localhost"),
-                port=os.environ.get("DEV_DB_PORT", "5432"),
-                dbname=os.environ.get("DEV_DB_NAME", "moneydiary_dev"),
-                user=os.environ.get("DEV_DB_USER", "postgres"),
-                password=os.environ.get("DEV_DB_PASS", "postgres")
+                host=os.environ.get("ALEMBIC_DB_HOST"),
+                port=os.environ.get("ALEMBIC_DB_PORT"),
+                dbname=os.environ.get("ALEMBIC_DB_NAME"),
+                user=os.environ.get("ALEMBIC_DB_USER"),
+                password=os.environ.get("ALEMBIC_DB_PASS")
             )
             cursor = conn.cursor()
-            cursor.execute("CREATE SCHEMA IF NOT EXISTS app;")
-            conn.commit()
-            print(f"Database connection verified and schema 'app' created")
             cursor.close()
             conn.close()
         except Exception as e:
@@ -60,7 +92,7 @@ def run_alembic_command(env, command, extra_args=[]):
     print(f"Executing command: {full_cmd_str}")
     print(f"Working directory: {current_dir}")
     print(f"Environment variables:")
-    for key in sorted(["ENVIRONMENT", "APP_ENV", "DEV_DB_HOST", "DEV_DB_PORT", "DEV_DB_NAME", "DEV_DB_USER"]):
+    for key in sorted(["ENVIRONMENT", "ALEMBIC_APP_ENV", "ALEMBIC_DB_HOST", "ALEMBIC_DB_PORT", "ALEMBIC_DB_NAME", "ALEMBIC_DB_USER"]):
         if key in os.environ:
             print(f"  {key}={os.environ.get(key)}")
     
