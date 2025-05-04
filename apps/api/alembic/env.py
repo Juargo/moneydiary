@@ -43,6 +43,7 @@ import app.models.role
 import app.models.simulations
 import app.models.transactions
 import app.models.users
+import app.models.banks
 
 # Verify models are loaded
 for tablename, table in Base.metadata.tables.items():
@@ -91,27 +92,20 @@ def include_name_in_schema(name, type_, parent_names):
     return True
 
 def include_object(object, name, type_, reflected, compare_to):
-    """
-    Filter function for Alembic to decide which database objects to include in migrations.
+    """Filter function for deciding which database objects to include."""
+    # Add debug logging
+    logger.debug(f"Checking object: {name}, type: {type_}, schema: {getattr(object, 'schema', None)}")
     
-    Args:
-        object: The SQLAlchemy object being considered
-        name: The name of the object
-        type_: The type of the object (table, column, etc.)
-        reflected: Whether the object was reflected (loaded from db) or not
-        compare_to: The object being compared to, if any
-        
-    Returns:
-        bool: True if the object should be included in migrations, False otherwise
-    """
     # Only include objects in the 'app' or 'audit' schema
     if type_ == "table" and hasattr(object, "schema"):
         if object.schema not in ("app", "audit", None):
+            logger.debug(f"Excluding {name} because schema is {object.schema}")
             return False
             
     # Exclude system tables like alembic_version unless they're in our schema
     if name == "alembic_version":
         if hasattr(object, "schema") and object.schema != "app":
+            logger.debug(f"Excluding alembic_version in schema {getattr(object, 'schema', None)}")
             return False
     
     # Include all other objects

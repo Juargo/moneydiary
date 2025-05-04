@@ -52,6 +52,9 @@ from .simulations import (
     SimulationParameter, SimulationResult
 )
 
+#banks
+from .banks import Bank
+
 # Lista de todos los modelos para facilitar imports
 __all__ = [
     # Base
@@ -87,5 +90,8 @@ __all__ = [
     'SimulationParameter', 'SimulationResult',
     
     # CSV
-    'CsvImport', 'CsvImportProfile', 'CsvColumnMapping', 'ImportError'
+    'CsvImport', 'CsvImportProfile', 'CsvColumnMapping', 'ImportError',
+
+    # Bancos
+    'Bank'
 ]
