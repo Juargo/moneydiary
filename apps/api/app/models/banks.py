@@ -20,7 +20,6 @@ class Bank(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     
     # Relationships
-    accounts = relationship("Account", back_populates="bank")
     csv_profiles = relationship("CsvImportProfile", back_populates="bank")
     
     def __repr__(self):
