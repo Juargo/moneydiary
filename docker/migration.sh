@@ -124,4 +124,4 @@ done
 echo "Ejecutando migración con ambiente $ENV: python3 migrate.py $MIGRATE_ARGS"
 
 # Usamos eval para preservar las comillas en la ejecución
-# cd "$API_DIR" && eval "python3 migrate.py $MIGRATE_ARGS"
+cd "$API_DIR" && eval "python3 migrate.py $MIGRATE_ARGS"
