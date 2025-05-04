@@ -45,13 +45,13 @@ ENV=${1}
 # Cargar variables de entorno según el ambiente
 ENV_FILE=""
 case "$ENV" in
-  development)
+  dev)
     ENV_FILE="$ENV_DIR/.env.dev"
     ;;
-  testing)
+  test)
     ENV_FILE="$ENV_DIR/.env.test"
     ;;
-  production)
+  prod)
     ENV_FILE="$ENV_DIR/.env.prod"
     ;;
 esac
@@ -83,6 +83,14 @@ if [ ${#missing_vars[@]} -ne 0 ]; then
 fi
 
 echo "Variables de ambiente validadas correctamente"
+
+# Mostrar las variables de entorno configuradas para la ejecución
+echo "Ejecutando con las siguientes configuraciones:"
+echo "  - Host: ${ALEMBIC_DB_HOST}"
+echo "  - Puerto: ${ALEMBIC_DB_PORT}"
+echo "  - Base de datos: ${ALEMBIC_DB_NAME}"
+echo "  - Usuario: ${ALEMBIC_DB_USER}"
+echo "  - Ambiente: ${ALEMBIC_ENVIRONMENT}"
 
 # # Mapear variables específicas de ambiente a las generales que usa db_config.py
 # case "$ENV" in
