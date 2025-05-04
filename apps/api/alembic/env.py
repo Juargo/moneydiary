@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('alembic')
 
 # Get environment
-ENV = os.environ.get("ENVIRONMENT", "development")
+ENV = os.environ.get("ALEMBIC_ENVIRONMENT")
 logger.info(f"Running in {ENV} environment")
 
 # Import the Base class that contains the models
@@ -47,7 +47,7 @@ import app.models.banks
 
 # Verify models are loaded
 for tablename, table in Base.metadata.tables.items():
-    print(f"Table registered in metadata: {tablename}")
+    print(f"Table registered in Base.metadata.tables: {tablename}")
 
 # Make metadata available for alembic
 target_metadata = Base.metadata
@@ -198,16 +198,7 @@ def run_migrations_online():
             
             conn.execute(text("SET search_path TO app, public"))
             logger.info("Set search_path to app, public")
-            
-            # Obtener nombre de la base de datos según el entorno actual
-            if ENV == "development":
-                db_name = os.environ.get("DEV_DB_NAME", "moneydiary_dev")
-            elif ENV == "testing":
-                db_name = os.environ.get("TEST_DB_NAME", "moneydiary_test")
-            elif ENV == "production":
-                db_name = os.environ.get("PROD_DB_NAME", "moneydiary")
-            else:
-                db_name = "moneydiary_dev"  # fallback
+            db_name = os.environ.get("ALEMBIC_DB_NAME")
             
             # Set search_path at database level so it persists (using dynamic db_name)
             conn.execute(text(f"ALTER DATABASE {db_name} SET search_path TO app, public"))
@@ -293,7 +284,7 @@ def run_migrations_online():
             raise
 
 # Debug: print detected tables in SQLAlchemy models
-logger.info("=== MODELOS CARGADOS ===")
+logger.info("=== MODELOS SCRIPTS SCHEMA CARGADOS ===")
 model_count = 0
 for table_name, table in Base.metadata.tables.items():
     model_count += 1
@@ -309,6 +300,13 @@ logger.info(f"Total de modelos cargados: {model_count}")
 logger.info("=====================")
 
 # Call the appropriate function based on context configuration
+logger.info("=== INICIANDO MIGRACIONES ===")
+# Check if running in offline mode
+if context.is_offline_mode():
+    logger.info("Running in offline mode")
+else:
+    logger.info("Running in online mode")
+# Run migrations based on the context mode
 if context.is_offline_mode():
     run_migrations_offline()
 else:

@@ -42,13 +42,14 @@ def run_alembic_command(env, command, extra_args=[]):
                     print(f"  Found message flag: {arg}")
                     # Add the message flag
                     cmd_parts.append(arg)
-                    # If there's a next argument, add it as a quoted string
+                    # If there's a next argument, handle as a single argument
                     if i + 1 < len(extra_args):
                         message_value = extra_args[i+1]
                         print(f"  Message content: '{message_value}'")
-                        quoted_message = f'"{message_value}"'
-                        print(f"  Adding quoted message: {quoted_message}")
-                        cmd_parts.append(quoted_message)
+                        # No need to add quotes in cmd_parts, just add the value directly
+                        # as it will be passed as a separate argument to subprocess
+                        cmd_parts.append(message_value)
+                        print(f"  Adding message as separate argument: {message_value}")
                         i += 2  # Skip the message value in the next iteration
                         continue
                     else:
@@ -61,12 +62,26 @@ def run_alembic_command(env, command, extra_args=[]):
             print(f"Extra args is not a list, using shlex.split: {extra_args}")
             cmd_parts.extend(shlex.split(extra_args))
     
-    # Create a readable command string for logging
-    full_cmd_str = " ".join(cmd_parts)
+    # Crear una representación legible del comando para logging
+    # Aquí manualmente agregamos comillas para el parámetro --message solo para visualización
+    display_cmd_parts = []
+    i = 0
+    while i < len(cmd_parts):
+        part = cmd_parts[i]
+        if (part == '--message' or part == '-m') and i + 1 < len(cmd_parts):
+            display_cmd_parts.append(part)
+            # Para visualización, ponemos el valor del mensaje entre comillas
+            display_cmd_parts.append(f'"{cmd_parts[i+1]}"')
+            i += 2
+        else:
+            display_cmd_parts.append(part)
+            i += 1
+    
+    full_cmd_str = " ".join(display_cmd_parts)
     
     print("\n===== DEBUG: COMMAND CONSTRUCTION =====")
-    print(f"Final cmd_parts: {cmd_parts}")
-    print(f"Command string: '{full_cmd_str}'")
+    print(f"Final cmd_parts for execution: {cmd_parts}")
+    print(f"Display command string: '{full_cmd_str}'")
     print("=====================================\n")
     
     print(f"Running migration in {env} environment: '{full_cmd_str}'")
