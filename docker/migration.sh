@@ -41,6 +41,10 @@ fi
 
 # Obtener ambiente y comando
 ENV=${1}
+shift
+COMMAND="${1}"
+shift
+
 
 # Cargar variables de entorno según el ambiente
 ENV_FILE=""
@@ -92,46 +96,32 @@ echo "  - Base de datos: ${ALEMBIC_DB_NAME}"
 echo "  - Usuario: ${ALEMBIC_DB_USER}"
 echo "  - Ambiente: ${ALEMBIC_ENVIRONMENT}"
 
-# # Mapear variables específicas de ambiente a las generales que usa db_config.py
-# case "$ENV" in
-#   development)
-#     export DB_HOST="${DEV_DB_HOST}"
-#     export DB_PORT="${DEV_DB_PORT}"
-#     export DB_NAME="${DEV_DB_NAME}"
-#     export DB_USER="${DEV_DB_USER}"
-#     export DB_PASSWORD="${DEV_DB_PASS}"
-#     export ENVIRONMENT="development"  
-#     ;;
-#   testing)
-#     export DB_HOST="${TEST_DB_HOST:-localhost}"
-#     export DB_PORT="${TEST_DB_PORT:-5432}"
-#     export DB_NAME="${TEST_DB_NAME:-moneydiary_test}"
-#     export DB_USER="${TEST_DB_USER:-postgres}"
-#     export DB_PASSWORD="${TEST_DB_PASS:-postgres}"
-#     export ENVIRONMENT="test"  
-#     ;;
-#   production)
-#     export DB_HOST="${PROD_DB_HOST:-localhost}"
-#     export DB_PORT="${PROD_DB_PORT:-5432}"
-#     export DB_NAME="${PROD_DB_NAME:-moneydiary}"
-#     export DB_USER="${PROD_DB_USER:-postgres}"
-#     export DB_PASSWORD="${PROD_DB_PASS:-postgres}"
-#     export ENVIRONMENT="production"  
-#     ;;
-# esac
 
+# Construir argumentos para el script de migración
+MIGRATE_ARGS="--env $ENV $COMMAND"
 
-# # Construir argumentos para el script de migración
-# MIGRATE_ARGS="--env $ENV $COMMAND"
+# Agregar opciones adicionales preservando comillas en argumentos
+while [ $# -gt 0 ]; do
+  if [[ "$1" == "--message" ]]; then
+    # Asegurar que el argumento --message mantenga las comillas
+    MIGRATE_ARGS="$MIGRATE_ARGS $1"
+    shift
+    # Si el mensaje tiene espacios, debe ir entre comillas
+    if [[ "$1" == \"*\" || "$1" == \'*\' ]]; then
+      # Ya tiene comillas, lo agregamos tal cual
+      MIGRATE_ARGS="$MIGRATE_ARGS $1"
+    else
+      # No tiene comillas, agregamos comillas dobles
+      MIGRATE_ARGS="$MIGRATE_ARGS \"$1\""
+    fi
+  else
+    MIGRATE_ARGS="$MIGRATE_ARGS $1"
+  fi
+  shift
+done
 
-# # Agregar opciones adicionales
-# while [ $# -gt 0 ]; do
-#   MIGRATE_ARGS="$MIGRATE_ARGS $1"
-#   shift
-# done
+# Ejecutar el script de migración Python
+echo "Ejecutando migración con ambiente $ENV: python3 migrate.py $MIGRATE_ARGS"
 
-# # Ejecutar el script de migración Python
-# echo "Ejecutando migración con ambiente $ENV: python migrate.py $MIGRATE_ARGS"
-
-
-# cd "$API_DIR" && python3 migrate.py $MIGRATE_ARGS
+# Usamos eval para preservar las comillas en la ejecución
+# cd "$API_DIR" && eval "python3 migrate.py $MIGRATE_ARGS"
