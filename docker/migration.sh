@@ -31,50 +31,6 @@ show_help() {
   echo "  $0 prod downgrade --rev -1           # Revertir última migración en producción"
 }
 
-# Normalizar ambiente
-normalize_env() {
-  case "$1" in
-    dev|development)
-      echo "development"
-      ;;
-    test|testing)
-      echo "testing"
-      ;;
-    prod|production)
-      echo "production"
-      ;;
-    *)
-      echo "$1"
-      ;;
-  esac
-}
-
-
-
-# Función para crear la base de datos si no existe
-create_database_if_not_exists() {
-  local host="$1"
-  local port="$2"
-  local dbname="$3"
-  local user="$4"
-  local password="$5"
-  
-  echo "Verificando si la base de datos $dbname existe..."
-  
-  # Comprobar si la base de datos existe
-  if PGPASSWORD="$password" psql -h "$host" -p "$port" -U "$user" -lqt | cut -d \| -f 1 | grep -qw "$dbname"; then
-    echo "La base de datos $dbname ya existe."
-  else
-    echo "La base de datos $dbname no existe. Creándola..."
-    PGPASSWORD="$password" psql -h "$host" -p "$port" -U "$user" -c "CREATE DATABASE $dbname;"
-    echo "Base de datos $dbname creada exitosamente."
-  fi
-
-  # Crear el schema app si no existe
-  echo "Verificando y creando el esquema 'app' si no existe..."
-  PGPASSWORD="$password" psql -h "$host" -p "$port" -U "$user" -d "$dbname" -c "CREATE SCHEMA IF NOT EXISTS app;"
-  echo "Esquema 'app' verificado/creado exitosamente."
-}
 
 
 # Validar argumentos
@@ -84,22 +40,7 @@ if [ $# -lt 1 ]; then
 fi
 
 # Obtener ambiente y comando
-ENV=$(normalize_env "${1}")
-shift
-COMMAND="${1}"
-shift
-
-# Validar ambiente
-case "$ENV" in
-  development|testing|production)
-    true
-    ;;
-  *)
-    echo "Error: Ambiente no válido: $ENV"
-    show_help
-    exit 1
-    ;;
-esac
+ENV=${1}
 
 # Cargar variables de entorno según el ambiente
 ENV_FILE=""
@@ -124,57 +65,65 @@ fi
 echo "Cargando variables de ambiente desde $ENV_FILE"
 export $(grep -v '^#' "$ENV_FILE" | xargs)
 
-# Mapear variables específicas de ambiente a las generales que usa db_config.py
-case "$ENV" in
-  development)
-    export DB_HOST="${DEV_DB_HOST:-localhost}"
-    export DB_PORT="${DEV_DB_PORT:-5432}"
-    export DB_NAME="${DEV_DB_NAME:-moneydiary_dev}"
-    export DB_USER="${DEV_DB_USER:-postgres}"
-    export DB_PASSWORD="${DEV_DB_PASS:-postgres}"
-    export ENVIRONMENT="development"  # Para get_database_url
-    ;;
-  testing)
-    export DB_HOST="${TEST_DB_HOST:-localhost}"
-    export DB_PORT="${TEST_DB_PORT:-5432}"
-    export DB_NAME="${TEST_DB_NAME:-moneydiary_test}"
-    export DB_USER="${TEST_DB_USER:-postgres}"
-    export DB_PASSWORD="${TEST_DB_PASS:-postgres}"
-    export ENVIRONMENT="test"  # Para get_database_url
-    ;;
-  production)
-    export DB_HOST="${PROD_DB_HOST:-localhost}"
-    export DB_PORT="${PROD_DB_PORT:-5432}"
-    export DB_NAME="${PROD_DB_NAME:-moneydiary}"
-    export DB_USER="${PROD_DB_USER:-postgres}"
-    export DB_PASSWORD="${PROD_DB_PASS:-postgres}"
-    export ENVIRONMENT="production"  # Para get_database_url
-    ;;
-esac
+# Validar existencia de variables requeridas para Alembic
+required_vars=("ALEMBIC_DB_HOST" "ALEMBIC_DB_PORT" "ALEMBIC_DB_USER" "ALEMBIC_DB_PASS" "ALEMBIC_DB_NAME" "ALEMBIC_ENVIRONMENT")
+missing_vars=()
 
-# Verificar si necesitamos crear la base de datos (solo para comandos que lo requieran)
-if [ "$COMMAND" = "upgrade" ] || [ "$COMMAND" = "revision" ] && [ "$ENV" != "production" ]; then
-  # Preguntar antes de crear la base de datos en producción
-  if [ "$ENV" = "production" ]; then
-    read -p "¿Deseas crear la base de datos de producción si no existe? (s/N): " confirm
-    if [[ "$confirm" =~ ^[Ss]$ ]]; then
-      create_database_if_not_exists "$DB_HOST" "$DB_PORT" "$DB_NAME" "$DB_USER" "$DB_PASSWORD"
-    fi
-  else
-    # Crear automáticamente en entornos de desarrollo y pruebas
-    create_database_if_not_exists "$DB_HOST" "$DB_PORT" "$DB_NAME" "$DB_USER" "$DB_PASSWORD"
+for var in "${required_vars[@]}"; do
+  if [ -z "${!var}" ]; then
+    missing_vars+=("$var")
   fi
-fi
-
-# Construir argumentos para el script de migración
-MIGRATE_ARGS="--env $ENV $COMMAND"
-
-# Agregar opciones adicionales
-while [ $# -gt 0 ]; do
-  MIGRATE_ARGS="$MIGRATE_ARGS $1"
-  shift
 done
 
-# Ejecutar el script de migración Python
-echo "Ejecutando migración con ambiente $ENV: python migrate.py $MIGRATE_ARGS"
-cd "$API_DIR" && python3 migrate.py $MIGRATE_ARGS
+if [ ${#missing_vars[@]} -ne 0 ]; then
+  echo "Error: Faltan variables de entorno requeridas:"
+  printf "  - %s\n" "${missing_vars[@]}"
+  echo "Por favor, asegúrate de que estas variables estén definidas en $ENV_FILE"
+  exit 1
+fi
+
+echo "Variables de ambiente validadas correctamente"
+
+# # Mapear variables específicas de ambiente a las generales que usa db_config.py
+# case "$ENV" in
+#   development)
+#     export DB_HOST="${DEV_DB_HOST}"
+#     export DB_PORT="${DEV_DB_PORT}"
+#     export DB_NAME="${DEV_DB_NAME}"
+#     export DB_USER="${DEV_DB_USER}"
+#     export DB_PASSWORD="${DEV_DB_PASS}"
+#     export ENVIRONMENT="development"  
+#     ;;
+#   testing)
+#     export DB_HOST="${TEST_DB_HOST:-localhost}"
+#     export DB_PORT="${TEST_DB_PORT:-5432}"
+#     export DB_NAME="${TEST_DB_NAME:-moneydiary_test}"
+#     export DB_USER="${TEST_DB_USER:-postgres}"
+#     export DB_PASSWORD="${TEST_DB_PASS:-postgres}"
+#     export ENVIRONMENT="test"  
+#     ;;
+#   production)
+#     export DB_HOST="${PROD_DB_HOST:-localhost}"
+#     export DB_PORT="${PROD_DB_PORT:-5432}"
+#     export DB_NAME="${PROD_DB_NAME:-moneydiary}"
+#     export DB_USER="${PROD_DB_USER:-postgres}"
+#     export DB_PASSWORD="${PROD_DB_PASS:-postgres}"
+#     export ENVIRONMENT="production"  
+#     ;;
+# esac
+
+
+# # Construir argumentos para el script de migración
+# MIGRATE_ARGS="--env $ENV $COMMAND"
+
+# # Agregar opciones adicionales
+# while [ $# -gt 0 ]; do
+#   MIGRATE_ARGS="$MIGRATE_ARGS $1"
+#   shift
+# done
+
+# # Ejecutar el script de migración Python
+# echo "Ejecutando migración con ambiente $ENV: python migrate.py $MIGRATE_ARGS"
+
+
+# cd "$API_DIR" && python3 migrate.py $MIGRATE_ARGS
