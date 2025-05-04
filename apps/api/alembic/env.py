@@ -113,41 +113,41 @@ def include_object(object, name, type_, reflected, compare_to):
 
 def inspect_database(connection):
     """Inspecciona la base de datos para comparar con los modelos."""
-    logger.info("=== ESTRUCTURA ACTUAL DE LA BASE DE DATOS ===")
+    logger.info("\n=== ESTRUCTURA ACTUAL DE LA BASE DE DATOS ===\n")
     inspector = inspect(connection)
     
     # Verificar schemas
     schemas = inspector.get_schema_names()
-    logger.info(f"Schemas en la base de datos: {schemas}")
+    logger.info(f"Schemas en la base de datos: {schemas}\n")
     
     # Verificar tablas en cada schema
     for schema in schemas:
         tables = inspector.get_table_names(schema=schema)
-        logger.info(f"Tablas en schema '{schema}': {tables}")
+        logger.info(f"Tablas en schema '{schema}': {tables}\n")
         
         for table in tables:
-            logger.info(f"Detalles de tabla '{schema}.{table}':")
+            logger.info(f"Detalles de tabla '{schema}.{table}':\n")
             # Columnas
             columns = inspector.get_columns(table, schema=schema)
             for column in columns:
-                logger.info(f"  - Columna: {column['name']}, Tipo: {column['type']}")
+                logger.info(f"  - Columna: {column['name']}, Tipo: {column['type']}\n")
             
             # Primary keys
             pks = inspector.get_pk_constraint(table, schema=schema)
-            logger.info(f"  - Primary keys: {pks['constrained_columns']}")
+            logger.info(f"  - Primary keys: {pks['constrained_columns']}\n")
             
             # Foreign keys
             fks = inspector.get_foreign_keys(table, schema=schema)
             for fk in fks:
-                logger.info(f"  - FK: {fk['constrained_columns']} -> {fk['referred_schema']}.{fk['referred_table']}.{fk['referred_columns']}")
+                logger.info(f"  - FK: {fk['constrained_columns']} -> {fk['referred_schema']}.{fk['referred_table']}.{fk['referred_columns']}\n")
     
-    logger.info("=====================")
+    logger.info("\n=====================\n")
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode."""
     # Get database URL from environment
     url = get_db_url()
-    logger.info(f"Using database URL: {url} (offline mode)")
+    logger.info(f"\nUsing database URL: {url} (offline mode)\n")
     
     context.configure(
         url=url,
@@ -170,7 +170,7 @@ def run_migrations_online():
     """Run migrations in 'online' mode."""
     # Get the database URL
     db_url = get_db_url()
-    logger.info(f"Using database URL: {db_url}")
+    logger.info(f"\nUsing database URL: {db_url}\n")
     
     # Create configuration for the database engine
     config = context.config
@@ -190,30 +190,30 @@ def run_migrations_online():
     # Prepare database with a separate connection - explicitly create schema
     with connectable.connect() as conn:
         try:
-            logger.info(f"Preparing database with dedicated connection: {conn.engine.url}")
+            logger.info(f"\nPreparing database with dedicated connection: {conn.engine.url}\n")
             
             # Simple schema setup - just create schema and set search_path
             conn.execute(text("CREATE SCHEMA IF NOT EXISTS app"))
-            logger.info("Created schema 'app' if it didn't exist")
+            logger.info("Created schema 'app' if it didn't exist\n")
             
             conn.execute(text("SET search_path TO app, public"))
-            logger.info("Set search_path to app, public")
+            logger.info("Set search_path to app, public\n")
             db_name = os.environ.get("ALEMBIC_DB_NAME")
             
             # Set search_path at database level so it persists (using dynamic db_name)
             conn.execute(text(f"ALTER DATABASE {db_name} SET search_path TO app, public"))
-            logger.info(f"Set database-level search_path for database {db_name}")
+            logger.info(f"Set database-level search_path for database {db_name}\n")
             
             # Verify schema creation
             result = conn.execute(text("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'app'"))
             if result.scalar():
-                logger.info("Schema 'app' exists and is accessible")
+                logger.info("Schema 'app' exists and is accessible\n")
             else:
-                logger.error("Schema 'app' doesn't exist despite creation attempt")
+                logger.error("\nSchema 'app' doesn't exist despite creation attempt\n")
                 raise Exception("Failed to create schema 'app'")
                 
         except Exception as schema_error:
-            logger.error(f"Error preparing database: {str(schema_error)}")
+            logger.error(f"\nError preparing database: {str(schema_error)}\n")
             logger.error(traceback.format_exc())
             raise
 
@@ -221,17 +221,17 @@ def run_migrations_online():
     with connectable.connect() as connection:
         try:
             # Log connection information (only once)
-            logger.info(f"Connected to database for migrations: {connection.engine.url}")
+            logger.info(f"\nConnected to database for migrations: {connection.engine.url}\n")
             
             # Make sure search_path is set for this connection too
             connection.execute(text("SET search_path TO app, public"))
-            logger.info("Search path set for migration connection")
+            logger.info("Search path set for migration connection\n")
             
             # Perform database inspection if needed
             try:
                 inspect_database(connection)
             except Exception as inspect_error:
-                logger.error(f"Error during database inspection: {str(inspect_error)}")
+                logger.error(f"\nError during database inspection: {str(inspect_error)}\n")
             
             # Configure the migration context simply
             context.configure(
@@ -250,12 +250,12 @@ def run_migrations_online():
                 render_as_batch=True  # Usar modo batch más detallado
             )
             
-            logger.info("Alembic context configured successfully")
+            logger.info("Alembic context configured successfully\n")
             
             # Run migrations with transaction handling by Alembic
             with context.begin_transaction():
                 context.run_migrations()
-                logger.info("Migrations completed successfully")
+                logger.info("Migrations completed successfully\n")
             
             # Verify the results
             try:
@@ -264,7 +264,7 @@ def run_migrations_online():
                     "SELECT tablename FROM pg_tables WHERE schemaname = 'app' ORDER BY tablename"
                 ))
                 tables = [row[0] for row in result.fetchall()]
-                logger.info(f"Tables in app schema after migration: {tables}")
+                logger.info(f"\nTables in app schema after migration: {tables}\n")
                 
                 # Check each table individually for debugging
                 for table_name in tables:
@@ -274,21 +274,21 @@ def run_migrations_online():
                         count = result.scalar()
                         logger.info(f"Table app.{table_name} has {count} rows")
                     except Exception as table_err:
-                        logger.error(f"Error checking table app.{table_name}: {str(table_err)}")
+                        logger.error(f"\nError checking table app.{table_name}: {str(table_err)}\n")
             except Exception as verify_error:
                 # Just log verification errors, don't fail the migration
-                logger.error(f"Error verifying tables: {str(verify_error)}")
+                logger.error(f"\nError verifying tables: {str(verify_error)}\n")
                 
         except Exception as e:
-            logger.error(f"Error during migration: {str(e)}")
+            logger.error(f"\nError during migration: {str(e)}\n")
             raise
 
 # Debug: print detected tables in SQLAlchemy models
-logger.info("=== MODELOS SCRIPTS SCHEMA CARGADOS ===")
+logger.info("\n=== MODELOS SCRIPTS SCHEMA CARGADOS ===\n")
 model_count = 0
 for table_name, table in Base.metadata.tables.items():
     model_count += 1
-    logger.info(f"Modelo: {table_name} (Schema: {table.schema})")
+    logger.info(f"\nModelo: {table_name} (Schema: {table.schema})")
     # Listar las columnas
     for column in table.columns:
         logger.info(f"  - Columna: {column.name}, Tipo: {column.type}, Nullable: {column.nullable}")
@@ -296,16 +296,16 @@ for table_name, table in Base.metadata.tables.items():
     for fk in table.foreign_keys:
         logger.info(f"  - FK: {fk.column} -> {fk.target_fullname}")
 
-logger.info(f"Total de modelos cargados: {model_count}")
-logger.info("=====================")
+logger.info(f"\nTotal de modelos cargados: {model_count}\n")
+logger.info("\n=====================\n")
 
 # Call the appropriate function based on context configuration
-logger.info("=== INICIANDO MIGRACIONES ===")
+logger.info("\n=== INICIANDO MIGRACIONES ===\n")
 # Check if running in offline mode
 if context.is_offline_mode():
-    logger.info("Running in offline mode")
+    logger.info("Running in offline mode\n")
 else:
-    logger.info("Running in online mode")
+    logger.info("Running in online mode\n")
 # Run migrations based on the context mode
 if context.is_offline_mode():
     run_migrations_offline()
