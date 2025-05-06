@@ -9,7 +9,7 @@ import UserMenu from "../components/auth/UserMenu.vue";
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-3xl font-bold text-gray-800">MoneyDiary</h1>
       <div data-vue-component>
-        <!-- Usa client:only para que se renderice solo en el cliente, no en el servidor -->
+        <!-- Usa client:only para que se renderice solo en el cliente -->
         <UserMenu client:only="vue" />
       </div>
     </div>
@@ -27,3 +27,29 @@ import UserMenu from "../components/auth/UserMenu.vue";
     </div>
   </main>
 </MainLayout>
+
+<script>
+  // Este script se ejecutará solo en el cliente
+  import { createApp } from 'vue';
+  import { pinia, initPinia } from '../stores/pinia';
+  import { loadUserInfo } from '../services/authService';
+  import { isAdmin } from '../utils/auth';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Inicializar Pinia
+    initPinia();
+    
+    const { useAuthStore } = await import('../stores/authStore');
+    const authStore = useAuthStore();
+    
+    // Si el usuario está autenticado pero no tenemos sus datos, cargarlos
+    if (authStore.isAuthenticated && !authStore.user) {
+      await loadUserInfo();
+      
+      // Si el usuario es administrador, mostrar un mensaje de bienvenida especial
+      if (isAdmin()) {
+        console.log("Bienvenido, Administrador!");
+      }
+    }
+  });
+</script>

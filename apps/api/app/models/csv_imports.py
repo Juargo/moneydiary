@@ -29,6 +29,7 @@ class CsvImportProfile(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    bank_id = Column(Integer, ForeignKey('banks.id'), nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text)
     is_default = Column(Boolean, nullable=False, default=False)
@@ -40,6 +41,7 @@ class CsvImportProfile(Base):
     updated_at = Column(TIMESTAMP)
 
     user = relationship("User", back_populates="csv_import_profiles")
+    bank = relationship("Bank", back_populates="csv_profiles")
     csv_imports = relationship("CsvImport", back_populates="profile")
     column_mappings = relationship("CsvColumnMapping", back_populates="profile")
 

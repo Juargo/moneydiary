@@ -1,6 +1,6 @@
 import { gql } from "@urql/vue";
 
-// Consulta para obtener información del usuario autenticado
+// Consulta para obtener información del usuario autenticado, incluyendo roles y permisos
 export const ME_QUERY = gql`
   query Me {
     me {
@@ -10,6 +10,25 @@ export const ME_QUERY = gql`
       profile_image
       is_active
       email_verified
+      role {
+        id
+        name
+        description
+        permissions {
+          id
+          name
+          resource
+          action
+          description
+        }
+      }
+      permissions {
+        id
+        name
+        resource
+        action
+        description
+      }
     }
   }
 `;

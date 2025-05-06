@@ -19,30 +19,14 @@ const { title, description = "Tu gestor de finanzas personales" } = Astro.props;
       <slot />
     </div>
 
-    <!-- ---
-    /**
-     * This script is executed on the client side after hydration.
-     * 
-     * Functionality:
-     * - Imports necessary libraries and modules for Vue, Pinia (state management), and URQL (GraphQL client).
-     * - Listens for the `astro:page-load` event to dynamically register and mount Vue components.
-     * - Searches for elements with the `data-vue-component` attribute in the DOM.
-     * - If such elements are found:
-     *   - Creates a new Vue application instance.
-     *   - Initializes Pinia for state management and URQL for GraphQL client integration.
-     *   - Mounts the Vue application to each element with the `data-vue-component` attribute.
-     * 
-     * Note:
-     * - This approach allows for dynamic Vue component registration and mounting after the page has loaded.
-     * - Ensure that the `data-vue-component` attribute is correctly added to the target elements in the HTML.
-     */
-    --- -->
+    <!-- Script para inicializar Vue y registrar directivas -->
     <script>
       // Este script se ejecuta en el cliente después de la hidratación
       import { createPinia } from 'pinia';
       import { createApp } from 'vue';
       import { createSSRGraphQLClient } from '../utils/graphql/client';
       import urql from '@urql/vue';
+      import { authDirectives } from '../utils/auth';
 
       // Registrar componentes Vue dinámicamente después de la carga
       document.addEventListener('astro:page-load', () => {
@@ -54,6 +38,7 @@ const { title, description = "Tu gestor de finanzas personales" } = Astro.props;
           
           app.use(pinia);
           app.use(urql, createSSRGraphQLClient());
+          app.use(authDirectives); // Registrar las directivas de autenticación
           
           vueElements.forEach(el => {
             app.mount(el);

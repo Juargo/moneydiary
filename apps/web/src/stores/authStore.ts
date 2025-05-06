@@ -8,6 +8,21 @@ interface TokenData {
   token_type: string;
 }
 
+interface Permission {
+  id: number;
+  name: string;
+  resource: string;
+  action: string;
+  description?: string;
+}
+
+interface Role {
+  id: number;
+  name: string;
+  description?: string;
+  permissions?: Permission[];
+}
+
 interface User {
   id: number;
   email: string;
@@ -15,6 +30,8 @@ interface User {
   profile_image: string | null;
   is_active: boolean;
   email_verified: boolean;
+  role?: Role | null;
+  permissions?: Permission[];
 }
 
 // Utility function for safe localStorage access
@@ -65,6 +82,18 @@ export const useAuthStore = defineStore("auth", () => {
     return Date.now() > exp - 10000;
   });
 
+  // Getters para roles y permisos
+  const isAdmin = computed(() => {
+    return !!user.value?.role && user.value.role.name === "admin";
+  });
+
+  const hasPermission = computed(() => {
+    return (permissionName: string) => {
+      if (!user.value?.permissions) return false;
+      return user.value.permissions.some((p) => p.name === permissionName);
+    };
+  });
+
   // Acciones
   function login(tokenData: TokenData) {
     accessToken.value = tokenData.access_token;
@@ -98,6 +127,32 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = userData;
   }
 
+  /**
+   * Carga la información del usuario, incluyendo su rol y permisos
+   */
+  async function fetchUserInfo() {
+    if (!accessToken.value) return null;
+
+    try {
+      const response = await fetch("/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${accessToken.value}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al obtener información del usuario");
+      }
+
+      const userData = await response.json();
+      setUser(userData);
+      return userData;
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      return null;
+    }
+  }
+
   // Inicializar estado desde localStorage
   function init() {
     // Verificar que estamos en un entorno con localStorage
@@ -116,6 +171,11 @@ export const useAuthStore = defineStore("auth", () => {
       if (isTokenExpired.value) {
         // Podríamos intentar un refresh automático aquí
         logout();
+      } else {
+        // Intentar cargar la información del usuario si tenemos un token válido
+        fetchUserInfo().catch((error) => {
+          console.error("Error al inicializar datos de usuario:", error);
+        });
       }
     }
   }
@@ -131,9 +191,12 @@ export const useAuthStore = defineStore("auth", () => {
     user,
     isAuthenticated,
     isTokenExpired,
+    isAdmin,
+    hasPermission,
     login,
     logout,
     updateTokens,
     setUser,
+    fetchUserInfo,
   };
 });

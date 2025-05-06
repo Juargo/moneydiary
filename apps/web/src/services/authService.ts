@@ -117,6 +117,7 @@ export async function loadUserInfo() {
   const client = await getClient();
 
   try {
+    // Actualiza la consulta ME_QUERY para incluir información de rol y permisos
     const result = await client.query(ME_QUERY, {}).toPromise();
 
     if (result.error) {
@@ -127,7 +128,53 @@ export async function loadUserInfo() {
 
     if (result.data?.me) {
       debugLog("User information loaded successfully", result.data.me);
-      authStore.setUser(result.data.me);
+
+      // Asegurarse de que tenemos la información de rol y permisos
+      const userData = result.data.me;
+      authStore.setUser(userData);
+
+      // Registrar información sobre roles y permisos para debugging
+      if (userData.role) {
+        debugLog(`User role: ${userData.role.name}`);
+        if (userData.role.name === "admin") {
+          debugLog("User is an admin");
+        }
+      }
+
+      if (userData.permissions && userData.permissions.length > 0) {
+        debugLog(
+          `User permissions: ${userData.permissions
+            .map((p: Permission) => p.name)
+            .join(", ")}`
+        );
+        // Add the following interfaces at the top of the file or in a separate types file if preferred
+
+        interface Role {
+          name: string;
+        }
+
+        interface Permission {
+          name: string;
+        }
+
+        interface User {
+          role?: Role;
+          permissions?: Permission[];
+        }
+
+        interface AuthStore {
+          isAuthenticated: boolean;
+          user?: User;
+          login: (tokens: {
+            access_token: string;
+            refresh_token: string;
+            token_type: string;
+          }) => void;
+          logout: () => void;
+          setUser: (user: User) => void;
+        }
+      }
+
       return true;
     }
   } catch (error) {
@@ -137,6 +184,117 @@ export async function loadUserInfo() {
 
   debugLog("Failed to load user information");
   return false;
+}
+
+// Verificar si el usuario tiene un rol específico
+export async function hasRole(roleName: string): Promise<boolean> {
+  debugLog(`Checking if user has role: ${roleName}`);
+
+  if (typeof window === "undefined") {
+    debugLog("Called server-side, returning false");
+    return false;
+  }
+
+  const { useAuthStore } = await import("../stores/authStore");
+  const authStore = useAuthStore();
+
+  // Si el usuario no está autenticado o no tenemos información, devolver false
+  if (!authStore.isAuthenticated || !authStore.user) {
+    debugLog("User not authenticated or user data not loaded");
+    return false;
+  }
+
+  // Si no tenemos información de rol, intentar cargarla primero
+  if (!authStore.user.role) {
+    debugLog("Role information not loaded, attempting to load user info");
+    const success = await loadUserInfo();
+    if (!success || !authStore.user?.role) {
+      debugLog("Failed to load role information");
+      return false;
+    }
+  }
+
+  const hasRole = authStore.user.role?.name === roleName;
+  debugLog(`User ${hasRole ? "has" : "does not have"} role: ${roleName}`);
+  return hasRole;
+}
+
+// Verificar si el usuario es administrador
+export async function isAdmin(): Promise<boolean> {
+  debugLog("Checking if user is admin");
+  return hasRole("admin");
+}
+
+// Verificar si el usuario tiene un permiso específico
+export async function hasPermission(permissionName: string): Promise<boolean> {
+  debugLog(`Checking if user has permission: ${permissionName}`);
+
+  if (typeof window === "undefined") {
+    debugLog("Called server-side, returning false");
+    return false;
+  }
+
+  const { useAuthStore } = await import("../stores/authStore");
+  const authStore = useAuthStore();
+
+  // Si el usuario no está autenticado o no tenemos información, devolver false
+  if (!authStore.isAuthenticated || !authStore.user) {
+    debugLog("User not authenticated or user data not loaded");
+    return false;
+  }
+
+  // Si no tenemos información de permisos, intentar cargarla primero
+  if (!authStore.user.permissions) {
+    debugLog("Permission information not loaded, attempting to load user info");
+    const success = await loadUserInfo();
+    if (!success || !authStore.user?.permissions) {
+      debugLog("Failed to load permission information");
+      return false;
+    }
+  }
+
+  const hasPermission =
+    authStore.user.permissions?.some((p) => p.name === permissionName) || false;
+  debugLog(
+    `User ${
+      hasPermission ? "has" : "does not have"
+    } permission: ${permissionName}`
+  );
+  return hasPermission;
+}
+
+// Redireccionar si el usuario no tiene el rol requerido
+export async function requireRole(
+  roleName: string,
+  redirectPath: string = "/unauthorized"
+): Promise<boolean> {
+  debugLog(`Requiring role: ${roleName}`);
+
+  if (typeof window === "undefined") {
+    debugLog("Called server-side, returning false");
+    return false;
+  }
+
+  const hasRequiredRole = await hasRole(roleName);
+
+  if (!hasRequiredRole) {
+    debugLog(
+      `User doesn't have required role. Redirecting to: ${redirectPath}`
+    );
+    window.location.href = redirectPath;
+    return false;
+  }
+
+  debugLog("User has required role");
+  return true;
+}
+
+// Redireccionar si el usuario no es administrador
+export async function requireAdmin(
+  redirectPath: string = "/unauthorized"
+): Promise<boolean> {
+  debugLog("Requiring admin role");
+  return requireRole("admin", redirectPath);
 }
 
 // Cerrar sesión
