@@ -35,4 +35,3 @@ async def lifespan(app: FastAPI):
     
     # Startup code finished, yield control back to FastAPI
     yield
-    # Shutdown code would go here (if needed in the future)
