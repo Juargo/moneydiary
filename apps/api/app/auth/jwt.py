@@ -2,12 +2,16 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, Union
 from jose import jwt, JWTError
 from strawberry.types import Info
-from fastapi import HTTPException, status
+from fastapi import Depends,HTTPException, status
 from sqlalchemy.orm import Session
+from fastapi.security import OAuth2PasswordBearer
+from ..database import get_db
 
 from ..models.users import User
 from ..config import settings
 from ..crud.user import get_user_by_id
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/token")
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """
@@ -170,3 +174,50 @@ def get_current_user_from_context(info) -> Optional[User]:
     """
     context = info.context
     return getattr(context, "user", None)
+
+async def get_admin_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> User:
+    """
+    Verifica que el usuario actual sea un administrador.
+    
+    Args:
+        token (str): Token JWT de autenticación
+        db (Session): Sesión de base de datos
+        
+    Returns:
+        User: El usuario administrador autenticado
+        
+    Raises:
+        HTTPException: Si el usuario no está autenticado o no tiene permisos de administrador
+    """
+    # Primero verificar si el usuario está autenticado
+    user = get_user_from_token(db, token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No autenticado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Luego verificar si el usuario es administrador
+    # Esto depende de cómo estés modelando los roles de administrador
+    # Por ejemplo, podrías tener un campo is_admin, o revisar por un rol específico
+    
+    # Opción 1: Si tienes un campo is_admin
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren permisos de administrador"
+        )
+    
+    # Opción 2: Si usas roles
+    # admin_role = "ADMIN"  # O el identificador que uses para el rol de administrador
+    # if not any(role.name == admin_role for role in user.roles):
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Se requieren permisos de administrador"
+    #     )
+    
+    return user

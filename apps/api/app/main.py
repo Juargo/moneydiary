@@ -17,6 +17,8 @@ from .graphql.client_utils import SnakeCaseGraphQLMiddleware
 from .graphql.debug import debug_query, debug_result
 from .api.router import api_router
 
+from .services.bank_service import BankService 
+
 # Configure more detailed logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("moneydiary.api")
