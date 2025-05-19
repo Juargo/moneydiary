@@ -1,21 +1,32 @@
 # FastAPI
 from fastapi import FastAPI
+
+# FastAPI GraphQL
 from strawberry.fastapi import GraphQLRouter
+
+# SQLAlchemy
 from sqlalchemy.orm import configure_mappers
+
+# logging
 import logging
 
 # Imports internos
 from .lifecycle import lifespan, VERSION
+from .middleware import setup_middleware
+
+# Router imports
 from .routers import basic
 from .api.endpoints import auth
+from .api.router import api_router
+
+# Database imports
 from .init_db import initialize_database
-from .middleware import setup_middleware
+
+# GraphQL imports
 from .graphql.schema import schema
 from .graphql.context import get_context
 from .graphql.client_utils import SnakeCaseGraphQLMiddleware
-# Import debug functions instead of QueryDebugExtension
 from .graphql.debug import debug_query, debug_result
-from .api.router import api_router
 
 from .services.bank_service import BankService 
 
@@ -26,36 +37,50 @@ logger.setLevel(logging.DEBUG)
 
 # Función para inicializar la aplicación y configurar mappers
 def initialize_app():
-    # Import models in correct dependency order
-    print("Importing models...")
-    import logging
-    logging.basicConfig()
-    logging.getLogger('sqlalchemy.orm').setLevel(logging.DEBUG)
+    """
+    Inicializa la aplicación importando modelos en orden correcto,
+    configurando mappers SQLAlchemy e inicializando la base de datos.
+    """
+    # Agrupar importaciones por dominio funcional
+    # Base y autenticación
     from apps.api.app.models.base import Base
     from apps.api.app.models.permission import Permission
     from apps.api.app.models.role import Role
     from apps.api.app.models.users import User
     from apps.api.app.models.oauth2_token import OAuth2Token
     from apps.api.app.models.invalidated_token import InvalidatedToken
+    
+    # Categorías y cuentas
     from apps.api.app.models.categories import CategoryGroup, Category, Subcategory
     from apps.api.app.models.account_types import AccountType
     from apps.api.app.models.accounts import Account
+    
+    # Métodos financieros
     from apps.api.app.models.financial_methods import (
         FinancialMethod, MethodFiftyThirtyTwenty, MethodEnvelope,
         MethodZeroBased, MethodKakebo, MethodPayYourselfFirst
     )
     from apps.api.app.models.user_financial_methods import user_financial_methods
-    from apps.api.app.models.csv_imports import CsvImport, CsvImportProfile, CsvColumnMapping, ImportError
     from apps.api.app.models.envelopes import Envelope
+    
+    # Presupuestos y objetivos
     from apps.api.app.models.budget import BudgetPlan, BudgetItem
     from apps.api.app.models.financial_goals import FinancialGoal, GoalContribution
+    
+    # Transacciones y patrones
     from apps.api.app.models.recurring_patterns import RecurringPattern
     from apps.api.app.models.transactions import TransactionStatus, Transaction
+    
+    # Proyecciones y simulaciones
     from apps.api.app.models.projections import ProjectionSettings, MonthlyProjections, ProjectionDetails
     from apps.api.app.models.simulations import (
         FinancialSimulation, SimulationScenario,
         SimulationParameter, SimulationResult
     )
+    
+    # Importación de datos
+    from apps.api.app.models.csv_imports import CsvImport, CsvImportProfile, CsvColumnMapping, ImportError
+    
     
     # Configure mappers after all models are imported
     print("Configurando mappers de SQLAlchemy...")
