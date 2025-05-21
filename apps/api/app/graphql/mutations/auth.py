@@ -6,9 +6,10 @@ from fastapi import HTTPException, status
 
 from ...database import get_db
 from ..types.auth import TokenType, AuthUserType
-from ...auth.oauth import get_google_user
-from ...auth.jwt import decode_token, create_access_token, create_refresh_token
-from ...crud.user import create_user_oauth, get_user_by_id
+# Actualizar importaciones
+from ...services.auth_service import AuthService  # Nueva importación
+from ...services.user_service import UserService  # Nueva importación
+
 
 # Definir las funciones de mutación como resolvers independientes
 async def google_auth(info: Info, code: str) -> TokenType:
@@ -18,17 +19,23 @@ async def google_auth(info: Info, code: str) -> TokenType:
     db = next(get_db())
     
     try:
-        # Get user data from Google
-        user_data = await get_google_user(code)
+        # Reemplazar estos dos pasos:
+        # user_data = await get_google_user(code)
+        # db_user = create_user_oauth(db, user_data)
         
-        # Create or update user in database
-        db_user = create_user_oauth(db, user_data)
+        # Por estos:
+        user_info, token_info = await AuthService.get_google_user_and_tokens(code)
+        db_user = await UserService.create_user_oauth(db, user_info)
         
-        # Create tokens
-        access_token = create_access_token(
+        # Reemplazar estas llamadas:
+        # access_token = create_access_token(data={"sub": str(db_user.id), "email": db_user.email})
+        # refresh_token = create_refresh_token(data={"sub": str(db_user.id)})
+        
+        # Por estas:
+        access_token = await AuthService.create_access_token(
             data={"sub": str(db_user.id), "email": db_user.email}
         )
-        refresh_token = create_refresh_token(
+        refresh_token = await AuthService.create_refresh_token(
             data={"sub": str(db_user.id)}
         )
         
@@ -47,22 +54,35 @@ async def refresh_token(info: Info, refresh_token: str) -> TokenType:
     db = next(get_db())
     
     try:
-        payload = decode_token(refresh_token)
+        # Reemplazar:
+        # payload = decode_token(refresh_token)
+        
+        # Por:
+        payload = await AuthService.decode_token(refresh_token)
+        
         user_id = payload.get("sub")
         
         if not user_id:
             raise Exception("Invalid refresh token")
             
-        # Get user
-        user = get_user_by_id(db, int(user_id))
+        # Reemplazar:
+        # user = get_user_by_id(db, int(user_id))
+        
+        # Por:
+        user = await UserService.get_user_by_id(db, int(user_id))
+        
         if not user:
             raise Exception("User not found")
             
-        # Create new tokens
-        new_access_token = create_access_token(
+        # Reemplazar:
+        # new_access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        # new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        
+        # Por:
+        new_access_token = await AuthService.create_access_token(
             data={"sub": str(user.id), "email": user.email}
         )
-        new_refresh_token = create_refresh_token(
+        new_refresh_token = await AuthService.create_refresh_token(
             data={"sub": str(user.id)}
         )
         
@@ -74,14 +94,18 @@ async def refresh_token(info: Info, refresh_token: str) -> TokenType:
     except Exception as e:
         raise Exception(f"Token refresh failed: {str(e)}")
 
-async def logout(info: Info) -> bool:
+async def logout(info: Info, token: str) -> bool:
     """
     Logout user (invalidate token)
     """
-    # Aquí podrías implementar lógica para invalidar tokens si mantienes una lista negra
-    # de tokens revocados o una tabla en la base de datos
-    # Por ahora, simplemente devolvemos True para indicar éxito
-    return True
+    # Reemplazar el comentario y la implementación simple
+    # Por una llamada real al servicio:
+    db = next(get_db())
+    try:
+        result = await AuthService.invalidate_token(token, db)
+        return result.get("success", True)
+    except Exception as e:
+        raise Exception(f"Logout failed: {str(e)}")
 
 # Mantener la clase AuthMutations para compatibilidad si ya está en uso
 @strawberry.type

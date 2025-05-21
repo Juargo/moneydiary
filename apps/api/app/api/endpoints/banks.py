@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from ...database import get_db
 from ...services.bank_service import BankService
 from ...models.banks import Bank
-from ...auth.jwt import get_admin_user  
+from ...services.auth_service import AuthService  # Importación actualizada
 
 # Schemas (definidos inline por simplicidad, idealmente se deberían mover a un módulo de schemas)
 from pydantic import BaseModel
@@ -40,7 +40,7 @@ async def read_system_banks(
     skip: int = 0, 
     limit: int = 100, 
     db: AsyncSession = Depends(get_db),
-    admin_user: Any = Depends(get_admin_user) 
+    admin_user: Any = Depends(AuthService.get_admin_user)  # Dependencia actualizada
 ):
     """Obtener todos los bancos del sistema"""
     banks = await BankService.get_banks(db, skip=skip, limit=limit)
@@ -50,7 +50,7 @@ async def read_system_banks(
 async def read_system_bank(
     bank_id: int, 
     db: AsyncSession = Depends(get_db),
-    admin_user: Any = Depends(get_admin_user) 
+    admin_user: Any = Depends(AuthService.get_admin_user)  # Dependencia actualizada
 ):
     """Obtener un banco del sistema por su ID"""
     bank = await BankService.get_bank(db, bank_id=bank_id)
@@ -61,7 +61,7 @@ async def read_system_bank(
 async def create_system_bank(
     bank_data: BankCreate, 
     db: AsyncSession = Depends(get_db),
-    admin_user: Any = Depends(get_admin_user)  # Solo administradores pueden crear bancos del sistema
+    admin_user: Any = Depends(AuthService.get_admin_user)  # Dependencia actualizada
 ):
     """Crear un nuevo banco en el sistema"""
     bank = await BankService.create_bank(db, bank_data.dict())
@@ -72,7 +72,7 @@ async def update_system_bank(
     bank_id: int,
     bank_data: BankUpdate,
     db: AsyncSession = Depends(get_db),
-    admin_user: Any = Depends(get_admin_user)  # Solo administradores pueden actualizar bancos del sistema
+    admin_user: Any = Depends(AuthService.get_admin_user)  # Dependencia actualizada
 ):
     """Actualizar un banco existente en el sistema"""
     # Filtrar campos None para no actualizar campos que no se enviaron
@@ -90,7 +90,7 @@ async def update_system_bank(
 async def delete_system_bank(
     bank_id: int,
     db: AsyncSession = Depends(get_db),
-    admin_user: Any = Depends(get_admin_user)  # Solo administradores pueden eliminar bancos del sistema
+    admin_user: Any = Depends(AuthService.get_admin_user)  # Dependencia actualizada
 ):
     """Eliminar un banco del sistema"""
     result = await BankService.delete_bank(db, bank_id)

@@ -6,7 +6,7 @@ from sqlalchemy.orm.decl_api import DeclarativeMeta
 import logging
 
 from ..database import get_db
-from ..auth.jwt import get_user_from_token
+from ..services.auth_service import AuthService
 from .case_converter import snake_to_camel_case
 
 # Configure logging
@@ -38,6 +38,7 @@ class GraphQLContext(BaseContext):
         else:
             self.user = None
 
+    # El resto de métodos de la clase permanecen igual
     def _prepare_user(self, user: Any) -> Dict[str, Any]:
         """
         Prepara el objeto usuario para ser utilizado en GraphQL
@@ -127,9 +128,10 @@ async def get_context(request: Request) -> GraphQLContext:
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.replace("Bearer ", "")
         try:
-            # Obtener usuario desde el token
-            user = get_user_from_token(db, token)
-            # Add debugging info
+            # Cambiar este código:
+            # user = get_user_from_token(db, token)
+            # Por este:
+            user = await AuthService.get_current_user(token, db)
             logger.debug(f"User from token: {user}, type: {type(user)}")
         except Exception as e:
             # Si hay un error con el token, solo registramos y continuamos sin usuario
