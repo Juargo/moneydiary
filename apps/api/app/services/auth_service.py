@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 import requests
+from urllib.parse import urlencode
 
 from ..database import get_db
 from ..models.users import User
