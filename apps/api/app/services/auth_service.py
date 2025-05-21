@@ -177,7 +177,7 @@ class AuthService:
             "client_id": settings.google_client_id,
             "redirect_uri": settings.google_redirect_uri,
             "response_type": "code",
-            "scope": settings.GOOGLE_AUTH_SCOPES,
+            "scope":  " ".join(settings.GOOGLE_AUTH_SCOPES_LIST),
             "access_type": "offline",
             "include_granted_scopes": "true",
             "prompt": "select_account"
