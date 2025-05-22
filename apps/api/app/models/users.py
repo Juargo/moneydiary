@@ -1,8 +1,12 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
+
+from pydantic import BaseModel, EmailStr
+from typing import List, Optional
+from datetime import datetime
+
 from .base import Base
 from .user_financial_methods import user_financial_methods  
-import datetime
 
 class User(Base):
     __tablename__ = 'users'
@@ -56,3 +60,57 @@ class User(Base):
         if not self.role_relation:
             return []
         return self.role_relation.permissions
+    
+class PermissionBase(BaseModel):
+    name: str
+    resource: str
+    action: str
+    description: Optional[str] = None
+
+class PermissionResponse(PermissionBase):
+    id: int
+    
+    class Config:
+        orm_mode = True
+
+class RoleBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class RoleResponse(RoleBase):
+    id: int
+    permissions: List[PermissionResponse] = []
+    
+    class Config:
+        orm_mode = True
+
+class UserBase(BaseModel):
+    email: str
+    name: Optional[str] = None
+    profile_image: Optional[str] = None
+    is_active: Optional[bool] = True
+    email_verified: Optional[bool] = False
+
+class UserCreate(UserBase):
+    password: str
+
+class UserUpdate(UserBase):
+    password: Optional[str] = None
+
+class UserResponse(UserBase):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    role: Optional[RoleResponse] = None
+    
+    # Incluir permisos del usuario
+    @property
+    def permissions(self) -> List[PermissionResponse]:
+        # Este campo será computado automáticamente a partir de la propiedad
+        # permissions del modelo User
+        pass
+    
+    class Config:
+        orm_mode = True
+        # Importante: incluir permitir la computación de atributos desde las propiedades del modelo
+        computed = ["permissions"]

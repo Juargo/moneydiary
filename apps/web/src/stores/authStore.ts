@@ -134,7 +134,7 @@ export const useAuthStore = defineStore("auth", () => {
     if (!accessToken.value) return null;
 
     try {
-      const response = await fetch("/api/auth/me", {
+      const response = await fetch("http://localhost:8000/api/v1/auth/me", {
         headers: {
           Authorization: `Bearer ${accessToken.value}`,
         },

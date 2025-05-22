@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 import traceback
 from urllib.parse import urlencode
 
@@ -8,6 +10,9 @@ from ...database import get_db
 from ...services.auth_service import AuthService
 from ...services.user_service import UserService
 from ...config import settings
+
+from ...models.users import UserResponse, User
+from ...models.role import Role
 
 router = APIRouter()
 
@@ -114,3 +119,25 @@ async def refresh_token_endpoint(refresh_token: str, db: Session = Depends(get_d
             detail=f"Could not validate credentials: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(AuthService.get_current_user)
+):
+    """
+    Obtiene la información completa del usuario autenticado con sus relaciones
+    """
+    from sqlalchemy.orm import joinedload
+    
+    # Cargar el usuario con sus relaciones (rol y permisos)
+    user = await db.execute(
+        select(User)
+        .options(
+            joinedload(User.role_relation).joinedload(Role.permissions)
+        )
+        .filter(User.id == current_user.id)
+    )
+    user = user.scalar_one_or_none()
+    
+    return user
