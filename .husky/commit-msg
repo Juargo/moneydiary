@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+export PATH="/usr/local/bin:/Users/juargo/.nvm/versions/node/v20.11.0/bin;$PATH"  # Adjust this path to where Node is installed
 . "$(dirname -- "$0")/_/husky.sh"
 
-npx --no -- commitlint --edit $1
+/Users/juargo/.nvm/versions/node/v20.11.0/bin/npx --no -- commitlint --edit $1
