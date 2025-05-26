@@ -152,6 +152,9 @@ def create_graphql_router() -> GraphQLRouter:
     """
     Crea y configura el router GraphQL con la configuración adecuada.
     
+    Este router está optimizado para consultas complejas y relacionadas,
+    siguiendo la estrategia de "GraphQL para consultas, REST para mutaciones"
+    
     Returns:
         GraphQLRouter: Router configurado para manejar consultas GraphQL
     """
@@ -159,15 +162,17 @@ def create_graphql_router() -> GraphQLRouter:
     return GraphQLRouter(
         schema=schema,
         context_getter=get_context,
-        graphiql=True,  # Activar GraphiQL para desarrollo
+        graphiql=True, 
         debug=True
     )
 
 def create_application() -> FastAPI:
     """
     Factory function que crea y configura la aplicación FastAPI.
-    Sigue el patrón Factory para desacoplar la creación del objeto
-    de su uso.
+    
+    Implementa una estrategia dual de API:
+    - REST API (/api/v1/*) para operaciones CRUD y autenticación
+    - GraphQL (/graphql) para consultas complejas
     
     Returns:
         FastAPI: Aplicación FastAPI completamente configurada
@@ -175,7 +180,25 @@ def create_application() -> FastAPI:
     # Crear la aplicación con los metadatos apropiados
     app = FastAPI(
         title="MoneyDiary API",
-        description="API para la aplicación MoneyDiary - Gestión financiera personal",
+       description="""
+        API para la aplicación MoneyDiary - Gestión financiera personal
+        
+        ## Estrategia de API
+        
+        Esta API implementa una estrategia dual:
+        
+        - **REST API** (`/api/v1/*`): 
+          - Autenticación y gestión de sesiones
+          - Operaciones de creación, actualización y eliminación (POST, PUT, DELETE)
+          - Consultas simples (GET)
+        
+        - **GraphQL** (`/graphql`): 
+          - Consultas complejas que relacionan múltiples entidades
+          - Consultas con selección dinámica de campos
+          - Consultas con filtrado avanzado
+        
+        Ambos protocolos usan la misma capa de servicios internamente, garantizando consistencia.
+        """,
         version=VERSION,
         lifespan=lifespan,
         docs_url="/docs",
