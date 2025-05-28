@@ -6,6 +6,7 @@ import traceback
 from typing import Dict, Any, Optional
 
 from ..models.users import User
+from ..models.role import Role
 from ..crud.user import get_user_by_email, get_user_by_id
 
 class UserService:
@@ -50,6 +51,11 @@ class UserService:
                 db_user.profile_image = user_data.get("profile_image", db_user.profile_image)
                 db_user.is_active = True
                 db_user.last_login = datetime.now()
+                 # Si el usuario no tiene rol, asignar el predeterminado
+                if not db_user.role_id:
+                    default_role = db.query(Role).filter(Role.name == "user").first()
+                    if default_role:
+                        db_user.role_id = default_role.id
                 
                 db.commit()
                 db.refresh(db_user)
@@ -59,7 +65,11 @@ class UserService:
                 # Generar un hash seguro aleatorio para satisfacer la restricción NOT NULL
                 random_password = secrets.token_hex(16)  # 32 caracteres aleatorios
                 password_hash = hashlib.sha256(random_password.encode()).hexdigest()
+                default_role = db.query(Role).filter(Role.name == "user").first()
 
+                if not default_role:
+                    raise ValueError("No se encontró el rol por defecto 'user'")
+                # Crear nuevo usuario
                 new_user = User(
                     email=user_data["email"],
                     name=user_data.get("name", ""),
@@ -67,9 +77,10 @@ class UserService:
                     is_active=True,
                     email_verified=user_data.get("email_verified", False),
                     password_hash=password_hash, 
-                    last_login=datetime.now()
+                    last_login=datetime.now(),
+                    role_id=default_role.id
                 )
-                
+
                 db.add(new_user)
                 db.commit()
                 db.refresh(new_user)

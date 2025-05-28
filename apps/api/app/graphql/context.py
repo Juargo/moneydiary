@@ -124,10 +124,11 @@ async def get_context(request: Request) -> GraphQLContext:
             # Verificar token y obtener usuario con sus relaciones
             from sqlalchemy.orm import joinedload
             from sqlalchemy import select
-            from ..models.users import User, Role
+            from ..models.users import User
+            from ..models.role import Role
             
             # Primero validar el token
-            payload = await AuthService.decode_token(token)
+            payload = await AuthService.decode_token(token)  # Este es correctamente async
             user_id = payload.get("sub")
             
             if user_id:
@@ -136,8 +137,9 @@ async def get_context(request: Request) -> GraphQLContext:
                     joinedload(User.role_relation).joinedload(Role.permissions)
                 ).filter(User.id == int(user_id))
                 
-                result = await db.execute(stmt)
-                user = result.scalar_one_or_none()
+                # Execute no es async, no usar await aquí
+                result = db.execute(stmt)  # Eliminar el await
+                user = result.unique().scalar_one_or_none()
                 
                 logger.debug(f"User loaded with relations: {user}")
         except Exception as e:

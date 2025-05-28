@@ -129,15 +129,19 @@ async def get_current_user_info(
     Obtiene la información completa del usuario autenticado con sus relaciones
     """
     from sqlalchemy.orm import joinedload
+    from sqlalchemy import select
+    from ...models.role import Role
     
-    # Cargar el usuario con sus relaciones (rol y permisos)
-    user = await db.execute(
-        select(User)
-        .options(
-            joinedload(User.role_relation).joinedload(Role.permissions)
-        )
-        .filter(User.id == current_user.id)
-    )
-    user = user.scalar_one_or_none()
+    # No uses await con db.execute si no estás usando AsyncSession
+    stmt = select(User).options(
+        joinedload(User.role_relation).joinedload(Role.permissions)
+    ).filter(User.id == current_user.id)
+    
+    # Elimina el await de aquí:
+    result = db.execute(stmt)  # No await
+    user = result.unique().scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
     return user
