@@ -9,15 +9,12 @@ from ..types.auth import AuthUserType
 from ...services.auth_service import AuthService
 from ...models.users import User
 
+from ..types.auth import RoleType, PermissionType
+
 async def get_me(root, info: Info) -> Optional[AuthUserType]:
     """
     Get the current authenticated user
     """
-    # This gets the current user from the GraphQL context
-    # which will be populated by the authentication middleware
-    
-    # El contexto debería tener un campo 'user' ya configurado
-    # por el middleware de autenticación GraphQL
     context = info.context
     
     # Verificar si hay un usuario en el contexto
@@ -25,6 +22,43 @@ async def get_me(root, info: Info) -> Optional[AuthUserType]:
         return None
     
     user = context.user
+    
+    # Obtener roles y permisos si están disponibles
+    role = None
+    permissions = []
+    
+    if hasattr(user, 'role') and user.role:
+        # Convertir el rol a RoleType
+        role_permissions = []
+        if hasattr(user.role, 'permissions'):
+            role_permissions = [
+                PermissionType(
+                    id=perm.id,
+                    name=perm.name,
+                    resource=perm.resource,
+                    action=perm.action,
+                    description=perm.description
+                ) for perm in user.role.permissions
+            ]
+        
+        role = RoleType(
+            id=user.role.id,
+            name=user.role.name,
+            description=user.role.description,
+            permissions=role_permissions
+        )
+    
+    # Obtener permisos directos del usuario si están disponibles
+    if hasattr(user, 'permissions'):
+        permissions = [
+            PermissionType(
+                id=perm.id,
+                name=perm.name,
+                resource=perm.resource,
+                action=perm.action,
+                description=perm.description
+            ) for perm in user.permissions
+        ]
         
     return AuthUserType(
         id=user.id,
@@ -32,7 +66,10 @@ async def get_me(root, info: Info) -> Optional[AuthUserType]:
         name=user.name,
         profile_image=user.profile_image,
         is_active=user.is_active,
-        created_at=user.created_at
+        email_verified=getattr(user, 'email_verified', False),
+        created_at=getattr(user, 'created_at', None),
+        role=role,
+        permissions=permissions
     )
 
 async def get_google_auth_url(root, info: Info) -> str:

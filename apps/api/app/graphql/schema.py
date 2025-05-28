@@ -3,8 +3,8 @@ from strawberry.types import Info
 
 from ..version import __version__
 
-# Importar consultas y mutaciones de autenticación
-from .queries.auth import get_me
+# Importar todas las consultas y mutaciones
+from .queries.auth import get_me, get_google_auth_url
 from .mutations.auth import refresh_token, logout, google_auth
 
 @strawberry.type
@@ -19,6 +19,7 @@ class Query:
     
     # Consulta para obtener el usuario autenticado actual
     me = strawberry.field(resolver=get_me)
+    google_auth_url = strawberry.field(resolver=get_google_auth_url)
 
 @strawberry.type
 class Mutation:
@@ -27,5 +28,5 @@ class Mutation:
     refresh_token = strawberry.field(resolver=refresh_token)
     logout = strawberry.field(resolver=logout)
 
-# Actualiza para incluir las mutaciones
+# Crear schema con consultas y mutaciones
 schema = strawberry.Schema(query=Query, mutation=Mutation)

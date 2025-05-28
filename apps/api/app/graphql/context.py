@@ -107,16 +107,9 @@ class GraphQLContext(BaseContext):
 async def get_context(request: Request) -> GraphQLContext:
     """
     Crea y devuelve el contexto para las operaciones GraphQL
-    
-    Esta función:
-    1. Obtiene una sesión de base de datos
-    2. Intenta extraer y verificar el token de autenticación del header
-    3. Si hay un token válido, obtiene el usuario correspondiente
-    4. Devuelve un objeto de contexto con estos datos
     """
     # Log request info
     logger.debug(f"Creating GraphQL context for request: {request.method} {request.url.path}")
-    logger.debug(f"Request headers: {request.headers}")
     
     # Obtener sesión de base de datos
     db = next(get_db())
@@ -128,11 +121,25 @@ async def get_context(request: Request) -> GraphQLContext:
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.replace("Bearer ", "")
         try:
-            # Cambiar este código:
-            # user = get_user_from_token(db, token)
-            # Por este:
-            user = await AuthService.get_current_user(token, db)
-            logger.debug(f"User from token: {user}, type: {type(user)}")
+            # Verificar token y obtener usuario con sus relaciones
+            from sqlalchemy.orm import joinedload
+            from sqlalchemy import select
+            from ..models.users import User, Role
+            
+            # Primero validar el token
+            payload = await AuthService.decode_token(token)
+            user_id = payload.get("sub")
+            
+            if user_id:
+                # Cargar usuario con roles y permisos en una sola consulta
+                stmt = select(User).options(
+                    joinedload(User.role_relation).joinedload(Role.permissions)
+                ).filter(User.id == int(user_id))
+                
+                result = await db.execute(stmt)
+                user = result.scalar_one_or_none()
+                
+                logger.debug(f"User loaded with relations: {user}")
         except Exception as e:
             # Si hay un error con el token, solo registramos y continuamos sin usuario
             logger.error(f"Error al verificar token: {str(e)}")
