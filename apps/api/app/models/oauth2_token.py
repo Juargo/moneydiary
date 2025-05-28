@@ -15,11 +15,11 @@ class OAuth2Token(Base):
     expires_at = Column(DateTime, nullable=False)
     token_type = Column(String, default='bearer')
     scope = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.datetime.now)
+    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
     user = relationship("User", back_populates="oauth_tokens")
     
     @property
     def is_expired(self):
-        return datetime.datetime.utcnow() > self.expires_at
+        return datetime.datetime.now() > self.expires_at

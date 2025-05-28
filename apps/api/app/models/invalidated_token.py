@@ -10,10 +10,10 @@ class InvalidatedToken(Base):
     jti = Column(String, unique=True, nullable=False)  # JWT ID único
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     expires_at = Column(DateTime, nullable=False)
-    revoked_at = Column(DateTime, default=datetime.datetime.utcnow)
+    revoked_at = Column(DateTime, default=datetime.datetime.now)
     
     user = relationship("User", back_populates="invalidated_tokens")
     
     @property
     def is_expired(self):
-        return datetime.datetime.utcnow() > self.expires_at
+        return datetime.datetime.now() > self.expires_at

@@ -12,7 +12,7 @@ class Permission(Base):
     description = Column(String, nullable=True)
     resource = Column(String, nullable=False)  # accounts, transactions, etc.
     action = Column(String, nullable=False)    # create, read, update, delete
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.datetime.now)
+    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
     roles = relationship("Role", secondary=roles_permissions, back_populates="permissions")

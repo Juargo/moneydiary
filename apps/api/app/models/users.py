@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .base import Base
 from .user_financial_methods import user_financial_methods  
@@ -17,9 +17,9 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
     default_financial_method_id = Column(Integer, ForeignKey('financial_methods.id'))
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
-    
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+
     # Campos adicionales para OAuth2/JWT
     profile_image = Column(String, nullable=True)
     is_active = Column(Boolean, nullable=True)
