@@ -1,41 +1,92 @@
 ---
-import Layout from '../../layouts/Layout.astro';
 ---
 
-<Layout title="Autenticación en proceso...">
-  <div class="flex flex-col items-center justify-center min-h-screen p-4">
-    <div class="text-center">
-      <h1 class="text-2xl font-bold mb-4">Procesando tu inicio de sesión...</h1>
-      <p class="text-gray-600 mb-8">Por favor espera mientras completamos el proceso.</p>
-      <div class="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin mx-auto"></div>
-    </div>
-  </div>
-</Layout>
-
-<script>
-  import { handleAuthCallback } from '../../services/authService';
-  
-  async function processCallback() {
-    console.log('Procesando callback de autenticación...');
-    try {
-      const success = await handleAuthCallback();
-
-      console.log('Autenticación exitosa:', success);
-
-      
-      if (success) {
-        // Redirigir al dashboard después de autenticación exitosa
-        window.location.href = '/dashboard';
-      } else {
-        // Redirigir a la página de inicio en caso de error
-        window.location.href = '/?auth_error=true';
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Procesando autenticación...</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+          Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f9fafb;
       }
-    } catch (error) {
-      console.error('Error al procesar la autenticación:', error);
-      window.location.href = '/?auth_error=true';
-    }
-  }
-  
-  // Ejecutar cuando el documento esté listo
-  document.addEventListener('DOMContentLoaded', processCallback);
-</script>
+      .loader {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border-left-color: #3b82f6;
+        animation: spin 1s linear infinite;
+        margin-bottom: 16px;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader">
+      <div class="spinner"></div>
+      <p>Procesando tu inicio de sesión...</p>
+    </div>
+
+    <script>
+      // Obtener el código de autenticación de los parámetros de consulta
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const error = urlParams.get('error');
+      
+      // Importar el store de autenticación
+      import { initPinia } from '../../stores/pinia';
+      import { processGoogleCallback } from '../../services/authService';
+      
+      async function handleCallback() {
+        initPinia();
+        
+        if (error) {
+          console.error('Error de autenticación:', error);
+          // Redirigir a la página de login con mensaje de error
+          window.location.href = '/auth/login?error=' + encodeURIComponent(error);
+          return;
+        }
+        
+        if (!code) {
+          console.error('No se recibió código de autorización');
+          window.location.href = '/auth/login?error=no_code';
+          return;
+        }
+        
+        try {
+          // Procesar el callback
+          await processGoogleCallback(code);
+          
+          // Obtener la página de retorno desde localStorage, o usar dashboard como fallback
+          const returnTo = localStorage.getItem('auth_return_to') || '/dashboard';
+          localStorage.removeItem('auth_return_to'); // Limpiar después de usar
+          
+          // Redirigir al usuario
+          window.location.href = returnTo;
+        } catch (error) {
+          console.error('Error al procesar callback:', error);
+          window.location.href = '/auth/login?error=callback_failed';
+        }
+      }
+      
+      // Ejecutar inmediatamente
+      handleCallback();
+    </script>
+  </body>
+</html>

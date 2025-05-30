@@ -1,0 +1,76 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import LoginButton from "../../components/auth/LoginButton.vue";
+---
+
+<MainLayout title="MoneyDiary - Iniciar Sesión">
+  <div class="min-h-screen bg-gray-50 flex flex-col justify-center">
+    <div class="max-w-md w-full mx-auto">
+      <div class="text-center mb-8">
+        <h2 class="text-3xl font-extrabold text-gray-900">MoneyDiary</h2>
+        <p class="mt-2 text-sm text-gray-600">
+          Tu asistente para finanzas personales
+        </p>
+      </div>
+      <div class="bg-white py-8 px-4 shadow rounded-lg sm:px-10">
+        <div class="text-center mb-6">
+          <h1 class="text-xl font-bold text-gray-700">Bienvenido de nuevo</h1>
+          <p class="mt-2 text-sm text-gray-600">
+            Inicia sesión para acceder a tu cuenta
+          </p>
+        </div>
+        <div data-vue-app>
+          <LoginButton client:load />
+        </div>
+        <div class="mt-6">
+          <div class="relative">
+            <div class="absolute inset-0 flex items-center">
+              <div class="w-full border-t border-gray-300"></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+              <span class="px-2 bg-white text-gray-500">
+                ¿Primera vez en MoneyDiary?
+              </span>
+            </div>
+          </div>
+          <div class="mt-6 text-center">
+            <p class="text-sm text-gray-600">
+              Al iniciar sesión, aceptas nuestros 
+              <a href="/terms" class="font-medium text-blue-600 hover:text-blue-500">
+                Términos y Condiciones
+              </a>
+              y nuestra 
+              <a href="/privacy" class="font-medium text-blue-600 hover:text-blue-500">
+                Política de Privacidad
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</MainLayout>
+
+<script>
+  import { initPinia } from '../../stores/pinia';
+  import { loadUserInfo } from '../../services/authService';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Inicializar Pinia
+    initPinia();
+    
+    const { useAuthStore } = await import('../../stores/authStore');
+    const authStore = useAuthStore();
+    
+    // Si el usuario ya está autenticado, redirigir al dashboard
+    if (authStore.isAuthenticated) {
+      if (authStore.user) {
+        window.location.href = '/dashboard';
+      } else {
+        // Si tenemos token pero no datos de usuario, cargar la información
+        await loadUserInfo();
+        window.location.href = '/dashboard';
+      }
+    }
+  });
+</script>

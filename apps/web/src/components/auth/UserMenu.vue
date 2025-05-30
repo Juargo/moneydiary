@@ -1,7 +1,6 @@
-<!-- filepath: /Users/juargo/Documents/GitHub/moneydiary/apps/web/src/components/auth/UserMenu.vue -->
 <template>
   <div>
-    <div v-if="authStore.isAuthenticated">
+    <div v-if="authStore.isAuthenticated && authStore.user">
       <div class="relative inline-block text-left">
         <button
           @click="toggleDropdown"
@@ -10,7 +9,13 @@
           aria-expanded="false"
           aria-haspopup="true"
         >
-          <span>{{ authStore.user?.name }}</span>
+          <img
+            v-if="authStore.user.profileImage"
+            :src="authStore.user.profileImage"
+            class="w-8 h-8 rounded-full"
+            alt="Avatar"
+          />
+          <span>{{ authStore.user?.name || "Usuario" }}</span>
           <svg
             class="w-5 h-5"
             fill="none"
@@ -70,8 +75,13 @@
         </div>
       </div>
     </div>
+    <div v-else-if="authStore.isLoading">
+      <span class="text-gray-600">Cargando...</span>
+    </div>
     <div v-else>
-      <a href="/" class="text-blue-600 hover:text-blue-800">Iniciar sesión</a>
+      <a href="/auth/login" class="text-blue-600 hover:text-blue-800">
+        Iniciar sesión
+      </a>
     </div>
   </div>
 </template>
@@ -107,10 +117,12 @@ function logout() {
 }
 
 // Cerrar el menú al hacer clic fuera
-window.addEventListener("click", (event) => {
-  const userMenuButton = document.getElementById("user-menu-button");
-  if (userMenuButton && !userMenuButton.contains(event.target)) {
-    showDropdown.value = false;
-  }
-});
+if (typeof window !== "undefined") {
+  window.addEventListener("click", (event) => {
+    const userMenuButton = document.getElementById("user-menu-button");
+    if (userMenuButton && !userMenuButton.contains(event.target)) {
+      showDropdown.value = false;
+    }
+  });
+}
 </script>

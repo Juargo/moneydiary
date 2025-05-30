@@ -1,0 +1,90 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import UserMenu from "../../components/auth/UserMenu.vue";
+---
+
+<MainLayout title="Dashboard - MoneyDiary">
+  <div class="min-h-screen bg-gray-50">
+    <nav class="bg-white shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex">
+            <div class="flex-shrink-0 flex items-center">
+              <a href="/" class="text-xl font-bold text-blue-600">MoneyDiary</a>
+            </div>
+            <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+              <a href="/dashboard" class="border-blue-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                Dashboard
+              </a>
+              <a href="/dashboard/accounts" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                Cuentas
+              </a>
+              <a href="/dashboard/transactions" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                Transacciones
+              </a>
+            </div>
+          </div>
+          <div class="flex items-center">
+            <div data-vue-app>
+              <UserMenu client:load />
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="py-10">
+      <header>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 class="text-3xl font-bold leading-tight text-gray-900">Dashboard</h1>
+        </div>
+      </header>
+      <main>
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+          <div class="px-4 py-8 sm:px-0">
+            <div class="border-4 border-dashed border-gray-200 rounded-lg h-96 p-4 flex items-center justify-center">
+              <div class="text-center">
+                <h2 class="text-xl font-semibold text-gray-700" id="welcome-message">
+                  Bienvenido a tu Dashboard
+                </h2>
+                <p class="mt-2 text-gray-500">Aquí podrás gestionar todas tus finanzas personales.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</MainLayout>
+
+<script>
+  import { initPinia } from '../../stores/pinia';
+  import { loadUserInfo } from '../../services/authService';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Inicializar Pinia
+    initPinia();
+    
+    const { useAuthStore } = await import('../../stores/authStore');
+    const authStore = useAuthStore();
+    
+    // Si no está autenticado, redirigir al login
+    if (!authStore.isAuthenticated) {
+      window.location.href = '/auth/login?returnTo=/dashboard';
+      return;
+    }
+    
+    // Si está autenticado pero no tenemos los datos del usuario, cargarlos
+    if (!authStore.user) {
+      await loadUserInfo();
+    }
+    
+    // Si hay usuario, personalizar el mensaje
+    if (authStore.user) {
+      const welcomeMessage = document.getElementById('welcome-message');
+      if (welcomeMessage) {
+        welcomeMessage.textContent = `Bienvenido, ${authStore.user.name}`;
+      }
+    }
+  });
+</script>

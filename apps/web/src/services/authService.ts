@@ -1,335 +1,102 @@
-import { createSSRGraphQLClient } from "../utils/graphql/client";
-import {
-  ME_QUERY,
-  REFRESH_TOKEN_MUTATION,
-  LOGOUT_MUTATION,
-} from "../utils/graphql/auth";
+import { useAuthStore } from "../stores/authStore";
 
-// Debug flag - set to true to enable debugging
-const DEBUG_AUTH = false;
-
-// Helper function for debug logging
-const debugLog = (message: string, data?: any) => {
-  if (DEBUG_AUTH) {
-    if (data) {
-      console.log(`[Auth Debug] ${message}`, data);
-    } else {
-      console.log(`[Auth Debug] ${message}`);
-    }
-  }
-};
-
-// Cliente para SSR (sin autenticación)
-const ssrClient = createSSRGraphQLClient();
-
-// Función para obtener el cliente apropiado
-async function getClient() {
-  if (typeof window === "undefined") {
-    return ssrClient;
-  }
-
-  // Usar importación dinámica en lugar de require
-  const { createGraphQLClient } = await import("../utils/graphql/client");
-  return createGraphQLClient();
-}
-
-// Obtener la URL para iniciar sesión con Google
+/**
+ * Obtiene la URL para el inicio de sesión con Google
+ * @returns {string} URL para iniciar el flujo de OAuth con Google
+ */
 export function getGoogleLoginUrl() {
-  const url = `${
-    import.meta.env.PUBLIC_API_URL || "http://localhost:8000"
-  }/api/v1/auth/google/login`;
-
-  debugLog(`Google login URL: ${url}`);
-  return url;
+  const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+  // Especificar la URL de callback en el frontend
+  const redirectUri = `${window.location.origin}/auth/callback`;
+  return `${apiUrl}/api/v1/auth/google/login?redirect_uri=${encodeURIComponent(
+    redirectUri
+  )}`;
 }
 
-// Iniciar sesión con Google (redirecciona al usuario)
-export function loginWithGoogle() {
-  debugLog("Attempting to login with Google");
-  if (typeof window !== "undefined") {
-    const redirectUrl = getGoogleLoginUrl();
-    debugLog(`Redirecting to: ${redirectUrl}`);
-    window.location.href = redirectUrl;
-  } else {
-    debugLog("Login with Google called server-side, ignoring");
-  }
-}
-
-// Procesar la redirección de callback después de auth con Google
-export async function handleAuthCallback() {
-  debugLog("Handling auth callback");
-  if (typeof window === "undefined") {
-    debugLog("Called server-side, returning false");
-    return false;
-  }
-
-  const { useAuthStore } = await import("../stores/authStore");
+/**
+ * Procesa el callback de Google OAuth y almacena los tokens
+ * @param {string} code - Código de autorización recibido de Google
+ */
+export async function processGoogleCallback(code) {
   const authStore = useAuthStore();
+  const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
 
-  const params = new URLSearchParams(window.location.search);
-  const accessToken = params.get("access_token");
-  const refreshToken = params.get("refresh_token");
-
-  debugLog("Auth callback URL parameters", {
-    hasAccessToken: !!accessToken,
-    hasRefreshToken: !!refreshToken,
-  });
-
-  if (accessToken && refreshToken) {
-    debugLog("Tokens found, logging in user");
-    authStore.login({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      token_type: "bearer",
+  try {
+    // Intercambiar el código por tokens
+    const response = await fetch(`${apiUrl}/api/v1/auth/google/callback`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        code,
+        redirect_uri: `${window.location.origin}/auth/callback`,
+      }),
     });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || "Error al procesar autenticación");
+    }
+
+    const tokenData = await response.json();
+
+    // Guardar tokens en el store de autenticación
+    authStore.updateTokens(tokenData);
+
     // Cargar información del usuario
-    debugLog("Loading user information");
-    const success = await loadUserInfo();
-    debugLog(`User info loading ${success ? "succeeded" : "failed"}`);
+    await loadUserInfo();
 
     return true;
+  } catch (error) {
+    console.error("Error en el proceso de autenticación:", error);
+    throw error;
   }
-
-  const error = params.get("error");
-  if (error) {
-    debugLog("Authentication error", error);
-    console.error("Error de autenticación:", error);
-  } else {
-    debugLog("No tokens and no error in callback");
-  }
-
-  return false;
 }
 
-// Cargar información del usuario autenticado
+/**
+ * Carga la información del usuario autenticado
+ */
 export async function loadUserInfo() {
-  debugLog("Loading user information");
-  if (typeof window === "undefined") {
-    debugLog("Called server-side, returning false");
-    return false;
-  }
-
-  const { useAuthStore } = await import("../stores/authStore");
   const authStore = useAuthStore();
-
-  // Llamar a getClient de forma asíncrona
-  const client = await getClient();
+  const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
 
   try {
-    // Actualiza la consulta ME_QUERY para incluir información de rol y permisos
-    const result = await client.query(ME_QUERY, {}).toPromise();
-
-    if (result.error) {
-      debugLog("Error loading user information", result.error);
-      console.error("Error al cargar información del usuario:", result.error);
-      return false;
+    // Si no hay token de acceso, no hacer nada
+    if (!authStore.accessToken) {
+      return null;
     }
 
-    if (result.data?.me) {
-      debugLog("User information loaded successfully", result.data.me);
+    // Obtener información del usuario
+    const response = await fetch(`${apiUrl}/api/v1/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${authStore.accessToken}`,
+      },
+    });
 
-      // Asegurarse de que tenemos la información de rol y permisos
-      const userData = result.data.me;
-      authStore.setUser(userData);
-
-      // Registrar información sobre roles y permisos para debugging
-      if (userData.role) {
-        debugLog(`User role: ${userData.role.name}`);
-        if (userData.role.name === "admin") {
-          debugLog("User is an admin");
+    if (!response.ok) {
+      if (response.status === 401) {
+        // Token expirado, intentar refresh
+        const refreshed = await authStore.refreshAuthToken();
+        if (refreshed) {
+          // Reintentar con el nuevo token
+          return await loadUserInfo();
+        } else {
+          // Si no se pudo refrescar, limpiar autenticación
+          authStore.logout();
+          return null;
         }
       }
-
-      if (userData.permissions && userData.permissions.length > 0) {
-        debugLog(
-          `User permissions: ${userData.permissions
-            .map((p: Permission) => p.name)
-            .join(", ")}`
-        );
-        // Add the following interfaces at the top of the file or in a separate types file if preferred
-
-        interface Role {
-          name: string;
-        }
-
-        interface Permission {
-          name: string;
-        }
-
-        interface User {
-          role?: Role;
-          permissions?: Permission[];
-        }
-
-        interface AuthStore {
-          isAuthenticated: boolean;
-          user?: User;
-          login: (tokens: {
-            access_token: string;
-            refresh_token: string;
-            token_type: string;
-          }) => void;
-          logout: () => void;
-          setUser: (user: User) => void;
-        }
-      }
-
-      return true;
+      throw new Error(
+        `Error al obtener información del usuario: ${response.statusText}`
+      );
     }
+
+    const userData = await response.json();
+    authStore.setUser(userData);
+    return userData;
   } catch (error) {
-    debugLog("Error querying user information", error);
-    console.error("Error al consultar información de usuario:", error);
+    console.error("Error al cargar información del usuario:", error);
+    return null;
   }
-
-  debugLog("Failed to load user information");
-  return false;
-}
-
-// Verificar si el usuario tiene un rol específico
-export async function hasRole(roleName: string): Promise<boolean> {
-  debugLog(`Checking if user has role: ${roleName}`);
-
-  if (typeof window === "undefined") {
-    debugLog("Called server-side, returning false");
-    return false;
-  }
-
-  const { useAuthStore } = await import("../stores/authStore");
-  const authStore = useAuthStore();
-
-  // Si el usuario no está autenticado o no tenemos información, devolver false
-  if (!authStore.isAuthenticated || !authStore.user) {
-    debugLog("User not authenticated or user data not loaded");
-    return false;
-  }
-
-  // Si no tenemos información de rol, intentar cargarla primero
-  if (!authStore.user.role) {
-    debugLog("Role information not loaded, attempting to load user info");
-    const success = await loadUserInfo();
-    if (!success || !authStore.user?.role) {
-      debugLog("Failed to load role information");
-      return false;
-    }
-  }
-
-  const hasRole = authStore.user.role?.name === roleName;
-  debugLog(`User ${hasRole ? "has" : "does not have"} role: ${roleName}`);
-  return hasRole;
-}
-
-// Verificar si el usuario es administrador
-export async function isAdmin(): Promise<boolean> {
-  debugLog("Checking if user is admin");
-  return hasRole("admin");
-}
-
-// Verificar si el usuario tiene un permiso específico
-export async function hasPermission(permissionName: string): Promise<boolean> {
-  debugLog(`Checking if user has permission: ${permissionName}`);
-
-  if (typeof window === "undefined") {
-    debugLog("Called server-side, returning false");
-    return false;
-  }
-
-  const { useAuthStore } = await import("../stores/authStore");
-  const authStore = useAuthStore();
-
-  // Si el usuario no está autenticado o no tenemos información, devolver false
-  if (!authStore.isAuthenticated || !authStore.user) {
-    debugLog("User not authenticated or user data not loaded");
-    return false;
-  }
-
-  // Si no tenemos información de permisos, intentar cargarla primero
-  if (!authStore.user.permissions) {
-    debugLog("Permission information not loaded, attempting to load user info");
-    const success = await loadUserInfo();
-    if (!success || !authStore.user?.permissions) {
-      debugLog("Failed to load permission information");
-      return false;
-    }
-  }
-
-  const hasPermission =
-    authStore.user.permissions?.some((p) => p.name === permissionName) || false;
-  debugLog(
-    `User ${
-      hasPermission ? "has" : "does not have"
-    } permission: ${permissionName}`
-  );
-  return hasPermission;
-}
-
-// Redireccionar si el usuario no tiene el rol requerido
-export async function requireRole(
-  roleName: string,
-  redirectPath: string = "/unauthorized"
-): Promise<boolean> {
-  debugLog(`Requiring role: ${roleName}`);
-
-  if (typeof window === "undefined") {
-    debugLog("Called server-side, returning false");
-    return false;
-  }
-
-  const hasRequiredRole = await hasRole(roleName);
-
-  if (!hasRequiredRole) {
-    debugLog(
-      `User doesn't have required role. Redirecting to: ${redirectPath}`
-    );
-    window.location.href = redirectPath;
-    return false;
-  }
-
-  debugLog("User has required role");
-  return true;
-}
-
-// Redireccionar si el usuario no es administrador
-export async function requireAdmin(
-  redirectPath: string = "/unauthorized"
-): Promise<boolean> {
-  debugLog("Requiring admin role");
-  return requireRole("admin", redirectPath);
-}
-
-// Cerrar sesión
-export async function logout() {
-  debugLog("Attempting to logout");
-  if (typeof window === "undefined") {
-    debugLog("Called server-side, returning false");
-    return false;
-  }
-
-  const { useAuthStore } = await import("../stores/authStore");
-  const authStore = useAuthStore();
-  const client = await getClient();
-
-  try {
-    // Intentar hacer logout en el servidor
-    debugLog("Attempting server-side logout");
-    await client.mutation(LOGOUT_MUTATION, {}).toPromise();
-    debugLog("Server-side logout succeeded");
-  } catch (error) {
-    // Incluso si falla, continuamos con el logout local
-    debugLog("Error during server-side logout", error);
-    console.error("Error al cerrar sesión en el servidor:", error);
-  }
-
-  // Cerrar sesión localmente (borra tokens y datos de usuario)
-  debugLog("Performing local logout");
-  authStore.logout();
-
-  // Opcional: Redirigir al usuario a la página principal
-  if (typeof window !== "undefined") {
-    debugLog("Redirecting to home page");
-    window.location.href = "/";
-  }
-
-  debugLog("Logout process completed");
-  return true;
 }

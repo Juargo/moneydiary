@@ -1,7 +1,7 @@
 <template>
   <button
     @click="handleLogin"
-    class="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+    class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
   >
     <svg
       class="h-5 w-5 mr-2"
@@ -25,29 +25,24 @@
         fill="#EA4335"
       />
     </svg>
-    Inicia sesión con Google
+    Iniciar sesión con Google
   </button>
 </template>
 
-<!-- /**
- * This component provides a login button functionality for Google authentication.
- * 
- * Functions:
- * - `handleLogin`: A secure method to handle login by redirecting the user to the Google login URL.
- * - Ensures compatibility with Server-Side Rendering (SSR) by checking if the `window` object is available.
- * 
- * Dependencies:
- * - `getGoogleLoginUrl` (imported from "../../services/authService"): A function that returns the Google login URL.
- * 
- * Usage:
- * - This component should be used in a client-side environment to initiate the Google login process.
- */ -->
 <script setup>
 import { getGoogleLoginUrl } from "../../services/authService";
 
-// Método seguro para SSR
 function handleLogin() {
   if (typeof window !== "undefined") {
+    // Agregamos un parámetro para indicar la página de retorno después del login
+    const returnTo =
+      new URLSearchParams(window.location.search).get("returnTo") ||
+      "/dashboard";
+
+    // Almacenar la página de retorno en localStorage
+    localStorage.setItem("auth_return_to", returnTo);
+
+    // Redirigir al flujo de autenticación
     window.location.href = getGoogleLoginUrl();
   }
 }
