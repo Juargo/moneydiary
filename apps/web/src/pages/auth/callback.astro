@@ -16,8 +16,12 @@ import Layout from '../../layouts/Layout.astro';
   import { handleAuthCallback } from '../../services/authService';
   
   async function processCallback() {
+    console.log('Procesando callback de autenticación...');
     try {
       const success = await handleAuthCallback();
+
+      console.log('Autenticación exitosa:', success);
+
       
       if (success) {
         // Redirigir al dashboard después de autenticación exitosa

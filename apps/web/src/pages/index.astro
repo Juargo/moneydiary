@@ -30,26 +30,57 @@ import UserMenu from "../components/auth/UserMenu.vue";
 
 <script>
   // Este script se ejecutará solo en el cliente
-  import { createApp } from 'vue';
-  import { pinia, initPinia } from '../stores/pinia';
+  import { initPinia } from '../stores/pinia';
   import { loadUserInfo } from '../services/authService';
   import { isAdmin } from '../utils/auth';
 
   document.addEventListener('DOMContentLoaded', async () => {
-    // Inicializar Pinia
+    // Inicializar Pinia (store de Vue)
+    console.log("Inicializando Pinia..."); 
     initPinia();
     
     const { useAuthStore } = await import('../stores/authStore');
     const authStore = useAuthStore();
     
-    // Si el usuario está autenticado pero no tenemos sus datos, cargarlos
-    if (authStore.isAuthenticated && !authStore.user) {
-      await loadUserInfo();
-      
-      // Si el usuario es administrador, mostrar un mensaje de bienvenida especial
-      if (isAdmin()) {
-        console.log("Bienvenido, Administrador!");
-      }
+    console.log("Store de autenticación cargado:", authStore);
+
+    // Verificar si el usuario ya está autenticado
+    console.log("Verificando autenticación del usuario...", authStore.isAuthenticated);
+    if (authStore.isAuthenticated) {
+      console.log("Usuario ya autenticado:", authStore.user);
+    } else {
+      console.log("Usuario no autenticado, mostrando botón de inicio de sesión.");
     }
+    // // Si el usuario no está autenticado, redirigir al login
+    // if (!authStore.isAuthenticated) {
+    //   console.log("Redirigiendo al login...");
+    //   window.location.href = '/auth/login';
+    //   return;
+    // }
+    // console.log("Usuario autenticado, cargando información del usuario...");
+    // // Si el usuario está autenticado, cargar su información
+    // await loadUserInfo();
+    // console.log("Información del usuario cargada:", authStore.user);
+    // // Verificar si el usuario es administrador
+    // if (isAdmin()) {
+    //   console.log("El usuario es administrador.");
+    // } else {
+    //   console.log("El usuario no es administrador.");
+    // }
+    // // Si el usuario es administrador, mostrar un mensaje especial
+    // if (isAdmin()) {
+    //   console.log("Bienvenido, Administrador!");
+    // } else {
+    //   console.log("Bienvenido, Usuario!");
+    // }
+    // // Si el usuario está autenticado pero no tenemos sus datos, cargarlos
+    // if (authStore.isAuthenticated && !authStore.user) {
+    //   await loadUserInfo();
+    //   console.log("Información del usuario cargada:", authStore.user);
+    //   // Si el usuario es administrador, mostrar un mensaje de bienvenida especial
+    //   if (isAdmin()) {
+    //     console.log("Bienvenido, Administrador!");
+    //   }
+    // }
   });
 </script>

@@ -1,6 +1,7 @@
 import type { App } from "vue";
 import { createPinia } from "pinia";
 import urql from "@urql/vue";
+
 import { createSSRGraphQLClient } from "../utils/graphql/client";
 
 // Esta función se ejecutará durante la hidratación de Vue en el cliente
