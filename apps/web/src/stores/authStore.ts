@@ -180,6 +180,60 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  /**
+   * Renueva el token de acceso utilizando el refresh token almacenado
+   * @returns {Promise<boolean>} True si el token fue renovado con éxito, False en caso contrario
+   */
+  async function refreshAuthToken(): Promise<boolean> {
+    // Si no hay refresh token, no podemos renovar
+    if (!refreshToken.value) {
+      console.error("No hay refresh token disponible para renovar la sesión");
+      return false;
+    }
+
+    try {
+      const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+
+      // Llamar al endpoint de refresh token
+      const response = await fetch(`${apiUrl}/api/v1/auth/refresh-token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          refresh_token: refreshToken.value,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(
+          `Error al renovar token: ${response.status} ${response.statusText}`
+        );
+        // Si hay un error 401 o 403, el refresh token podría ser inválido
+        if (response.status === 401 || response.status === 403) {
+          logout(); // Cerrar sesión si el token ya no es válido
+        }
+        return false;
+      }
+
+      // Procesar la respuesta
+      const tokenData = await response.json();
+
+      // Actualizar los tokens en el store
+      updateTokens({
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token || refreshToken.value, // Usar el actual si no viene uno nuevo
+        token_type: tokenData.token_type || "bearer",
+      });
+
+      console.log("Token renovado exitosamente");
+      return true;
+    } catch (error) {
+      console.error("Error al renovar el token de acceso:", error);
+      return false;
+    }
+  }
+
   // Inicializar al crear el store solo si no es SSR
   if (typeof window !== "undefined") {
     init();
@@ -198,5 +252,6 @@ export const useAuthStore = defineStore("auth", () => {
     updateTokens,
     setUser,
     fetchUserInfo,
+    refreshAuthToken,
   };
 });

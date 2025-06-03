@@ -43,14 +43,20 @@ import UserMenu from "../components/auth/UserMenu.vue";
   document.addEventListener('DOMContentLoaded', async () => {
     // Inicializar Pinia
     initPinia();
-    
+
+    console.log('Pinia initialized');
     const { useAuthStore } = await import('../stores/authStore');
     const authStore = useAuthStore();
     
     // Ocultar el botón de inicio de sesión si el usuario está autenticado
     const loginLink = document.getElementById('login-link');
+
+    console.log('Auth Store:', authStore);
     if (loginLink && authStore.isAuthenticated) {
+      console.log('User is authenticated, hiding login link');
       loginLink.style.display = 'none';
     }
+
+    console.log('Welcome message displayed');
   });
 </script>
