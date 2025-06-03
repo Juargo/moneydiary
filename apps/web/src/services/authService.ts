@@ -47,6 +47,8 @@ export async function processGoogleCallback(code: string): Promise<boolean> {
       }),
     });
 
+    console.log("Respuesta del servidor al procesar callback:", response);
+
     if (!response.ok) {
       const errorData: GoogleCallbackError = await response.json();
       throw new Error(errorData.detail || "Error al procesar autenticación");

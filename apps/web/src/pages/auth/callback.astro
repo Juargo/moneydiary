@@ -35,58 +35,134 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
+      .error {
+        color: #ef4444;
+        margin-top: 16px;
+        text-align: center;
+        max-width: 400px;
+      }
     </style>
   </head>
   <body>
     <div class="loader">
       <div class="spinner"></div>
-      <p>Procesando tu inicio de sesión...</p>
+      <p id="status-message">Procesando tu inicio de sesión...</p>
+      <div id="error-container" class="error" style="display: none;"></div>
     </div>
 
     <script>
-      // Obtener el código de autenticación de los parámetros de consulta
+      // Obtener los tokens directamente de los parámetros de consulta
       const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
+      const accessToken = urlParams.get('access_token');
+      const refreshToken = urlParams.get('refresh_token');
+      const tokenType = urlParams.get('token_type');
       const error = urlParams.get('error');
+      const errorDescription = urlParams.get('error_description');
       
-      // Importar el store de autenticación
+      // Importar lo necesario para gestionar la autenticación
       import { initPinia } from '../../stores/pinia';
-      import { processGoogleCallback } from '../../services/authService';
+      import { useAuthStore } from '../../stores/authStore';
+      import { loadUserInfo } from '../../services/authService';
+      
+      const statusMessage = document.getElementById('status-message');
+      const errorContainer = document.getElementById('error-container');
       
       async function handleCallback() {
+        console.log('Inicializando Pinia... callback page');
         initPinia();
         
+        const authStore = useAuthStore();
+        
+        // Verificar si hay error
         if (error) {
-          console.error('Error de autenticación:', error);
-          // Redirigir a la página de login con mensaje de error
-          window.location.href = '/auth/login?error=' + encodeURIComponent(error);
+          console.error('Error de autenticación:', error, errorDescription);
+          if (statusMessage) {
+            statusMessage.textContent = 'Ocurrió un error durante la autenticación';
+          }
+          if (errorContainer) {
+            errorContainer.textContent = errorDescription || error;
+            errorContainer.style.display = 'block';
+          }
+          
+          // Redirigir después de mostrar el error por un momento
+          setTimeout(() => {
+            window.location.href = '/auth/login?error=' + encodeURIComponent(error);
+          }, 3000);
           return;
         }
         
-        if (!code) {
-          console.error('No se recibió código de autorización');
-          window.location.href = '/auth/login?error=no_code';
+        // Verificar si tenemos los tokens necesarios
+        if (!accessToken || !refreshToken) {
+          console.error('No se recibieron tokens de autenticación');
+          if (statusMessage) {
+            statusMessage.textContent = 'No se pudo completar la autenticación';
+          }
+          if (errorContainer) {
+            errorContainer.textContent = 'No se recibieron los datos necesarios para iniciar sesión.';
+            errorContainer.style.display = 'block';
+          }
+          
+          // Redirigir después de mostrar el error
+          setTimeout(() => {
+            window.location.href = '/auth/login?error=missing_tokens';
+          }, 3000);
           return;
         }
         
         try {
-          // Procesar el callback
-          await processGoogleCallback(code);
+          // Almacenar los tokens en el store
+          authStore.updateTokens({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            token_type: tokenType || 'bearer'
+          });
+          
+          console.log('Tokens guardados correctamente');
+          if (statusMessage) {
+            statusMessage.textContent = 'Autenticación exitosa, cargando tu información...';
+          }
+          
+          // Cargar información del usuario
+          await loadUserInfo();
           
           // Obtener la página de retorno desde localStorage, o usar dashboard como fallback
           const returnTo = localStorage.getItem('auth_return_to') || '/dashboard';
           localStorage.removeItem('auth_return_to'); // Limpiar después de usar
           
+          // Limpiar la URL (para no dejar tokens expuestos)
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+          
+          console.log('Redirigiendo a:', returnTo);
           // Redirigir al usuario
           window.location.href = returnTo;
         } catch (error) {
-          console.error('Error al procesar callback:', error);
-          window.location.href = '/auth/login?error=callback_failed';
+          console.error('Error al procesar la autenticación:', error);
+          if (statusMessage) {
+            statusMessage.textContent = 'Ocurrió un error al procesar la autenticación';
+          }
+          if (errorContainer) {
+            let errorMessage = 'No se pudo completar el proceso de inicio de sesión';
+            if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+              errorMessage = error.message;
+            }
+            errorContainer.textContent = errorMessage;
+            errorContainer.style.display = 'block';
+          }
+          
+          // Limpiar tokens en caso de error
+          authStore.logout();
+          
+          // Redirigir después de mostrar el error
+          setTimeout(() => {
+            window.location.href = '/auth/login?error=processing_failed';
+          }, 3000);
         }
       }
       
-      // Ejecutar inmediatamente
-      handleCallback();
+      // Ejecutar cuando el DOM esté completamente cargado
+      document.addEventListener('DOMContentLoaded', handleCallback);
     </script>
   </body>
 </html>

@@ -33,11 +33,15 @@
 import { getGoogleLoginUrl } from "../../services/authService";
 
 function handleLogin() {
+  console.log("Iniciando sesión con Google...");
   if (typeof window !== "undefined") {
+    console.log("Redirigiendo al flujo de autenticación de Google...");
     // Agregamos un parámetro para indicar la página de retorno después del login
     const returnTo =
       new URLSearchParams(window.location.search).get("returnTo") ||
       "/dashboard";
+
+    console.log("Página de retorno:", returnTo);
 
     // Almacenar la página de retorno en localStorage
     localStorage.setItem("auth_return_to", returnTo);
