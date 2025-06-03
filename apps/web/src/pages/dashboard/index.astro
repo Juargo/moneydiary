@@ -67,31 +67,31 @@ import UserMenu from "../../components/auth/UserMenu.vue";
 
     console.log('Dashboard page loaded');
     
-    const { useAuthStore } = await import('../../stores/authStore');
-    const authStore = useAuthStore();
+    // const { useAuthStore } = await import('../../stores/authStore');
+    // const authStore = useAuthStore();
     
-    // Si no está autenticado, redirigir al login
-    if (!authStore.isAuthenticated) {
-      console.log('User is not authenticated, redirecting to login');
-      window.location.href = '/auth/login?returnTo=/dashboard';
-      return;
-    }
+    // // Si no está autenticado, redirigir al login
+    // if (!authStore.isAuthenticated) {
+    //   console.log('User is not authenticated, redirecting to login');
+    //   window.location.href = '/auth/login?returnTo=/dashboard';
+    //   return;
+    // }
 
-    console.log('User is authenticated');
+    // console.log('User is authenticated');
 
-    // Si está autenticado pero no tenemos los datos del usuario, cargarlos
-    if (!authStore.user) {
-      await loadUserInfo();
-    }
+    // // Si está autenticado pero no tenemos los datos del usuario, cargarlos
+    // if (!authStore.user) {
+    //   await loadUserInfo();
+    // }
     
-    console.log('User data loaded:', authStore.user);
+    // console.log('User data loaded:', authStore.user);
 
-    // Si hay usuario, personalizar el mensaje
-    if (authStore.user) {
-      const welcomeMessage = document.getElementById('welcome-message');
-      if (welcomeMessage) {
-        welcomeMessage.textContent = `Bienvenido, ${authStore.user.name}`;
-      }
-    }
+    // // Si hay usuario, personalizar el mensaje
+    // if (authStore.user) {
+    //   const welcomeMessage = document.getElementById('welcome-message');
+    //   if (welcomeMessage) {
+    //     welcomeMessage.textContent = `Bienvenido, ${authStore.user.name}`;
+    //   }
+    // }
   });
 </script>

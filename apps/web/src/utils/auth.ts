@@ -36,6 +36,9 @@ export function hasRole(roleName: string, loadIfMissing = true): boolean {
     debugLog("Role information not loaded, scheduling user info load");
     // Programar la carga pero no esperar (esto se hará de forma asíncrona)
     setTimeout(async () => {
+      console.log(
+        "Scheduling user info load for role check from loadUserInfo() from authStore"
+      );
       await loadUserInfo();
     }, 0);
   }
@@ -83,6 +86,9 @@ export function hasPermission(
     debugLog("Permission information not loaded, scheduling user info load");
     // Programar la carga pero no esperar (esto se hará de forma asíncrona)
     setTimeout(async () => {
+      console.log(
+        "Scheduling user info load for permission check from loadUserInfo() from hasPermission"
+      );
       await loadUserInfo();
     }, 0);
   }

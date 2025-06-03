@@ -72,6 +72,7 @@ import LoginButton from "../../components/auth/LoginButton.vue";
         window.location.href = '/dashboard';
       } else {
         // Si tenemos token pero no datos de usuario, cargar la información
+        console.log('Loading user info... from login.astro');
         await loadUserInfo();
         window.location.href = '/dashboard';
       }

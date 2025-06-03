@@ -103,6 +103,7 @@ const isAdmin = computed(() => {
 onMounted(async () => {
   // Cargar información del usuario si está autenticado pero no tenemos sus datos
   if (authStore.isAuthenticated && !authStore.user) {
+    console.log("Cargando información del usuario... desde UserMenu.vue");
     await loadUserInfo();
   }
 });

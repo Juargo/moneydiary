@@ -17,5 +17,5 @@ export default (app: App) => {
   // Si necesitas registrar componentes globales, hazlo aquí
   // app.component('GlobalComponent', GlobalComponent);
 
-  console.log("Vue inicializado con Pinia y urql");
+  // console.log("Vue inicializado con Pinia y urql");
 };

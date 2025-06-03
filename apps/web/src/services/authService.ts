@@ -70,6 +70,8 @@ export async function processGoogleCallback(code: string): Promise<boolean> {
     });
 
     // Cargar información del usuario
+    console.log("Tokens guardados correctamente:", tokenData);
+    console.log("Cargando información del usuario... from authService.ts");
     await loadUserInfo();
 
     return true;
@@ -83,9 +85,15 @@ export async function processGoogleCallback(code: string): Promise<boolean> {
  * Carga la información del usuario autenticado
  */
 export async function loadUserInfo() {
-  console.log("Cargando información del usuario...");
+  console.log("loadUserInfo called");
   const authStore = useAuthStore();
   const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+
+  // Evitar llamadas innecesarias si ya tenemos los datos del usuario
+  if (authStore.user && Object.keys(authStore.user).length > 0) {
+    console.log("Usuario ya cargado, evitando llamada API redundante");
+    return authStore.user;
+  }
 
   console.log("Token de acceso:", authStore.accessToken);
   try {
@@ -108,8 +116,8 @@ export async function loadUserInfo() {
         // Token expirado, intentar refresh
         const refreshed = await authStore.refreshAuthToken();
         if (refreshed) {
-          // Reintentar con el nuevo token
-          return await loadUserInfo();
+          // Reintentar con el nuevo token (una sola vez para evitar loops)
+          return await loadUserInfoOnce();
         } else {
           // Si no se pudo refrescar, limpiar autenticación
           authStore.logout();
@@ -124,10 +132,38 @@ export async function loadUserInfo() {
     console.log("Información del usuario recibida correctamente");
     const userData = await response.json();
     console.log("Datos del usuario:", userData);
+
+    // Actualizar el store (línea descomentada)
     authStore.setUser(userData);
     return userData;
   } catch (error) {
     console.error("Error al cargar información del usuario:", error);
+    return null;
+  }
+}
+
+// Función auxiliar para el reintento único
+async function loadUserInfoOnce() {
+  const authStore = useAuthStore();
+  const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+
+  try {
+    const response = await fetch(`${apiUrl}/api/v1/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${authStore.accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      authStore.logout();
+      return null;
+    }
+
+    const userData = await response.json();
+    authStore.setUser(userData);
+    return userData;
+  } catch (error) {
+    authStore.logout();
     return null;
   }
 }
