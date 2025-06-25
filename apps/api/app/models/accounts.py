@@ -24,14 +24,11 @@ class Account(Base):
     user = relationship("User", back_populates="accounts") # Relación con el modelo User
     bank = relationship("Bank", back_populates="accounts") # Relación con el modelo Bank
     account_type = relationship("AccountType", back_populates="accounts") # Relación con el modelo AccountType
-    transactions = relationship("Transaction", back_populates="account") # Relación con el modelo Transaction
+    transactions = relationship("Transaction", back_populates="account", foreign_keys="Transaction.account_id") # Relación con las transacciones asociadas a la cuenta
+    incoming_transfers = relationship("Transaction", back_populates="transfer_account", foreign_keys="Transaction.transfer_account_id") # Relación con las transferencias entrantes asociadas a la cuenta
 
 
     # ============================
 
     # is_tracking_only = Column(Boolean, nullable=False, default=False)
     # include_in_net_worth = Column(Boolean, nullable=False, default=True)
-
-    # incoming_transfers = relationship("Transaction", 
-    #                                  back_populates="transfer_account", 
-    #                                  foreign_keys="Transaction.transfer_account_id")
