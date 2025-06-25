@@ -7,20 +7,22 @@ class Bank(Base):
     """Modelo para representar bancos en el sistema."""
     
     __tablename__ = "banks"
+    __table_args__ = {'schema': 'app'} 
+
+    id = Column(Integer, primary_key=True, index=True) # ID del banco
+    name = Column(String(100), nullable=False, index=True) # Nombre del banco
+    code = Column(String(20), nullable=False, index=True, unique=True) # Código del banco
+    logo_url = Column(String(255), nullable=True) # URL del logo del banco
+    active = Column(Boolean, default=True) # Indica si el banco está activo
+    description = Column(Text, nullable=True) # Descripción del banco
+    created_at = Column(DateTime, default=func.now()) # Fecha de creación del banco
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now()) # Fecha de última actualización del banco
     
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False, index=True)
-    code = Column(String(20), nullable=False, index=True, unique=True)
-    logo_url = Column(String(255), nullable=True)
-    active = Column(Boolean, default=True)
-    description = Column(Text, nullable=True)
-    
-    # Timestamps
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-    
-    # Relationships
-    csv_profiles = relationship("CsvImportProfile", back_populates="bank")
+    # ============================
+    # Relationships and Foreign Keys
+    # ============================
+    csv_profiles = relationship("CsvImportProfile", back_populates="bank") # Perfiles de importación CSV asociados al banco
+    accounts = relationship("Account", back_populates="bank") # Cuentas asociadas al banco
     
     def __repr__(self):
         return f"<Bank {self.name}>"
