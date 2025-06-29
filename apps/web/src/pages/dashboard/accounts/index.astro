@@ -1,17 +1,11 @@
 ---
 import MainLayout from "../../../layouts/MainLayout.astro";
-import AccountManager from "../../../components/accounts/AccountManager.vue";
+import AccountListComponent from "../../../components/accounts/AccountList.vue";
 import UserMenu from "../../../components/auth/UserMenu.vue";
-import { getActivePinia } from "../../../stores/pinia";
 
-// Inicializar Pinia para SSR (si es necesario)
-getActivePinia();
-
-// El ID de la cuenta viene de la URL
-const { id } = Astro.params;
 ---
 
-<MainLayout title="Administrar Cuenta - MoneyDiary">
+<MainLayout title="Mis Cuentas - MoneyDiary">
   <div class="min-h-screen bg-gray-50">
     <nav class="bg-white shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -44,14 +38,22 @@ const { id } = Astro.params;
     <div class="py-10">
       <header>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 class="text-3xl font-bold leading-tight text-gray-900">Administrar Cuenta</h1>
+          <div class="flex justify-between items-center">
+            <h1 class="text-3xl font-bold leading-tight text-gray-900">Mis Cuentas</h1>
+            <a 
+              href="/dashboard/accounts/new" 
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              Nueva Cuenta
+            </a>
+          </div>
         </div>
       </header>
       <main>
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
           <div class="px-4 py-8 sm:px-0">
             <div data-vue-app>
-              <AccountManager accountId={id} client:load />
+              <AccountListComponent client:load />
             </div>
           </div>
         </div>

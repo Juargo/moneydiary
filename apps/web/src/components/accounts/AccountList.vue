@@ -1,11 +1,13 @@
 <template>
   <div>
+    <!-- Indicador de carga -->
     <div v-if="loading" class="flex justify-center py-10">
       <div
         class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"
       ></div>
     </div>
 
+    <!-- Mensaje de error -->
     <div
       v-else-if="error"
       class="bg-red-50 border border-red-200 p-4 rounded-md"
@@ -19,6 +21,7 @@
       </button>
     </div>
 
+    <!-- Lista de cuentas -->
     <div
       v-else-if="accounts.length"
       class="bg-white shadow overflow-hidden sm:rounded-lg"
@@ -29,6 +32,7 @@
           :key="account.id"
           class="hover:bg-gray-50"
         >
+          <!-- Enlace al detalle de la cuenta usando el ID -->
           <a :href="`/dashboard/accounts/${account.id}`" class="block">
             <div class="px-4 py-4 sm:px-6">
               <div class="flex items-center justify-between">
@@ -56,8 +60,8 @@
                       {{ account.name }}
                     </div>
                     <div class="text-sm text-gray-500">
-                      {{ account.bank?.name }} ·
-                      {{ account.account_type?.name }}
+                      {{ account.bank?.name || "Sin banco" }} ·
+                      {{ account.account_type?.name || "Sin tipo" }}
                     </div>
                   </div>
                 </div>
@@ -72,13 +76,6 @@
                   >
                     {{ formatCurrency(account.current_balance) }}
                   </div>
-                  <div class="text-xs text-gray-500">
-                    {{
-                      account.account_number
-                        ? formatAccountNumber(account.account_number)
-                        : "Sin número"
-                    }}
-                  </div>
                 </div>
               </div>
             </div>
@@ -87,6 +84,7 @@
       </ul>
     </div>
 
+    <!-- Estado sin cuentas -->
     <div v-else class="bg-white shadow sm:rounded-lg p-6 text-center">
       <p class="text-gray-700">No tienes ninguna cuenta registrada.</p>
       <a
@@ -103,19 +101,17 @@
 import { ref, onMounted } from "vue";
 import { useAuthStore } from "../../stores/authStore";
 
-// Estado
 const authStore = useAuthStore();
+const accounts = ref([]);
 const loading = ref(true);
 const error = ref(null);
-const accounts = ref([]);
 
-// Obtener datos de las cuentas
+// Función para obtener las cuentas del usuario
 async function fetchAccounts() {
   loading.value = true;
   error.value = null;
 
   try {
-    // Si no hay token de acceso, redirigir al login
     if (!authStore.accessToken) {
       window.location.href = "/auth/login?returnTo=/dashboard/accounts";
       return;
@@ -123,6 +119,7 @@ async function fetchAccounts() {
 
     const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
 
+    // URL correcta para obtener todas las cuentas del usuario autenticado
     const response = await fetch(`${apiUrl}/api/v1/accounts`, {
       headers: {
         Authorization: `Bearer ${authStore.accessToken}`,
@@ -131,47 +128,33 @@ async function fetchAccounts() {
 
     if (!response.ok) {
       if (response.status === 401) {
-        // Token expirado, intentar refresh
         const refreshed = await authStore.refreshAuthToken();
         if (refreshed) {
-          // Reintentar con el nuevo token
-          return await fetchAccounts();
+          return fetchAccounts();
         } else {
-          // Si no se pudo refrescar, redirigir al login
           window.location.href = "/auth/login?returnTo=/dashboard/accounts";
           return;
         }
       }
-
-      throw new Error(`Error al obtener cuentas: ${response.statusText}`);
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
     accounts.value = data.items || data;
-    loading.value = false;
   } catch (err) {
-    console.error("Error al cargar cuentas:", err);
+    console.error("Error al obtener cuentas:", err);
     error.value =
-      "No se pudieron cargar tus cuentas. Por favor, intenta nuevamente.";
+      "No se pudieron cargar las cuentas. Por favor, intenta nuevamente.";
+  } finally {
     loading.value = false;
   }
 }
 
-// Funciones de formato
 function formatCurrency(amount) {
   return new Intl.NumberFormat("es-CL", {
     style: "currency",
     currency: "CLP",
   }).format(amount);
-}
-
-function formatAccountNumber(accountNumber) {
-  if (!accountNumber) return "";
-  // Mostrar sólo los últimos 4 dígitos
-  if (accountNumber.length > 4) {
-    return "••••" + accountNumber.slice(-4);
-  }
-  return accountNumber;
 }
 
 function getBankInitials(bankName) {
@@ -184,7 +167,6 @@ function getBankInitials(bankName) {
     .toUpperCase();
 }
 
-// Inicializar
 onMounted(() => {
   fetchAccounts();
 });
