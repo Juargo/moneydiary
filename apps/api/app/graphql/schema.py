@@ -6,6 +6,7 @@ from ..version import __version__
 # Importar todas las consultas y mutaciones
 from .queries.auth import get_me, get_google_auth_url
 from .mutations.auth import refresh_token, logout, google_auth
+from .queries.accounts import get_my_accounts
 
 @strawberry.type
 class Query:
@@ -20,6 +21,7 @@ class Query:
     # Consulta para obtener el usuario autenticado actual
     me = strawberry.field(resolver=get_me)
     google_auth_url = strawberry.field(resolver=get_google_auth_url)
+    my_accounts = strawberry.field(resolver=get_my_accounts)
 
 @strawberry.type
 class Mutation:
