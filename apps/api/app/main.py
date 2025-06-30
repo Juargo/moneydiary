@@ -47,6 +47,7 @@ from .init_db import initialize_database
 
 # GraphQL imports
 from .graphql.schema import schema
+from .graphql.test_schema import test_schema
 from .graphql.context import get_context
 from .graphql.client_utils import SnakeCaseGraphQLMiddleware
 from .graphql.debug import debug_query, debug_result
@@ -151,20 +152,25 @@ def initialize_app():
 def create_graphql_router() -> GraphQLRouter:
     """
     Crea y configura el router GraphQL con la configuración adecuada.
-    
-    Este router está optimizado para consultas complejas y relacionadas,
-    siguiendo la estrategia de "GraphQL para consultas, REST para mutaciones"
-    
-    Returns:
-        GraphQLRouter: Router configurado para manejar consultas GraphQL
     """
     logger.debug("Configurando router GraphQL...")
-    return GraphQLRouter(
-        schema=schema,
-        context_getter=get_context,
-        graphiql=True, 
-        debug=True
-    )
+    
+    try:
+        router = GraphQLRouter(
+            schema=test_schema,  
+            graphiql=True,
+            debug=True,
+            # Configuración adicional para manejo de errores
+            keep_alive=False,
+            keep_alive_interval=15,
+            # context_getter=get_context,  # Mantener comentado por ahora
+        )
+        logger.info("✅ Router GraphQL configurado correctamente")
+        return router
+        
+    except Exception as e:
+        logger.error(f"❌ Error configurando router GraphQL: {e}")
+        raise
 
 def create_application() -> FastAPI:
     """
@@ -212,7 +218,7 @@ def create_application() -> FastAPI:
     setup_middleware(app)
     
     # Middleware para conversión snake_case/camelCase en GraphQL
-    app.add_middleware(SnakeCaseGraphQLMiddleware)
+    # app.add_middleware(SnakeCaseGraphQLMiddleware)
     
     # Registrar routers
     app.include_router(basic.router)
