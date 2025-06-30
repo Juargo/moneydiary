@@ -40,14 +40,14 @@
                   <div
                     class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full"
                     :class="
-                      account.active
+                      account.isActive
                         ? 'bg-green-100 text-green-700'
                         : 'bg-gray-100 text-gray-500'
                     "
                   >
                     <img
-                      v-if="account.bank?.logo_url"
-                      :src="account.bank.logo_url"
+                      v-if="account.bank?.logoUrl"
+                      :src="account.bank.logoUrl"
                       class="h-6 w-6"
                       :alt="account.bank.name"
                     />
@@ -61,7 +61,7 @@
                     </div>
                     <div class="text-sm text-gray-500">
                       {{ account.bank?.name || "Sin banco" }} ·
-                      {{ account.account_type?.name || "Sin tipo" }}
+                      {{ account.accountType?.name || "Sin tipo" }}
                     </div>
                   </div>
                 </div>
@@ -69,12 +69,10 @@
                   <div
                     class="text-sm font-semibold"
                     :class="
-                      account.current_balance >= 0
-                        ? 'text-green-700'
-                        : 'text-red-700'
+                      account.balance >= 0 ? 'text-green-700' : 'text-red-700'
                     "
                   >
-                    {{ formatCurrency(account.current_balance) }}
+                    {{ formatCurrency(account.balance) }}
                   </div>
                 </div>
               </div>
@@ -106,7 +104,54 @@ const accounts = ref([]);
 const loading = ref(true);
 const error = ref(null);
 
-// Función para obtener las cuentas del usuario
+// GraphQL query para obtener las cuentas del usuario
+const GET_MY_ACCOUNTS_QUERY = `
+  query GetMyAccounts {
+    myAccounts {
+      id
+      name
+      accountType
+      balance
+      currency
+      bankId
+      isActive
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// Función para realizar una consulta GraphQL
+async function graphqlRequest(query, variables = {}) {
+  const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+
+  const response = await fetch(`${apiUrl}/graphql`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authStore.accessToken}`,
+    },
+    body: JSON.stringify({
+      query,
+      variables,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  // Verificar si hay errores de GraphQL
+  if (data.errors) {
+    throw new Error(data.errors[0]?.message || "Error en la consulta GraphQL");
+  }
+
+  return data.data;
+}
+
+// Función para obtener las cuentas del usuario usando GraphQL
 async function fetchAccounts() {
   loading.value = true;
   error.value = null;
@@ -117,33 +162,28 @@ async function fetchAccounts() {
       return;
     }
 
-    const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
-
-    // URL correcta para obtener todas las cuentas del usuario autenticado
-    const response = await fetch(`${apiUrl}/api/v1/accounts`, {
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        const refreshed = await authStore.refreshAuthToken();
-        if (refreshed) {
-          return fetchAccounts();
-        } else {
-          window.location.href = "/auth/login?returnTo=/dashboard/accounts";
-          return;
-        }
-      }
-      throw new Error(`Error ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    accounts.value = data.items || data;
+    // Realizar consulta GraphQL
+    const data = await graphqlRequest(GET_MY_ACCOUNTS_QUERY);
+    accounts.value = data.myAccounts || [];
   } catch (err) {
     console.error("Error al obtener cuentas:", err);
+
+    // Manejar errores de autenticación
+    if (
+      err.message.includes("401") ||
+      err.message.includes("Credenciales inválidas")
+    ) {
+      const refreshed = await authStore.refreshAuthToken();
+      if (refreshed) {
+        return fetchAccounts();
+      } else {
+        window.location.href = "/auth/login?returnTo=/dashboard/accounts";
+        return;
+      }
+    }
+
     error.value =
+      err.message ||
       "No se pudieron cargar las cuentas. Por favor, intenta nuevamente.";
   } finally {
     loading.value = false;

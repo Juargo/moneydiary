@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 from .base import Base
 from .role import roles_permissions
-import datetime
+from datetime import datetime
 
 class Permission(Base):
     __tablename__ = 'permissions'
@@ -12,7 +12,7 @@ class Permission(Base):
     description = Column(String, nullable=True)
     resource = Column(String, nullable=False)  # accounts, transactions, etc.
     action = Column(String, nullable=False)    # create, read, update, delete
-    created_at = Column(DateTime, default=datetime.datetime.now)
-    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     roles = relationship("Role", secondary=roles_permissions, back_populates="permissions")

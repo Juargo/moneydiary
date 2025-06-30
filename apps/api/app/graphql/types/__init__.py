@@ -13,3 +13,4 @@
 # Add any utility types or custom scalars here
 
 from .auth import AuthUserType,TokenType
+from .accounts import Account, convert_account_model_to_graphql

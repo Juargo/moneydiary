@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
 from .base import Base
-import datetime
+from datetime import datetime
 
 class OAuth2Token(Base):
     __tablename__ = 'oauth2_tokens'
@@ -15,11 +15,11 @@ class OAuth2Token(Base):
     expires_at = Column(DateTime, nullable=False)
     token_type = Column(String, default='bearer')
     scope = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.now)
-    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     user = relationship("User", back_populates="oauth_tokens")
     
     @property
     def is_expired(self):
-        return datetime.datetime.now() > self.expires_at
+        return datetime.now() > self.expires_at

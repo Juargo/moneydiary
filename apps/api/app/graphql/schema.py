@@ -6,7 +6,7 @@ from ..version import __version__
 # Importar todas las consultas y mutaciones
 from .queries.auth import get_me, get_google_auth_url
 from .mutations.auth import refresh_token, logout, google_auth
-from .queries.accounts import get_my_accounts
+from .queries.account import get_my_accounts
 
 @strawberry.type
 class Query:

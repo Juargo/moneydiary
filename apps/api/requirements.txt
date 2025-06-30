@@ -134,7 +134,7 @@ soupsieve==2.4.1
 SQLAlchemy==2.0.39
 stack-data==0.6.2
 starlette==0.46.1
-strawberry-graphql==0.266.0
+strawberry-graphql>=0.270.0
 tldextract==3.4.0
 toml==0.10.2
 tomli==2.0.1
