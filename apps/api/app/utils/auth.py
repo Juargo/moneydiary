@@ -20,7 +20,7 @@ async def get_authenticated_user(info: Info) -> User:
     """
     try:
         # Obtener la request desde el contexto de GraphQL
-        request = info.context["request"]
+        request = info.context.request
         
         # Extraer el token del header Authorization
         authorization = request.headers.get("Authorization")
@@ -36,7 +36,7 @@ async def get_authenticated_user(info: Info) -> User:
             raise Exception("Token no proporcionado")
         
         # Obtener la sesión de base de datos del contexto
-        db = info.context["db"]
+        db = info.context.db
         
         # Usar AuthService para obtener el usuario autenticado
         current_user = await AuthService.get_current_user(token, db)

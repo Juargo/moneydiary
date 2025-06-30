@@ -157,13 +157,13 @@ def create_graphql_router() -> GraphQLRouter:
     
     try:
         router = GraphQLRouter(
-            schema=test_schema,  
+            schema,  # Usar el schema principal
             graphiql=True,
             debug=True,
             # Configuración adicional para manejo de errores
             keep_alive=False,
             keep_alive_interval=15,
-            # context_getter=get_context,  # Mantener comentado por ahora
+            context_getter=get_context,  
         )
         logger.info("✅ Router GraphQL configurado correctamente")
         return router
