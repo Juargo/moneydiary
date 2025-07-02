@@ -49,6 +49,25 @@ except Exception as e:
     def get_my_accounts(info: Info) -> list:
         return []
 
+# Importar queries de bancos
+try:
+    from .queries.bank import get_banks
+    logger.debug("✅ Bank queries importadas correctamente")
+except Exception as e:
+    logger.error(f"❌ Error importando bank queries: {e}")
+    # Crear resolvers fallback
+    @strawberry.field
+    def get_banks(info: Info) -> list:
+        return []
+    
+    @strawberry.field
+    def get_bank(info: Info, bank_id: int) -> None:
+        return None
+    
+    @strawberry.field
+    def get_bank_by_code_query(info: Info, bank_code: str) -> None:
+        return None
+
 @strawberry.type
 class Query:
     @strawberry.field
@@ -59,10 +78,17 @@ class Query:
     def hello(self) -> str:
         return "Hello from MoneyDiary API!"
     
-    # Consultas
+    # Consultas de autenticación
     me = strawberry.field(resolver=get_me)
     google_auth_url = strawberry.field(resolver=get_google_auth_url)
+    
+    # Consultas de cuentas
     my_accounts = strawberry.field(resolver=get_my_accounts)
+    
+    # Consultas de bancos
+    banks = strawberry.field(resolver=get_banks)
+    bank = strawberry.field(resolver=get_bank)
+    bank_by_code = strawberry.field(resolver=get_bank_by_code_query)
 
 @strawberry.type
 class Mutation:
@@ -71,7 +97,7 @@ class Mutation:
     refresh_token = strawberry.field(resolver=refresh_token)
     logout = strawberry.field(resolver=logout)
 
-# Crear schema con manejo de errores
+# Crear schema con consultas y mutaciones
 try:
     schema = strawberry.Schema(query=Query, mutation=Mutation)
     logger.info("✅ Schema GraphQL creado correctamente")

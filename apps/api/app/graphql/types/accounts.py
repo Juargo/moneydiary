@@ -22,7 +22,7 @@ def convert_account_model_to_graphql(account_model) -> Account:
         name=account_model.name,
         account_type=account_model.account_type.name if account_model.account_type else "Unknown",
         balance=account_model.current_balance,
-        currency="USD",  # Default currency, adjust based on your needs
+        currency="CLP",  # Default currency, adjust based on your needs
         bank_id=account_model.bank_id,
         is_active=account_model.active,
         created_at=account_model.created_at,

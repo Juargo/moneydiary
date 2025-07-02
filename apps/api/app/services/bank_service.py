@@ -2,9 +2,27 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from graphql import GraphQLError
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+from typing import List, Optional
+
 
 # Importar el modelo de banco
 from ..models.banks import Bank
+
+def get_all_banks(db: Session, active_only: bool = True) -> List[Bank]:
+    """Obtiene todos los bancos del sistema"""
+    try:
+        query = select(Bank)
+        if active_only:
+            query = query.where(Bank.active == True)
+        
+        result = db.execute(query.order_by(Bank.name))
+        return result.scalars().all()
+    except Exception as e:
+        print(f"Error al obtener bancos: {e}")
+        return []
+
 
 class BankService:
     @staticmethod
