@@ -1,15 +1,12 @@
-from __future__ import annotations
 import strawberry
-from typing import List, TYPE_CHECKING
+from strawberry.types import Info
+from typing import List
 
 from ..types.accounts import Account, convert_account_model_to_graphql
 from ...services.account_service import get_user_accounts
 from ...utils.auth import get_authenticated_user
 
-if TYPE_CHECKING:
-    from strawberry.types import Info
-
-async def get_my_accounts(root, info: "Info") -> List[Account]:
+async def get_my_accounts(root, info: Info) -> List[Account]:
     """Obtiene todas las cuentas del usuario autenticado"""
     # Obtener el usuario autenticado desde el token JWT
     current_user = await get_authenticated_user(info)

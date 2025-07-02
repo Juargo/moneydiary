@@ -52,7 +52,7 @@ from .graphql.context import get_context
 from .graphql.client_utils import SnakeCaseGraphQLMiddleware
 from .graphql.debug import debug_query, debug_result
 
-from .services.bank_service import BankService
+# from .services.bank_service import BankService
 from .services.auth_service import AuthService
 from .services.user_service import UserService
 

@@ -81,12 +81,12 @@ class PermissionResponse(PermissionBase):
     Attributes:
         id (int): Unique identifier for the permission.
     Config:
-        orm_mode (bool): Enables compatibility with ORM objects.
+        from_attributes (bool): Enables compatibility with ORM objects.
     """
     id: int
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class RoleBase(BaseModel):
     """
@@ -106,13 +106,13 @@ class RoleResponse(RoleBase):
         id (int): Unique identifier for the role.
         permissions (List[PermissionResponse]): List of permissions associated with the role.
     Config:
-        orm_mode (bool): Enables compatibility with ORM objects.
+        from_attributes (bool): Enables compatibility with ORM objects.
     """
     id: int
     permissions: List[PermissionResponse] = []
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserBase(BaseModel):
     """
@@ -168,7 +168,7 @@ class UserResponse(UserBase):
     Properties:
         permissions (List[PermissionResponse]): Computed list of permissions derived from the user's role or assignments.
     Config:
-        orm_mode (bool): Enables compatibility with ORM objects.
+        from_attributes (bool): Enables compatibility with ORM objects.
         computed (List[str]): Specifies computed properties to include in serialization (e.g., "permissions").
     """
     id: int
@@ -183,6 +183,6 @@ class UserResponse(UserBase):
         pass
     
     class Config:
-        orm_mode = True
+        from_attributes = True
         # Importante: incluir permitir la computación de atributos desde las propiedades del modelo
         computed = ["permissions"]

@@ -1,15 +1,11 @@
-from __future__ import annotations
 import strawberry
-from typing import List, Optional, TYPE_CHECKING
+from strawberry.types import Info
+from typing import List, Optional
 
 from ..types.bank import Bank, convert_bank_model_to_graphql
 from ...services.bank_service import get_all_banks
 
-if TYPE_CHECKING:
-    from strawberry.types import Info
-
-@strawberry.field
-def get_banks(info: "Info", active_only: bool = True) -> List[Bank]:
+def get_banks(info: Info, active_only: bool = True) -> List[Bank]:
     """Obtiene todos los bancos del sistema"""
     # Obtener la sesión de base de datos del contexto
     db = info.context.db
@@ -23,7 +19,7 @@ def get_banks(info: "Info", active_only: bool = True) -> List[Bank]:
     return banks
 
 # @strawberry.field
-# def get_bank(info: "Info", bank_id: int) -> Optional[Bank]:
+# def get_bank(info: Info, bank_id: int) -> Optional[Bank]:
 #     """Obtiene un banco por su ID"""
 #     # Obtener la sesión de base de datos del contexto
 #     db = info.context.db
@@ -38,7 +34,7 @@ def get_banks(info: "Info", active_only: bool = True) -> List[Bank]:
 #     return convert_bank_model_to_graphql(bank_model)
 
 # @strawberry.field
-# def get_bank_by_code_query(info: "Info", bank_code: str) -> Optional[Bank]:
+# def get_bank_by_code_query(info: Info, bank_code: str) -> Optional[Bank]:
 #     """Obtiene un banco por su código"""
 #     # Obtener la sesión de base de datos del contexto
 #     db = info.context.db

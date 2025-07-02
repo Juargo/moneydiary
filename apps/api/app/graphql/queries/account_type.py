@@ -1,15 +1,11 @@
-from __future__ import annotations
 import strawberry
-from typing import List, TYPE_CHECKING
+from strawberry.types import Info
+from typing import List
 
 from ..types.account_type import AccountType, convert_account_type_model_to_graphql
 from ...services.account_type_service import get_all_account_types
 
-if TYPE_CHECKING:
-    from strawberry.types import Info
-
-@strawberry.field
-def get_account_types(info: "Info") -> List[AccountType]:
+def get_account_types(info: Info) -> List[AccountType]:
     """Obtiene todos los tipos de cuenta del sistema"""
     # Obtener la sesión de base de datos del contexto
     db = info.context.db
