@@ -55,18 +55,21 @@ try:
     logger.debug("✅ Bank queries importadas correctamente")
 except Exception as e:
     logger.error(f"❌ Error importando bank queries: {e}")
-    # Crear resolvers fallback
+    # Crear resolver fallback
     @strawberry.field
     def get_banks(info: Info) -> list:
         return []
-    
+
+# Importar queries de tipos de cuenta
+try:
+    from .queries.account_type import get_account_types
+    logger.debug("✅ AccountType queries importadas correctamente")
+except Exception as e:
+    logger.error(f"❌ Error importando account_type queries: {e}")
+    # Crear resolver fallback
     @strawberry.field
-    def get_bank(info: Info, bank_id: int) -> None:
-        return None
-    
-    @strawberry.field
-    def get_bank_by_code_query(info: Info, bank_code: str) -> None:
-        return None
+    def get_account_types(info: Info) -> list:
+        return []
 
 @strawberry.type
 class Query:
@@ -87,8 +90,9 @@ class Query:
     
     # Consultas de bancos
     banks = strawberry.field(resolver=get_banks)
-    bank = strawberry.field(resolver=get_bank)
-    bank_by_code = strawberry.field(resolver=get_bank_by_code_query)
+    
+    # Consultas de tipos de cuenta
+    account_types = strawberry.field(resolver=get_account_types)
 
 @strawberry.type
 class Mutation:

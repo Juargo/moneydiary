@@ -35,6 +35,20 @@ const GET_BANKS_QUERY = `
   }
 `;
 
+// GraphQL query para obtener los tipos de cuenta
+const GET_ACCOUNT_TYPES_QUERY = `
+  query GetAccountTypes {
+    accountTypes {
+      id
+      code
+      name
+      description
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 // Función para realizar una consulta GraphQL
 async function graphqlRequest(query, variables = {}) {
   const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
@@ -94,23 +108,26 @@ async function fetchBanks() {
 
 async function fetchAccountTypes() {
   try {
-    const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
-    const response = await fetch(`${apiUrl}/api/v1/account-types`, {
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Error al obtener tipos de cuenta: ${response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-    accountTypes.value = data.items || data;
+    // Realizar consulta GraphQL para obtener tipos de cuenta
+    const data = await graphqlRequest(GET_ACCOUNT_TYPES_QUERY);
+    accountTypes.value = data.accountTypes || [];
   } catch (err) {
     console.error("Error al cargar tipos de cuenta:", err);
+
+    // Manejar errores de autenticación
+    if (
+      err.message.includes("401") ||
+      err.message.includes("Credenciales inválidas")
+    ) {
+      const refreshed = await authStore.refreshAuthToken();
+      if (refreshed) {
+        return fetchAccountTypes(); // Reintentar con el nuevo token
+      } else {
+        window.location.href = "/auth/login?returnTo=/dashboard/accounts/new";
+        return;
+      }
+    }
+
     error.value = "No se pudieron cargar los tipos de cuenta disponibles.";
   }
 }
