@@ -106,6 +106,23 @@ onMounted(async () => {
     console.log("Cargando información del usuario... desde UserMenu.vue");
     await loadUserInfo();
   }
+
+  // Configurar el event listener para cerrar el menú solo después de que el componente esté montado
+  if (typeof window !== "undefined") {
+    const handleClickOutside = (event) => {
+      const userMenuButton = document.getElementById("user-menu-button");
+      if (userMenuButton && !userMenuButton.contains(event.target)) {
+        showDropdown.value = false;
+      }
+    };
+    
+    window.addEventListener("click", handleClickOutside);
+    
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener("click", handleClickOutside);
+    };
+  }
 });
 
 function toggleDropdown() {
@@ -114,16 +131,8 @@ function toggleDropdown() {
 
 function logout() {
   authStore.logout();
-  window.location.href = "/";
-}
-
-// Cerrar el menú al hacer clic fuera
-if (typeof window !== "undefined") {
-  window.addEventListener("click", (event) => {
-    const userMenuButton = document.getElementById("user-menu-button");
-    if (userMenuButton && !userMenuButton.contains(event.target)) {
-      showDropdown.value = false;
-    }
-  });
+  if (typeof window !== "undefined") {
+    window.location.href = "/";
+  }
 }
 </script>

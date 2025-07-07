@@ -14,4 +14,5 @@ export default defineConfig({
       noExternal: ["@urql/vue", "@urql/core"], // Para evitar problemas de hydration
     },
   },
+  output: "static", // Changed to static for now to avoid adapter issues
 });

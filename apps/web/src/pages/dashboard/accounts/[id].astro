@@ -3,8 +3,29 @@ import MainLayout from "../../../layouts/MainLayout.astro";
 import AccountManager from "../../../components/accounts/AccountManager.vue";
 import UserMenu from "../../../components/auth/UserMenu.vue";
 
+// This is required for dynamic routes in static mode
+export async function getStaticPaths() {
+  // For static generation, we need to provide paths
+  // For now, we'll generate a few example paths
+  // In production, you'd fetch this from your API
+  return [
+    {params: {id: '1'}},
+    {params: {id: '2'}},
+    {params: {id: '3'}},
+    {params: {id: '4'}},
+    {params: {id: '5'}},
+  ];
+}
+
 // Obtener el ID de la cuenta de los parámetros de la URL
 const { id } = Astro.params;
+
+// Validar que el ID sea un número válido
+if (!id || isNaN(Number(id))) {
+  return Astro.redirect('/dashboard/accounts');
+}
+
+const accountId = Number(id);
 ---
 
 <MainLayout title="Detalle de Cuenta - MoneyDiary">
@@ -54,7 +75,7 @@ const { id } = Astro.params;
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
           <div class="px-4 py-8 sm:px-0">
             <div data-vue-app>
-              <AccountManager accountId={id} client:load />
+              <AccountManager accountId={accountId} client:load />
             </div>
           </div>
         </div>
