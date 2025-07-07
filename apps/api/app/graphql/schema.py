@@ -40,7 +40,7 @@ except Exception as e:
         return "Google auth not available"
 
 try:
-    from .queries.account import get_my_accounts
+    from .queries.account import get_my_accounts, get_my_account
     logger.debug("✅ Account queries importadas correctamente")
 except Exception as e:
     logger.error(f"❌ Error importando account queries: {e}")
@@ -48,6 +48,10 @@ except Exception as e:
     @strawberry.field
     def get_my_accounts(info: Info) -> list:
         return []
+    
+    @strawberry.field
+    def get_my_account(info: Info, account_id: int) -> None:
+        return None
 
 # Importar queries de bancos
 try:
@@ -87,6 +91,7 @@ class Query:
     
     # Consultas de cuentas
     my_accounts = strawberry.field(resolver=get_my_accounts)
+    my_account = strawberry.field(resolver=get_my_account)
     
     # Consultas de bancos
     banks = strawberry.field(resolver=get_banks)

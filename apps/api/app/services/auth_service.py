@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status, Request

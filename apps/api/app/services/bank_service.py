@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException

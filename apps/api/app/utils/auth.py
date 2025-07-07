@@ -1,3 +1,4 @@
+from __future__ import annotations
 from strawberry.types import Info
 from fastapi import HTTPException, status
 from typing import Optional

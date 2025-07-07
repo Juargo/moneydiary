@@ -1,3 +1,4 @@
+from __future__ import annotations
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from typing import List, Optional
@@ -25,6 +26,25 @@ def get_user_accounts(db: Session, user_id: int) -> List[Account]:
     )
     return result.scalars().unique().all()
 
+
+def get_user_account_by_id(db: Session, user_id: int, account_id: int) -> Optional[Account]:
+    """Obtiene una cuenta específica del usuario por ID con sus relaciones"""
+    try:
+        result = db.execute(
+            select(Account)
+            .options(joinedload(Account.bank))
+            .options(joinedload(Account.account_type))
+            .where(
+                Account.id == account_id,
+                Account.user_id == user_id,
+            Account.active == True
+            )
+        )
+        return result.scalar_one_or_none()
+    except Exception as e:
+        print(f"Error al obtener cuenta {account_id}: {e}")
+        return None
+    
 class AccountService:
     @staticmethod
     def create_account(db: Session, user_id: int, account_data: AccountCreateRequest) -> Account:
