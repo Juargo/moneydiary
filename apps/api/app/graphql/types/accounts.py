@@ -7,12 +7,13 @@ class Account:
     id: int
     name: str
     account_type: str
-    balance: float
+    current_balance: float
     currency: str
     bank_id: Optional[int] = None
-    is_active: bool = True
+    active: bool = True
     created_at: datetime
     updated_at: datetime
+    account_number: float
 
 
 def convert_account_model_to_graphql(account_model) -> Account:
@@ -21,10 +22,11 @@ def convert_account_model_to_graphql(account_model) -> Account:
         id=account_model.id,
         name=account_model.name,
         account_type=account_model.account_type.name if account_model.account_type else "Unknown",
-        balance=account_model.current_balance,
+        current_balance=account_model.current_balance,
         currency="CLP",  # Default currency, adjust based on your needs
         bank_id=account_model.bank_id,
-        is_active=account_model.active,
+        account_number=account_model.account_number,
+        active=account_model.active,
         created_at=account_model.created_at,
         updated_at=account_model.updated_at
     )

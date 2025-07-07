@@ -23,7 +23,7 @@ class AuthUserType:
     email: str
     name: Optional[str] = None
     profile_image: Optional[str] = None
-    is_active: bool = True
+    active: bool = True
     email_verified: Optional[bool] = False
     created_at: Optional[datetime] = None
     role: Optional[RoleType] = None

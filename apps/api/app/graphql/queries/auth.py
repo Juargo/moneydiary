@@ -65,7 +65,7 @@ async def get_me(root, info: Info) -> Optional[AuthUserType]:
         email=user.email,
         name=user.name,
         profile_image=user.profile_image,
-        is_active=user.is_active,
+        active=user.active,
         email_verified=getattr(user, 'email_verified', False),
         created_at=getattr(user, 'created_at', None),
         role=role,
