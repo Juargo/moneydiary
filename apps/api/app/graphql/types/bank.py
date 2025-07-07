@@ -2,6 +2,7 @@ from __future__ import annotations
 import strawberry
 from typing import Optional
 
+
 @strawberry.type
 class Bank:
     id: int
@@ -12,6 +13,7 @@ class Bank:
     description: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
 
 def convert_bank_model_to_graphql(bank_model) -> Bank:
     """Convierte un modelo SQLAlchemy Bank a tipo GraphQL Bank"""

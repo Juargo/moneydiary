@@ -7,7 +7,7 @@ from ..types.accounts import Account, convert_account_model_to_graphql
 from ...services.account_service import get_user_accounts, get_user_account_by_id
 from ...utils.auth import get_authenticated_user
 
-@strawberry.field
+
 async def get_my_accounts(info: Info) -> List[Account]:
     """Obtiene todas las cuentas del usuario autenticado"""
     # Obtener el usuario autenticado desde el token JWT
@@ -24,7 +24,7 @@ async def get_my_accounts(info: Info) -> List[Account]:
     
     return accounts
 
-@strawberry.field
+
 async def get_my_account(info: Info, account_id: int) -> Optional[Account]:
     """Obtiene una cuenta específica del usuario autenticado por ID"""
     # Obtener el usuario autenticado desde el token JWT

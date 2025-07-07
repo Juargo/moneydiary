@@ -4,21 +4,22 @@ from typing import List
 
 from ...database import get_db
 from ...schemas.accounts import AccountCreateRequest, AccountUpdateRequest, AccountResponse
-from ...services.account_service import AccountService
+from ...services.account_service import create_account, update_account, get_user_account, delete_account
 from ...utils.fastapi_auth import get_current_user  
 from ...models.users import User
 
+# Crear el router con prefijo correcto
 router = APIRouter()
 
 @router.post("", response_model=AccountResponse, status_code=status.HTTP_201_CREATED)
-async def create_account(
+async def create_account_endpoint(
     account_data: AccountCreateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  
+    current_user: User = Depends(get_current_user)
 ):
     """Crea una nueva cuenta para el usuario autenticado"""
     try:
-        new_account = AccountService.create_account(db, current_user.id, account_data)
+        new_account = create_account(db, current_user.id, account_data)  # Usar función directa
         
         # Convertir a formato de respuesta
         return AccountResponse(
@@ -46,7 +47,7 @@ async def create_account(
         )
 
 @router.put("/{account_id}", response_model=AccountResponse)
-async def update_account(
+async def update_account_endpoint(
     account_id: int,
     account_data: AccountUpdateRequest,
     db: Session = Depends(get_db),
@@ -54,7 +55,7 @@ async def update_account(
 ):
     """Actualiza una cuenta existente del usuario autenticado"""
     try:
-        updated_account = AccountService.update_account(db, current_user.id, account_id, account_data)
+        updated_account = update_account(db, current_user.id, account_id, account_data)  # Usar función directa
         
         if not updated_account:
             raise HTTPException(
@@ -62,7 +63,6 @@ async def update_account(
                 detail="Cuenta no encontrada"
             )
         
-        # Convertir a formato de respuesta
         return AccountResponse(
             id=updated_account.id,
             name=updated_account.name,
@@ -88,13 +88,13 @@ async def update_account(
         )
 
 @router.get("/{account_id}", response_model=AccountResponse)
-async def get_account(
+async def get_account_endpoint(
     account_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Obtiene una cuenta específica del usuario autenticado"""
-    account = AccountService.get_user_account(db, current_user.id, account_id)
+    account = get_user_account(db, current_user.id, account_id)  # Usar función directa
     
     if not account:
         raise HTTPException(
@@ -116,13 +116,13 @@ async def get_account(
     )
 
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_account(
+async def delete_account_endpoint(
     account_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Elimina (desactiva) una cuenta del usuario autenticado"""
-    success = AccountService.delete_account(db, current_user.id, account_id)
+    success = delete_account(db, current_user.id, account_id)  # Usar función directa
     
     if not success:
         raise HTTPException(

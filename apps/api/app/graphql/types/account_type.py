@@ -2,6 +2,7 @@ from __future__ import annotations
 import strawberry
 from typing import Optional
 
+
 @strawberry.type
 class AccountType:
     id: int
@@ -10,6 +11,7 @@ class AccountType:
     description: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
 
 def convert_account_type_model_to_graphql(account_type_model) -> AccountType:
     """Convierte un modelo SQLAlchemy AccountType a tipo GraphQL AccountType"""
