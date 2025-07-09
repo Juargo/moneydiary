@@ -69,12 +69,12 @@
                   <div
                     class="text-sm font-semibold"
                     :class="
-                      account.current_balance >= 0
+                      account.currentBalance >= 0
                         ? 'text-green-700'
                         : 'text-red-700'
                     "
                   >
-                    {{ formatCurrency(account.current_balance) }}
+                    {{ formatCurrency(account.currentBalance) }}
                   </div>
                 </div>
               </div>
@@ -112,13 +112,23 @@ const GET_MY_ACCOUNTS_QUERY = `
     myAccounts {
       id
       name
-      accountType
-      current_balance
-      currency
-      bankId
-      isActive
+      accountNumber
+      currentBalance
+      active
       createdAt
       updatedAt
+      bank {
+        id
+        name
+        code
+        logoUrl
+      }
+      accountType {
+        id
+        name
+        code
+        description
+      }
     }
   }
 `;
