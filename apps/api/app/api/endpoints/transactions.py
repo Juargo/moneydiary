@@ -18,7 +18,8 @@ from ...services.transaction_service import (
     get_user_transaction,
     delete_transaction,
     get_user_transactions,
-    import_transactions_from_csv
+    import_transactions_from_csv,
+    import_transactions_from_excel
 )
 from ...utils.fastapi_auth import get_current_user
 from ...models.users import User
@@ -264,4 +265,48 @@ async def import_csv_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error procesando archivo CSV: {str(e)}"
+        )
+        
+@router.post("/import-excel", response_model=TransactionImportResponse)
+async def import_excel_endpoint(
+    account_id: int = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Importa transacciones desde un archivo Excel (xlsx/xls)"""
+    try:
+        # Validar tipo de archivo
+        if not file.filename.lower().endswith(('.xlsx', '.xls')):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El archivo debe ser Excel (.xlsx o .xls)"
+            )
+        
+        # Leer contenido del archivo
+        content = await file.read()
+        
+        # Procesar Excel
+        result = import_transactions_from_excel(
+            db, 
+            current_user.id, 
+            account_id, 
+            content, 
+            file.filename
+        )
+        
+        return TransactionImportResponse(
+            total_records=result['total_records'],
+            successful_imports=result['successful_imports'],
+            failed_imports=result['failed_imports'],
+            errors=result['errors']
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error importing Excel: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error procesando archivo Excel: {str(e)}"
         )
