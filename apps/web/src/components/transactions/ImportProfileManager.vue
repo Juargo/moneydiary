@@ -293,12 +293,74 @@ async function fetchProfiles() {
   }
 }
 
+// GraphQL query para obtener los bancos
+const GET_BANKS_QUERY = `
+  query GetBanks($activeOnly: Boolean = true) {
+    banks(activeOnly: $activeOnly) {
+      id
+      name
+      code
+      logoUrl
+      active
+      description
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+async function graphqlRequest(query, variables = {}) {
+  const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+
+  const response = await fetch(`${apiUrl}/graphql`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authStore.accessToken}`,
+    },
+    body: JSON.stringify({
+      query,
+      variables,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  // Verificar si hay errores de GraphQL
+  if (data.errors) {
+    throw new Error(data.errors[0]?.message || "Error en la consulta GraphQL");
+  }
+
+  return data.data;
+}
+
 async function fetchBanks() {
   try {
-    const data = await apiRequest("/api/banks");
-    banks.value = data;
+    // Realizar consulta GraphQL para obtener bancos activos
+    const data = await graphqlRequest(GET_BANKS_QUERY, { activeOnly: true });
+    banks.value = data.banks || [];
   } catch (err) {
-    console.error("Error al obtener bancos:", err);
+    console.error("Error al cargar bancos:", err);
+
+    // Manejar errores de autenticación
+    if (
+      err.message.includes("401") ||
+      err.message.includes("Credenciales inválidas")
+    ) {
+      const refreshed = await authStore.refreshAuthToken();
+      if (refreshed) {
+        return fetchBanks(); // Reintentar con el nuevo token
+      } else {
+        window.location.href = "/auth/login?returnTo=/dashboard/accounts/new";
+        return;
+      }
+    }
+
+    error.value = "No se pudieron cargar los bancos disponibles.";
   }
 }
 
