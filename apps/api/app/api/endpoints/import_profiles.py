@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from ...database import get_db
-from ...schemas.import_profiles import (
+from ...schemas.file_imports import (
     CsvImportProfileCreate,
     CsvImportProfileUpdate,
     CsvImportProfileResponse,

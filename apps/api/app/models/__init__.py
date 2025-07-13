@@ -29,8 +29,8 @@ from .financial_methods import (
 )
 from .user_financial_methods import user_financial_methods
 
-# Importación de CSV
-from .csv_imports import CsvImport, CsvImportProfile, CsvColumnMapping, ImportError
+# Importación de archivos
+from .file_imports import  ImportError, FileImport, FileImportProfile, FileColumnMapping
 
 # Presupuestos y sobres
 from .envelopes import Envelope

@@ -30,7 +30,7 @@ import app.models.account_types
 import app.models.accounts
 import app.models.budget
 import app.models.categories
-import app.models.csv_imports
+import app.models.file_imports
 import app.models.envelopes
 import app.models.financial_goals
 import app.models.financial_methods

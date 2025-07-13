@@ -21,7 +21,7 @@ from apps.api.app.models.financial_methods import (
 )
 from apps.api.app.models.envelopes import Envelope
 from apps.api.app.models.budget import BudgetPlan, BudgetItem
-from apps.api.app.models.csv_imports import CsvImport, CsvImportProfile, CsvColumnMapping
+from apps.api.app.models.file_imports import CsvImport, CsvImportProfile, CsvColumnMapping
 from apps.api.app.models.financial_goals import FinancialGoal, GoalContribution
 from apps.api.app.models.projections import ProjectionSettings, MonthlyProjections, ProjectionDetails
 from apps.api.app.models.simulations import (

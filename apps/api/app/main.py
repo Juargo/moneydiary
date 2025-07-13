@@ -120,7 +120,7 @@ def import_models():
     )
     
     # Importación de datos
-    from apps.api.app.models.csv_imports import CsvImport, CsvImportProfile, CsvColumnMapping, ImportError
+    from apps.api.app.models.file_imports import  ImportError, FileImport, FileImportProfile, FileColumnMapping
     
     logger.debug("Modelos importados correctamente")
 

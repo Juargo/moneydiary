@@ -39,8 +39,8 @@ class User(Base):
     method_pay_yourself_first = relationship("MethodPayYourselfFirst", uselist=False, back_populates="user") # Relación con el método "Págate a ti mismo primero"
     financial_goals = relationship("FinancialGoal", back_populates="user") # Relación con los objetivos financieros
     budget_plans = relationship("BudgetPlan", back_populates="user") # Relación con los planes de presupuesto
-    csv_imports = relationship("CsvImport", back_populates="user") # Relación con las importaciones CSV
-    csv_import_profiles = relationship("CsvImportProfile", back_populates="user")  # Relación con los perfiles de importación CSV
+    file_imports = relationship("FileImport", back_populates="user") # Relación con las importaciones de archivos
+    file_import_profiles = relationship("FileImportProfile", back_populates="user")  # Relación con los perfiles de importación de archivos
     projections = relationship("ProjectionSettings", back_populates="user") # Relación con la configuración de proyecciones
     financial_simulations = relationship("FinancialSimulation", back_populates="user") # Relación con las simulaciones financieras
     role_relation = relationship("Role", back_populates="users") # Relación con los roles
