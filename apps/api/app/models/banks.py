@@ -21,7 +21,6 @@ class Bank(Base):
     # ============================
     # Relationships and Foreign Keys
     # ============================
-    csv_profiles = relationship("CsvImportProfile", back_populates="bank") # Perfiles de importación CSV asociados al banco
     accounts = relationship("Account", back_populates="bank") # Cuentas asociadas al banco
     
     def __repr__(self):

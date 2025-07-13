@@ -47,7 +47,7 @@ class FileImportProfile(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    bank_id = Column(Integer, ForeignKey('banks.id'), nullable=False)
+    account_id = Column(Integer, ForeignKey('accounts.id'), nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text)
     is_default = Column(Boolean, nullable=False, default=False)
@@ -74,7 +74,7 @@ class FileImportProfile(Base):
     updated_at = Column(TIMESTAMP)
 
     user = relationship("User", back_populates="file_import_profiles")
-    bank = relationship("Bank", back_populates="import_profiles")
+    account = relationship("Account", back_populates="import_profiles")
     file_imports = relationship("FileImport", back_populates="profile")
     column_mappings = relationship("FileColumnMapping", back_populates="profile")
 
