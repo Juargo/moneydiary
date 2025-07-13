@@ -1,0 +1,62 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+import UserMenu from "../components/auth/UserMenu.vue";
+---
+
+<MainLayout title="MoneyDiary - Tu gestor de finanzas personales">
+  <main class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-3xl font-bold text-gray-800">MoneyDiary</h1>
+      <div data-vue-app>
+        <UserMenu client:load />
+      </div>
+    </div>
+
+    <div class="bg-white p-8 rounded-lg shadow-md max-w-3xl mx-auto">
+      <h2 class="text-2xl font-semibold text-gray-700 mb-4">Bienvenido a MoneyDiary</h2>
+      <p class="text-gray-600 mb-6">
+        Tu solución completa para gestionar tus finanzas personales.
+      </p>
+      
+      <div class="flex space-x-4">
+        <a 
+          href="/dashboard" 
+          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+        >
+          Ir al Dashboard
+        </a>
+        <a 
+          href="/auth/login" 
+          class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+          id="login-link"
+        >
+          Iniciar Sesión
+        </a>
+      </div>
+    </div>
+  </main>
+</MainLayout>
+
+<script>
+  import { initPinia } from '../stores/pinia';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Inicializar Pinia
+    initPinia();
+
+    console.log('Pinia initialized');
+    const { useAuthStore } = await import('../stores/authStore');
+    const authStore = useAuthStore();
+    
+    // Ocultar el botón de inicio de sesión si el usuario está autenticado
+    const loginLink = document.getElementById('login-link');
+
+    console.log('Auth Store:', authStore);
+    if (loginLink && authStore.isAuthenticated) {
+      console.log('User is authenticated, hiding login link');
+      loginLink.style.display = 'none';
+    }
+
+    console.log('Welcome message displayed');
+  });
+</script>

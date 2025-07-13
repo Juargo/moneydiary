@@ -1,0 +1,46 @@
+# docker/compose/docker-compose.test.yml
+version: "3.8"
+
+services:
+  db:
+    container_name: moneydiary-test-db
+    environment:
+      - POSTGRES_DB=moneydiary_test
+
+  api:
+    container_name: moneydiary-test-api
+    environment:
+      - ENVIRONMENT=testing
+      - DEBUG=true
+    command: >
+      bash -c "
+        pytest -xvs apps/api/tests &&
+        uvicorn apps.api.app.main:app --host 0.0.0.0
+      "
+
+  web:
+    container_name: moneydiary-test-web
+    environment:
+      - NODE_ENV=testing
+    command: >
+      sh -c "
+        pnpm run test &&
+        pnpm run preview
+      "
+
+  test-runner: # Contenedor específico para pruebas e2e
+    build:
+      context: .
+      dockerfile: docker/test/Dockerfile
+    container_name: moneydiary-test-runner
+    volumes:
+      - ./tests:/app/tests
+      - ./test-results:/app/test-results
+    environment:
+      - API_URL=http://api:8000
+      - WEB_URL=http://web:3000
+    depends_on:
+      - api
+      - web
+    networks:
+      - moneydiary-network

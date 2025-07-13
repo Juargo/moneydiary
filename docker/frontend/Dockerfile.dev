@@ -1,0 +1,31 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Instalar pnpm
+RUN npm install -g pnpm
+
+# Copiar archivos de configuración del monorepo
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* ./
+
+# Copiar configuración de todos los paquetes
+COPY packages/ ./packages/
+
+# Copiar el código del frontend
+COPY apps/web/ ./apps/web/
+
+# Instalar dependencias
+RUN pnpm install
+
+# Configuración para desarrollo
+ENV NODE_ENV=development \
+    HOST=0.0.0.0
+
+# Exponer puerto
+EXPOSE 3000
+
+# Directorio de trabajo
+WORKDIR /app/apps/web
+
+# Comando para iniciar el servidor de desarrollo
+CMD ["pnpm", "run", "dev", "--host"]

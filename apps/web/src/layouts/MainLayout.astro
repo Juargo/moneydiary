@@ -1,0 +1,50 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Tu gestor de finanzas personales" } = Astro.props;
+---
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <div id="app">
+      <slot />
+    </div>
+
+    <!-- Script para inicializar Vue y registrar directivas -->
+    <script>
+      // Este script se ejecuta en el cliente después de la hidratación
+      import { createPinia } from 'pinia';
+      import { createApp } from 'vue';
+      import { createSSRGraphQLClient } from '../utils/graphql/client';
+      import urql from '@urql/vue';
+      import { authDirectives } from '../utils/auth';
+
+      // Registrar componentes Vue dinámicamente después de la carga
+      document.addEventListener('astro:page-load', () => {
+        const vueElements = document.querySelectorAll('[data-vue-component]');
+        
+        if (vueElements.length) {
+          const app = createApp({});
+          const pinia = createPinia();
+          
+          app.use(pinia);
+          app.use(urql, createSSRGraphQLClient());
+          app.use(authDirectives); // Registrar las directivas de autenticación
+          
+          vueElements.forEach(el => {
+            app.mount(el);
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

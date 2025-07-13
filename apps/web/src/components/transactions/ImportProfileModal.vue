@@ -1,0 +1,463 @@
+<template>
+  <div
+    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+  >
+    <div
+      class="relative top-20 mx-auto p-5 border max-w-4xl shadow-lg rounded-md bg-white"
+    >
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-medium text-gray-900">
+          {{ isEditing ? "Editar Perfil" : "Nuevo Perfil" }} de Importación
+        </h3>
+        <button
+          @click="$emit('close')"
+          class="text-gray-400 hover:text-gray-600"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <form @submit.prevent="handleSave">
+        <!-- Información básica del perfil -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Nombre del perfil *
+            </label>
+            <input
+              v-model="formData.name"
+              type="text"
+              required
+              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Ej: Estado de Cuenta Banco Chile"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Banco *
+            </label>
+            <select
+              v-model="formData.bank_id"
+              required
+              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Selecciona un banco</option>
+              <option v-for="bank in banks" :key="bank.id" :value="bank.id">
+                {{ bank.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Descripción
+            </label>
+            <textarea
+              v-model="formData.description"
+              rows="2"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Descripción opcional del perfil"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Configuración del archivo -->
+        <div class="border-t pt-6 mb-6">
+          <h4 class="text-md font-medium text-gray-900 mb-4">
+            Configuración del Archivo
+          </h4>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Delimitador
+              </label>
+              <select
+                v-model="formData.delimiter"
+                class="w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value=",">Coma (,)</option>
+                <option value=";">Punto y coma (;)</option>
+                <option value="\t">Tabulación</option>
+                <option value="|">Pipe (|)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Formato de fecha
+              </label>
+              <select
+                v-model="formData.date_format"
+                class="w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                <option value="DD-MM-YYYY">DD-MM-YYYY</option>
+                <option value="DD.MM.YYYY">DD.MM.YYYY</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Separador decimal
+              </label>
+              <select
+                v-model="formData.decimal_separator"
+                class="w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value=".">Punto (.)</option>
+                <option value=",">Coma (,)</option>
+              </select>
+            </div>
+
+            <div class="flex items-center">
+              <label class="flex items-center">
+                <input
+                  v-model="formData.has_header"
+                  type="checkbox"
+                  class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
+                />
+                <span class="ml-2 text-sm text-gray-700"
+                  >Tiene encabezados</span
+                >
+              </label>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <label class="flex items-center">
+              <input
+                v-model="formData.is_default"
+                type="checkbox"
+                class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
+              />
+              <span class="ml-2 text-sm text-gray-700"
+                >Usar como perfil por defecto para este banco</span
+              >
+            </label>
+          </div>
+        </div>
+
+        <!-- Mapeo de columnas -->
+        <div class="border-t pt-6 mb-6">
+          <div class="flex justify-between items-center mb-4">
+            <h4 class="text-md font-medium text-gray-900">Mapeo de Columnas</h4>
+            <button
+              type="button"
+              @click="addColumnMapping"
+              class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4 mr-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+              Agregar Mapeo
+            </button>
+          </div>
+
+          <div class="space-y-3">
+            <div
+              v-for="(mapping, index) in formData.column_mappings"
+              :key="index"
+              class="flex items-center space-x-3 p-3 bg-gray-50 rounded-md"
+            >
+              <div class="flex-1">
+                <input
+                  v-model="mapping.source_column_name"
+                  type="text"
+                  placeholder="Nombre de columna en Excel"
+                  required
+                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div class="flex-1">
+                <select
+                  v-model="mapping.target_field_name"
+                  required
+                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="">Mapear a...</option>
+                  <option value="date">Fecha</option>
+                  <option value="amount">Monto</option>
+                  <option value="description">Descripción</option>
+                  <option value="notes">Notas</option>
+                  <option value="reference">Referencia</option>
+                  <option value="category">Categoría</option>
+                </select>
+              </div>
+
+              <div class="flex-shrink-0">
+                <input
+                  v-model="mapping.position"
+                  type="number"
+                  placeholder="Pos."
+                  min="1"
+                  class="w-16 border border-gray-300 rounded-md px-2 py-2 text-sm"
+                />
+              </div>
+
+              <div class="flex-shrink-0">
+                <label class="flex items-center">
+                  <input
+                    v-model="mapping.is_required"
+                    type="checkbox"
+                    class="rounded border-gray-300 text-primary-600"
+                  />
+                  <span class="ml-1 text-xs text-gray-600">Req.</span>
+                </label>
+              </div>
+
+              <div class="flex-shrink-0">
+                <button
+                  type="button"
+                  @click="removeColumnMapping(index)"
+                  class="text-red-600 hover:text-red-800"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div
+              v-if="!formData.column_mappings.length"
+              class="text-center py-8 text-gray-500"
+            >
+              <p>No hay mapeos configurados</p>
+              <p class="text-sm">Agrega al menos un mapeo para fecha y monto</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones -->
+        <div class="flex justify-end space-x-3 pt-6 border-t">
+          <button
+            type="button"
+            @click="$emit('close')"
+            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            :disabled="saving"
+            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+          >
+            {{ saving ? "Guardando..." : isEditing ? "Actualizar" : "Crear" }}
+            Perfil
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted } from "vue";
+import { useAuthStore } from "../../stores/authStore";
+
+const props = defineProps({
+  profile: {
+    type: Object,
+    default: null,
+  },
+  banks: {
+    type: Array,
+    required: true,
+  },
+});
+
+const emit = defineEmits(["close", "saved"]);
+
+const authStore = useAuthStore();
+const saving = ref(false);
+
+const isEditing = computed(() => !!props.profile);
+
+// Datos del formulario
+const formData = reactive({
+  name: "",
+  description: "",
+  bank_id: "",
+  is_default: false,
+  delimiter: ",",
+  has_header: true,
+  date_format: "DD/MM/YYYY",
+  decimal_separator: ".",
+  column_mappings: [],
+});
+
+// Funciones
+async function apiRequest(url, options = {}) {
+  const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+
+  const response = await fetch(`${apiUrl}${url}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authStore.accessToken}`,
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || `Error HTTP: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function addColumnMapping() {
+  formData.column_mappings.push({
+    source_column_name: "",
+    target_field_name: "",
+    is_required: true,
+    position: formData.column_mappings.length + 1,
+    transformation_rule: null,
+  });
+}
+
+function removeColumnMapping(index) {
+  formData.column_mappings.splice(index, 1);
+
+  // Reajustar posiciones
+  formData.column_mappings.forEach((mapping, idx) => {
+    if (!mapping.position || mapping.position > index + 1) {
+      mapping.position = idx + 1;
+    }
+  });
+}
+
+function validateForm() {
+  if (!formData.name.trim()) {
+    throw new Error("El nombre del perfil es requerido");
+  }
+
+  if (!formData.bank_id) {
+    throw new Error("Debe seleccionar un banco");
+  }
+
+  if (!formData.column_mappings.length) {
+    throw new Error("Debe agregar al menos un mapeo de columna");
+  }
+
+  // Validar que exista mapeo para fecha y monto
+  const hasDate = formData.column_mappings.some(
+    (m) => m.target_field_name === "date"
+  );
+  const hasAmount = formData.column_mappings.some(
+    (m) => m.target_field_name === "amount"
+  );
+
+  if (!hasDate) {
+    throw new Error('Debe mapear al menos una columna a "Fecha"');
+  }
+
+  if (!hasAmount) {
+    throw new Error('Debe mapear al menos una columna a "Monto"');
+  }
+
+  // Validar mapeos duplicados
+  const targetFields = formData.column_mappings
+    .map((m) => m.target_field_name)
+    .filter(Boolean);
+  const uniqueTargets = [...new Set(targetFields)];
+
+  if (targetFields.length !== uniqueTargets.length) {
+    throw new Error("No puede mapear múltiples columnas al mismo campo");
+  }
+}
+
+async function handleSave() {
+  try {
+    validateForm();
+
+    saving.value = true;
+
+    const url = isEditing.value
+      ? `/api/v1/import-profiles/${props.profile.id}`
+      : "/api/v1/import-profiles";
+
+    const method = isEditing.value ? "PUT" : "POST";
+
+    await apiRequest(url, {
+      method,
+      body: JSON.stringify(formData),
+    });
+
+    emit("saved");
+  } catch (err) {
+    console.error("Error guardando perfil:", err);
+    alert(`Error: ${err.message}`);
+  } finally {
+    saving.value = false;
+  }
+}
+
+// Inicializar datos si se está editando
+onMounted(() => {
+  if (props.profile) {
+    Object.assign(formData, {
+      name: props.profile.name,
+      description: props.profile.description || "",
+      bank_id: props.profile.bank_id,
+      is_default: props.profile.is_default,
+      delimiter: props.profile.delimiter,
+      has_header: props.profile.has_header,
+      date_format: props.profile.date_format,
+      decimal_separator: props.profile.decimal_separator,
+      column_mappings: props.profile.column_mappings.map((mapping) => ({
+        source_column_name: mapping.source_column_name,
+        target_field_name: mapping.target_field_name,
+        is_required: mapping.is_required,
+        position: mapping.position,
+        transformation_rule: mapping.transformation_rule,
+      })),
+    });
+  } else {
+    // Agregar mapeos por defecto para nuevo perfil
+    addColumnMapping();
+    addColumnMapping();
+  }
+});
+</script>
