@@ -46,8 +46,7 @@ class BudgetItem(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True) # ID de la partida presupuestaria
     budget_id = Column(Integer, ForeignKey('budget_plans.id'), nullable=False) # ID del plan de presupuesto al que pertenece la partida
-    category_id = Column(Integer, ForeignKey('categories.id'), nullable=False) # ID de la categoría asociada a la partida presupuestaria
-    subcategory_id = Column(Integer, ForeignKey('subcategories.id')) # ID de la subcategoría asociada a la partida presupuestaria
+    subcategory_id = Column(Integer, ForeignKey('subcategories.id'), nullable=False) # ID de la subcategoría asociada a la partida presupuestaria
     envelope_id = Column(Integer, ForeignKey('envelopes.id')) # ID del sobre (envelope) asociado a la partida presupuestaria
     amount = Column(Numeric, nullable=False) # Monto de la partida presupuestaria
     month_year = Column(String, nullable=False) # Mes y año de la partida presupuestaria
@@ -59,6 +58,10 @@ class BudgetItem(Base):
     # Relationships and Foreign Keys
     # ============================
     budget_plan = relationship("BudgetPlan", back_populates="budget_items") # Relación con el modelo BudgetPlan
-    category = relationship("Category", back_populates="budget_items") # Relación con el modelo Category
     subcategory = relationship("Subcategory", back_populates="budget_items") # Relación con el modelo Subcategory
     envelope = relationship("Envelope", back_populates="budget_items") # Relación con el modelo Envelope
+    
+    # Propiedad para acceder a la categoría a través de la subcategoría
+    @property
+    def category(self):
+        return self.subcategory.category if self.subcategory else None
