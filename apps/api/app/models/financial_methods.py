@@ -68,6 +68,7 @@ class MethodEnvelope(Base):
 
     user = relationship("User", back_populates="method_envelope")
     financial_method = relationship("FinancialMethod")
+    envelopes = relationship("Envelope", back_populates="method_envelope")
 
 class MethodZeroBased(Base):
     __tablename__ = 'method_zero_based'
