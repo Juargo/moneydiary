@@ -18,29 +18,33 @@ class ImportStatus(enum.Enum):
 
 class FileImport(Base):
     __tablename__ = 'file_imports'
+    __table_args__ = {'schema': 'app'}
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    profile_id = Column(Integer, ForeignKey('file_import_profiles.id'), nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True) # ID del import
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False) # ID del usuario que realiza el import
+    profile_id = Column(Integer, ForeignKey('file_import_profiles.id'), nullable=False) # Perfil de importación utilizado
     account_id = Column(Integer, ForeignKey('accounts.id'), nullable=False)  # Cuenta destino
-    filename = Column(String, nullable=False)
-    original_filename = Column(String, nullable=False)
+    filename = Column(String, nullable=False) # Nombre del archivo importado
+    original_filename = Column(String, nullable=False) # Nombre original del archivo importado
     file_type = Column(Enum(ImportFileType), nullable=False)  # csv, excel, xls, xlsx
     file_size = Column(Integer)  # Tamaño en bytes
-    record_count = Column(Integer, nullable=False, default=0)
-    success_count = Column(Integer, nullable=False, default=0)
-    error_count = Column(Integer, nullable=False, default=0)
-    duplicate_count = Column(Integer, nullable=False, default=0)
-    status = Column(Enum(ImportStatus), nullable=False, default=ImportStatus.PENDING)
-    started_at = Column(TIMESTAMP)
-    completed_at = Column(TIMESTAMP)
-    created_at = Column(TIMESTAMP)
-    updated_at = Column(TIMESTAMP)
+    record_count = Column(Integer, nullable=False, default=0) # Número de registros en el archivo importado
+    success_count = Column(Integer, nullable=False, default=0) # Número de registros procesados con éxito
+    error_count = Column(Integer, nullable=False, default=0) # Número de registros con errores
+    duplicate_count = Column(Integer, nullable=False, default=0) # Número de registros duplicados
+    status = Column(Enum(ImportStatus), nullable=False, default=ImportStatus.PENDING) # Estado del import
+    started_at = Column(TIMESTAMP) # Fecha y hora de inicio del import
+    completed_at = Column(TIMESTAMP) # Fecha y hora de finalización del import
+    created_at = Column(TIMESTAMP) # Fecha y hora de creación del registro
+    updated_at = Column(TIMESTAMP) # Fecha y hora de última actualización del registro
 
-    user = relationship("User", back_populates="file_imports")
-    profile = relationship("FileImportProfile", back_populates="file_imports")
-    account = relationship("Account")
-    transactions = relationship("Transaction", back_populates="import_data")
+    # ============================
+    # Relationships and Foreign Keys
+    # ============================
+    user = relationship("User", back_populates="file_imports") # Relación con el usuario que realiza el import
+    profile = relationship("FileImportProfile", back_populates="file_imports") # Relación con el perfil de importación utilizado
+    account = relationship("Account") # Relación con la cuenta destino del import
+    transactions = relationship("Transaction", back_populates="import_data") # Transacciones asociadas al import
 
 class FileImportProfile(Base):
     __tablename__ = 'file_import_profiles'
