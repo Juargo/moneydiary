@@ -43,9 +43,7 @@ class ProjectionDetails(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     projection_id = Column(Integer, ForeignKey('monthly_projections.id'), nullable=False)
-    category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
-    subcategory_id = Column(Integer, ForeignKey('subcategories.id'))
-    envelope_id = Column(Integer, ForeignKey('envelopes.id'))
+    subcategory_id = Column(Integer, ForeignKey('subcategories.id'), nullable=False)
     amount = Column(Numeric, nullable=False)
     is_actual = Column(Boolean, nullable=False, default=False)
     financial_bucket = Column(String)
@@ -53,6 +51,4 @@ class ProjectionDetails(Base):
     updated_at = Column(TIMESTAMP)
 
     projection = relationship("MonthlyProjections", back_populates="projection_details")
-    category = relationship("Category")
     subcategory = relationship("Subcategory")
-    envelope = relationship("Envelope")
