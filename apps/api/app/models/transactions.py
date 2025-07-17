@@ -21,7 +21,6 @@ class Transaction(Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     account_id = Column(Integer, ForeignKey('accounts.id'), nullable=False)
     transfer_account_id = Column(Integer, ForeignKey('accounts.id'))
-    category_id = Column(Integer, ForeignKey('categories.id'))
     subcategory_id = Column(Integer, ForeignKey('subcategories.id'))
     envelope_id = Column(Integer, ForeignKey('envelopes.id'))
     status_id = Column(Integer, ForeignKey('transaction_statuses.id'), nullable=False)
@@ -44,7 +43,6 @@ class Transaction(Base):
     transfer_account = relationship("Account", 
                                   back_populates="incoming_transfers", 
                                   foreign_keys=[transfer_account_id])
-    category = relationship("Category", back_populates="transactions")
     subcategory = relationship("Subcategory", back_populates="transactions")
     envelope = relationship("Envelope", back_populates="transactions")
     status = relationship("TransactionStatus", back_populates="transactions")

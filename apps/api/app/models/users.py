@@ -181,7 +181,9 @@ class UserResponse(UserBase):
     def permissions(self) -> List[PermissionResponse]:
         # Este campo será computado automáticamente a partir de la propiedad
         # permissions del modelo User
-        pass
+        if self.role and self.role.permissions:
+            return self.role.permissions
+        return []
     
     class Config:
         from_attributes = True
