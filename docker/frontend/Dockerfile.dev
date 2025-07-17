@@ -19,7 +19,8 @@ RUN pnpm install
 
 # Configuración para desarrollo
 ENV NODE_ENV=development \
-    HOST=0.0.0.0
+    HOST=0.0.0.0 \
+    PORT=3000
 
 # Exponer puerto
 EXPOSE 3000
@@ -28,4 +29,4 @@ EXPOSE 3000
 WORKDIR /app/apps/web
 
 # Comando para iniciar el servidor de desarrollo
-CMD ["pnpm", "run", "dev", "--host"]
+CMD ["pnpm", "run", "dev", "--host", "0.0.0.0", "--port", "3000"]

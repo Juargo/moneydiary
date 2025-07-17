@@ -56,7 +56,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { loginWithGoogle } from "../../services/authService";
+import { getGoogleLoginUrl } from "../../services/authService";
 
 const errorMessage = ref("");
 const errorDetails = ref("");
@@ -93,6 +93,8 @@ function goHome() {
 }
 
 function tryAgain() {
-  loginWithGoogle();
+  if (typeof window !== "undefined") {
+    window.location.href = getGoogleLoginUrl();
+  }
 }
 </script>
