@@ -4,9 +4,9 @@ from typing import List, Optional
 
 from ...database import get_db
 from ...schemas.file_imports import (
-    CsvImportProfileCreate,
-    CsvImportProfileUpdate,
-    CsvImportProfileResponse,
+    FileImportProfileCreate,
+    FileImportProfileUpdate,
+    FileImportProfileResponse,
     ImportHistoryResponse
 )
 from ...services.import_profile_service import (
@@ -23,16 +23,16 @@ from ...models.users import User
 
 router = APIRouter()
 
-@router.post("", response_model=CsvImportProfileResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=FileImportProfileResponse, status_code=status.HTTP_201_CREATED)
 async def create_profile_endpoint(
-    profile_data: CsvImportProfileCreate,
+    profile_data: FileImportProfileCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Crea un nuevo perfil de importación"""
     try:
         new_profile = create_import_profile(db, current_user.id, profile_data)
-        return CsvImportProfileResponse.from_orm(new_profile)
+        return FileImportProfileResponse.from_orm(new_profile)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -45,16 +45,16 @@ async def create_profile_endpoint(
             detail="Error interno del servidor"
         )
 
-@router.get("", response_model=List[CsvImportProfileResponse])
+@router.get("", response_model=List[FileImportProfileResponse])
 async def get_profiles_endpoint(
-    bank_id: Optional[int] = None,
+    account_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Obtiene los perfiles de importación del usuario"""
     try:
-        profiles = get_user_import_profiles(db, current_user.id, bank_id)
-        return [CsvImportProfileResponse.from_orm(profile) for profile in profiles]
+        profiles = get_user_import_profiles(db, current_user.id, account_id)
+        return [FileImportProfileResponse.from_orm(profile) for profile in profiles]
     except Exception as e:
         print(f"Error getting import profiles: {e}")
         raise HTTPException(
@@ -62,7 +62,7 @@ async def get_profiles_endpoint(
             detail="Error interno del servidor"
         )
 
-@router.get("/{profile_id}", response_model=CsvImportProfileResponse)
+@router.get("/{profile_id}", response_model=FileImportProfileResponse)
 async def get_profile_endpoint(
     profile_id: int,
     db: Session = Depends(get_db),
@@ -77,12 +77,12 @@ async def get_profile_endpoint(
             detail="Perfil de importación no encontrado"
         )
     
-    return CsvImportProfileResponse.from_orm(profile)
+    return FileImportProfileResponse.from_orm(profile)
 
-@router.put("/{profile_id}", response_model=CsvImportProfileResponse)
+@router.put("/{profile_id}", response_model=FileImportProfileResponse)
 async def update_profile_endpoint(
     profile_id: int,
-    profile_data: CsvImportProfileUpdate,
+    profile_data: FileImportProfileUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -96,7 +96,7 @@ async def update_profile_endpoint(
                 detail="Perfil de importación no encontrado"
             )
         
-        return CsvImportProfileResponse.from_orm(updated_profile)
+        return FileImportProfileResponse.from_orm(updated_profile)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

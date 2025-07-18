@@ -9,8 +9,8 @@
               Perfiles de Importación
             </h3>
             <p class="mt-1 text-sm text-gray-500">
-              Configura cómo mapear las columnas de tus archivos Excel según el
-              banco
+              Configura cómo mapear las columnas de tus archivos CSV, Excel
+              según el banco
             </p>
           </div>
           <div class="flex space-x-3">
@@ -52,16 +52,20 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            Filtrar por banco
+            Filtrar por cuenta
           </label>
           <select
-            v-model="selectedBankFilter"
+            v-model="selectedAccountFilter"
             @change="fetchProfiles"
             class="w-full border border-gray-300 rounded-md px-3 py-2"
           >
-            <option value="">Todos los bancos</option>
-            <option v-for="bank in banks" :key="bank.id" :value="bank.id">
-              {{ bank.name }}
+            <option value="">Todas las cuentas</option>
+            <option
+              v-for="account in accounts"
+              :key="account.id"
+              :value="account.id"
+            >
+              {{ account.name }} ({{ account.bank?.name }})
             </option>
           </select>
         </div>
@@ -131,10 +135,17 @@
                   <div class="mt-1 text-sm text-gray-500">
                     <p>{{ profile.description || "Sin descripción" }}</p>
                     <p class="mt-1">
-                      <strong>Banco:</strong>
-                      {{ getBankName(profile.bank_id) }} •
+                      <strong>Cuenta:</strong>
+                      {{ getAccountName(profile.account_id) }} •
                       <strong>Delimitador:</strong> "{{ profile.delimiter }}" •
                       <strong>Formato fecha:</strong> {{ profile.date_format }}
+                      <span v-if="profile.sheet_name">
+                        • <strong>Hoja:</strong> {{ profile.sheet_name }}
+                      </span>
+                      <span v-if="profile.header_row && profile.header_row > 1">
+                        • <strong>Fila encabezado:</strong>
+                        {{ profile.header_row }}
+                      </span>
                     </p>
                   </div>
 
@@ -191,7 +202,7 @@
     <ImportProfileModal
       v-if="showCreateModal || editingProfile"
       :profile="editingProfile"
-      :banks="banks"
+      :accounts="accounts"
       @close="closeModal"
       @saved="onProfileSaved"
     />
@@ -245,7 +256,7 @@ const authStore = useAuthStore();
 
 // Estado
 const profiles = ref([]);
-const banks = ref([]);
+const accounts = ref([]);
 const loading = ref(false);
 const error = ref(null);
 const showCreateModal = ref(false);
@@ -253,7 +264,7 @@ const editingProfile = ref(null);
 const profileToDelete = ref(null);
 const deleting = ref(false);
 const creatingDefaults = ref(false);
-const selectedBankFilter = ref("");
+const selectedAccountFilter = ref("");
 
 // Funciones de API
 async function apiRequest(url, options = {}) {
@@ -281,8 +292,8 @@ async function fetchProfiles() {
   error.value = null;
 
   try {
-    const params = selectedBankFilter.value
-      ? `?bank_id=${selectedBankFilter.value}`
+    const params = selectedAccountFilter.value
+      ? `?account_id=${selectedAccountFilter.value}`
       : "";
     profiles.value = await apiRequest(`/api/v1/import-profiles${params}`);
   } catch (err) {
@@ -293,16 +304,25 @@ async function fetchProfiles() {
   }
 }
 
-// GraphQL query para obtener los bancos
-const GET_BANKS_QUERY = `
-  query GetBanks($activeOnly: Boolean = true) {
-    banks(activeOnly: $activeOnly) {
+// GraphQL query para obtener las cuentas
+const GET_ACCOUNTS_QUERY = `
+  query GetAccounts($activeOnly: Boolean = true) {
+    accounts(activeOnly: $activeOnly) {
       id
       name
-      code
-      logoUrl
+      accountNumber
+      accountType {
+        id
+        name
+      }
+      bank {
+        id
+        name
+        code
+        logoUrl
+      }
+      balance
       active
-      description
       createdAt
       updatedAt
     }
@@ -338,13 +358,13 @@ async function graphqlRequest(query, variables = {}) {
   return data.data;
 }
 
-async function fetchBanks() {
+async function fetchAccounts() {
   try {
-    // Realizar consulta GraphQL para obtener bancos activos
-    const data = await graphqlRequest(GET_BANKS_QUERY, { activeOnly: true });
-    banks.value = data.banks || [];
+    // Realizar consulta GraphQL para obtener cuentas activas
+    const data = await graphqlRequest(GET_ACCOUNTS_QUERY, { activeOnly: true });
+    accounts.value = data.accounts || [];
   } catch (err) {
-    console.error("Error al cargar bancos:", err);
+    console.error("Error al cargar cuentas:", err);
 
     // Manejar errores de autenticación
     if (
@@ -353,14 +373,15 @@ async function fetchBanks() {
     ) {
       const refreshed = await authStore.refreshAuthToken();
       if (refreshed) {
-        return fetchBanks(); // Reintentar con el nuevo token
+        return fetchAccounts(); // Reintentar con el nuevo token
       } else {
-        window.location.href = "/auth/login?returnTo=/dashboard/accounts/new";
+        window.location.href =
+          "/auth/login?returnTo=/dashboard/transactions/profiles";
         return;
       }
     }
 
-    error.value = "No se pudieron cargar los bancos disponibles.";
+    error.value = "No se pudieron cargar las cuentas disponibles.";
   }
 }
 
@@ -401,9 +422,11 @@ async function deleteProfile() {
 }
 
 // Funciones auxiliares
-function getBankName(bankId) {
-  const bank = banks.value.find((b) => b.id === bankId);
-  return bank ? bank.name : "Banco desconocido";
+function getAccountName(accountId) {
+  const account = accounts.value.find((a) => a.id === accountId);
+  return account
+    ? `${account.name} (${account.bank?.name})`
+    : "Cuenta desconocida";
 }
 
 function getTargetFieldLabel(field) {
@@ -414,6 +437,7 @@ function getTargetFieldLabel(field) {
     notes: "Notas",
     category: "Categoría",
     reference: "Referencia",
+    account_number: "Número de Cuenta",
   };
   return labels[field] || field;
 }
@@ -437,7 +461,7 @@ function onProfileSaved() {
 }
 
 onMounted(async () => {
-  await fetchBanks();
+  await fetchAccounts();
   await fetchProfiles();
 });
 </script>

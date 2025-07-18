@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import update
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -18,16 +19,19 @@ def create_import_profile(
 ) -> FileImportProfile:
     """Crea un nuevo perfil de importación"""
     
-    # Verificar que el banco existe
-    bank = db.query(Bank).filter(Bank.id == profile_data.bank_id).first()
-    if not bank:
-        raise ValueError("Banco no encontrado")
+    # Verificar que la cuenta existe y pertenece al usuario
+    account = db.query(Account).filter(
+        Account.id == profile_data.account_id,
+        Account.user_id == user_id
+    ).first()
+    if not account:
+        raise ValueError("Cuenta no encontrada o no pertenece al usuario")
     
-    # Si se marca como default, desmarcar otros defaults del usuario para este banco
+    # Si se marca como default, desmarcar otros defaults del usuario para esta cuenta
     if profile_data.is_default:
         db.query(FileImportProfile).filter(
             FileImportProfile.user_id == user_id,
-            FileImportProfile.bank_id == profile_data.bank_id,
+            FileImportProfile.account_id == profile_data.account_id,
             FileImportProfile.is_default == True
         ).update({FileImportProfile.is_default: False})
     
@@ -36,7 +40,7 @@ def create_import_profile(
         user_id=user_id,
         name=profile_data.name,
         description=profile_data.description,
-        bank_id=profile_data.bank_id,
+        account_id=profile_data.account_id,
         is_default=profile_data.is_default,
         delimiter=profile_data.delimiter,
         has_header=profile_data.has_header,
@@ -82,14 +86,14 @@ def create_import_profile(
 def get_user_import_profiles(
     db: Session, 
     user_id: int,
-    bank_id: Optional[int] = None
+    account_id: Optional[int] = None
 ) -> List[FileImportProfile]:
     """Obtiene los perfiles de importación del usuario"""
     
     query = db.query(FileImportProfile).filter(FileImportProfile.user_id == user_id)
     
-    if bank_id:
-        query = query.filter(FileImportProfile.bank_id == bank_id)
+    if account_id:
+        query = query.filter(FileImportProfile.account_id == account_id)
     
     return query.order_by(FileImportProfile.is_default.desc(), FileImportProfile.name).all()
 
@@ -119,11 +123,11 @@ def update_import_profile(
     # Actualizar campos básicos
     update_data = profile_data.dict(exclude_unset=True, exclude={'column_mappings'})
     
-    # Si se marca como default, desmarcar otros defaults del usuario para este banco
+    # Si se marca como default, desmarcar otros defaults del usuario para esta cuenta
     if update_data.get('is_default') == True:
         db.query(FileImportProfile).filter(
             FileImportProfile.user_id == user_id,
-            FileImportProfile.bank_id == db_profile.bank_id,
+            FileImportProfile.account_id == db_profile.account_id,
             FileImportProfile.id != profile_id,
             FileImportProfile.is_default == True
         ).update({FileImportProfile.is_default: False})
@@ -131,7 +135,12 @@ def update_import_profile(
     for field, value in update_data.items():
         setattr(db_profile, field, value)
     
-    db_profile.updated_at = datetime.utcnow()
+    # Update timestamp directly in database
+    db.execute(
+        update(FileImportProfile)
+        .where(FileImportProfile.id == profile_id)
+        .values(updated_at=datetime.utcnow())
+    )
     
     # Actualizar mapeos de columnas si se proporcionan
     if profile_data.column_mappings is not None:
@@ -191,15 +200,15 @@ def delete_import_profile(db: Session, user_id: int, profile_id: int) -> bool:
     
     return True
 
-def get_default_profile_for_bank(
+def get_default_profile_for_account(
     db: Session, 
     user_id: int, 
-    bank_id: int
+    account_id: int
 ) -> Optional[FileImportProfile]:
-    """Obtiene el perfil por defecto para un banco específico"""
+    """Obtiene el perfil por defecto para una cuenta específica"""
     return db.query(FileImportProfile).filter(
         FileImportProfile.user_id == user_id,
-        FileImportProfile.bank_id == bank_id,
+        FileImportProfile.account_id == account_id,
         FileImportProfile.is_default == True
     ).first()
 
@@ -214,14 +223,14 @@ def get_import_history(
     query = db.query(
         FileImport,
         FileImportProfile.name.label('profile_name'),
-        Bank.name.label('bank_name'),
-        Account.name.label('account_name')
+        Account.name.label('account_name'),
+        Bank.name.label('bank_name')
     ).join(
         FileImportProfile, FileImport.profile_id == FileImportProfile.id
     ).join(
-        Bank, FileImportProfile.bank_id == Bank.id
+        Account, FileImportProfile.account_id == Account.id
     ).join(
-        Account, FileImport.account_id == Account.id
+        Bank, Account.bank_id == Bank.id
     ).filter(
         FileImport.user_id == user_id
     ).order_by(
@@ -229,7 +238,7 @@ def get_import_history(
     ).offset(offset).limit(limit)
     
     results = []
-    for import_record, profile_name, bank_name, account_name in query.all():
+    for import_record, profile_name, account_name, bank_name in query.all():
         results.append({
             'id': import_record.id,
             'filename': import_record.filename,
@@ -253,140 +262,9 @@ def get_import_history(
 
 def create_default_profiles_for_popular_banks(db: Session, user_id: int):
     """Crea perfiles por defecto para bancos populares chilenos"""
-    
-    # Definir configuraciones por defecto para bancos populares
-    default_configs = [
-        {
-            'bank_name': 'Banco de Chile',
-            'profile_name': 'Estado de Cuenta Excel Estándar',
-            'description': 'Formato estándar del estado de cuenta del Banco de Chile en Excel',
-            'delimiter': ',',
-            'date_format': 'DD/MM/YYYY',
-            'decimal_separator': '.',
-            'sheet_name': None,  # Primera hoja
-            'header_row': 1,
-            'start_row': 2,
-            'mappings': [
-                {'source': 'Fecha', 'target': 'date', 'required': True, 'position': 1},
-                {'source': 'Descripción', 'target': 'description', 'required': True, 'position': 2},
-                {'source': 'Monto', 'target': 'amount', 'required': True, 'position': 3},
-                {'source': 'Referencia', 'target': 'reference', 'required': False, 'position': 4},
-            ]
-        },
-        {
-            'bank_name': 'Banco Santander',
-            'profile_name': 'Cartola Santander Excel',
-            'description': 'Formato estándar de cartola del Banco Santander en Excel',
-            'delimiter': ';',
-            'date_format': 'DD-MM-YYYY',
-            'decimal_separator': ',',
-            'sheet_name': 'Movimientos',
-            'header_row': 3,  # A veces tienen encabezados en la fila 3
-            'start_row': 4,
-            'mappings': [
-                {'source': 'FECHA', 'target': 'date', 'required': True, 'position': 1},
-                {'source': 'GLOSA', 'target': 'description', 'required': True, 'position': 2},
-                {'source': 'CARGO', 'target': 'amount', 'required': False, 'position': 3, 'transformation': 'negative'},
-                {'source': 'ABONO', 'target': 'amount', 'required': False, 'position': 4, 'transformation': 'positive'},
-                {'source': 'SALDO', 'target': 'notes', 'required': False, 'position': 5},
-            ]
-        },
-        {
-            'bank_name': 'BancoEstado',
-            'profile_name': 'Estado de Cuenta BancoEstado Excel',
-            'description': 'Formato estándar del BancoEstado en Excel',
-            'delimiter': ',',
-            'date_format': 'YYYY-MM-DD',
-            'decimal_separator': '.',
-            'sheet_name': None,
-            'header_row': 1,
-            'start_row': 2,
-            'mappings': [
-                {'source': 'fecha_contable', 'target': 'date', 'required': True, 'position': 1},
-                {'source': 'descripcion', 'target': 'description', 'required': True, 'position': 2},
-                {'source': 'monto', 'target': 'amount', 'required': True, 'position': 3},
-                {'source': 'oficina', 'target': 'notes', 'required': False, 'position': 4},
-            ]
-        },
-        {
-            'bank_name': 'Banco de Crédito e Inversiones',
-            'profile_name': 'Cartola BCI Excel',
-            'description': 'Formato estándar de cartola del BCI en Excel',
-            'delimiter': ',',
-            'date_format': 'DD/MM/YYYY',
-            'decimal_separator': '.',
-            'sheet_name': None,
-            'header_row': 1,
-            'start_row': 2,
-            'mappings': [
-                {'source': 'Fecha', 'target': 'date', 'required': True, 'position': 1},
-                {'source': 'Detalle', 'target': 'description', 'required': True, 'position': 2},
-                {'source': 'Débito', 'target': 'amount', 'required': False, 'position': 3, 'transformation': 'negative'},
-                {'source': 'Crédito', 'target': 'amount', 'required': False, 'position': 4, 'transformation': 'positive'},
-                {'source': 'Número Documento', 'target': 'reference', 'required': False, 'position': 5},
-            ]
-        },
-        {
-            'bank_name': 'Banco Falabella',
-            'profile_name': 'Estado de Cuenta Falabella Excel',
-            'description': 'Formato estándar del Banco Falabella en Excel',
-            'delimiter': ',',
-            'date_format': 'DD/MM/YYYY',
-            'decimal_separator': '.',
-            'sheet_name': 'Movimientos',
-            'header_row': 2,
-            'start_row': 3,
-            'mappings': [
-                {'source': 'Fecha Mov.', 'target': 'date', 'required': True, 'position': 1},
-                {'source': 'Descripción', 'target': 'description', 'required': True, 'position': 2},
-                {'source': 'Monto', 'target': 'amount', 'required': True, 'position': 3},
-                {'source': 'Documento', 'target': 'reference', 'required': False, 'position': 4},
-            ]
-        }
-    ]
-    
-    for config in default_configs:
-        # Buscar el banco
-        bank = db.query(Bank).filter(Bank.name.ilike(f"%{config['bank_name']}%")).first()
-        if not bank:
-            continue
-            
-        # Verificar si ya existe un perfil por defecto para este banco
-        existing = get_default_profile_for_bank(db, user_id, bank.id)
-        if existing:
-            continue
-            
-        # Crear el perfil
-        try:
-            mappings = [
-                FileColumnMappingCreate(
-                    source_column_name=m['source'],
-                    target_field_name=m['target'],
-                    is_required=m['required'],
-                    position=m['position'],
-                    transformation_rule=m.get('transformation')
-                ) for m in config['mappings']
-            ]
-            
-            profile_data = FileImportProfileCreate(
-                name=config['profile_name'],
-                description=config['description'],
-                bank_id=bank.id,
-                is_default=True,
-                delimiter=config['delimiter'],
-                date_format=config['date_format'],
-                decimal_separator=config['decimal_separator'],
-                sheet_name=config['sheet_name'],
-                header_row=config['header_row'],
-                start_row=config['start_row'],
-                column_mappings=mappings
-            )
-            
-            create_import_profile(db, user_id, profile_data)
-            
-        except Exception as e:
-            print(f"Error creando perfil por defecto para {config['bank_name']}: {e}")
-            continue
+    # Esta función necesita ser refactorizada para trabajar con cuentas específicas
+    # en lugar de bancos genéricos
+    pass
 
 def validate_profile_for_import(
     db: Session,
@@ -464,5 +342,5 @@ def get_profile_statistics(
         'total_transactions_imported': total_transaction_count,
         'last_import_date': last_import.created_at if last_import else None,
         'is_default': profile.is_default,
-        'bank_name': profile.bank.name if profile.bank else None
+        'bank_name': profile.account.bank.name if profile.account and profile.account.bank else None
     }

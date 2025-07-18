@@ -48,16 +48,20 @@
 
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              Banco *
+              Cuenta *
             </label>
             <select
-              v-model="formData.bank_id"
+              v-model="formData.account_id"
               required
               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
-              <option value="">Selecciona un banco</option>
-              <option v-for="bank in banks" :key="bank.id" :value="bank.id">
-                {{ bank.name }}
+              <option value="">Selecciona una cuenta</option>
+              <option
+                v-for="account in accounts"
+                :key="account.id"
+                :value="account.id"
+              >
+                {{ account.name }} ({{ account.bank?.name }})
               </option>
             </select>
           </div>
@@ -126,18 +130,91 @@
               </select>
             </div>
 
-            <div class="flex items-center">
-              <label class="flex items-center">
-                <input
-                  v-model="formData.has_header"
-                  type="checkbox"
-                  class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-                />
-                <span class="ml-2 text-sm text-gray-700"
-                  >Tiene encabezados</span
-                >
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Codificación
               </label>
+              <select
+                v-model="formData.encoding"
+                class="w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value="utf-8">UTF-8</option>
+                <option value="latin-1">Latin-1</option>
+                <option value="cp1252">Windows-1252</option>
+              </select>
             </div>
+          </div>
+
+          <!-- Configuración específica para Excel -->
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Nombre de hoja (Excel)
+              </label>
+              <input
+                v-model="formData.sheet_name"
+                type="text"
+                placeholder="Deja vacío para usar la primera hoja"
+                class="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Fila de encabezados
+              </label>
+              <input
+                v-model="formData.header_row"
+                type="number"
+                min="1"
+                class="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Fila de inicio de datos
+              </label>
+              <input
+                v-model="formData.start_row"
+                type="number"
+                min="1"
+                class="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+          </div>
+
+          <div class="mt-4 flex flex-wrap gap-4">
+            <label class="flex items-center">
+              <input
+                v-model="formData.has_header"
+                type="checkbox"
+                class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
+              />
+              <span class="ml-2 text-sm text-gray-700">Tiene encabezados</span>
+            </label>
+
+            <label class="flex items-center">
+              <input
+                v-model="formData.skip_empty_rows"
+                type="checkbox"
+                class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
+              />
+              <span class="ml-2 text-sm text-gray-700"
+                >Omitir filas vacías</span
+              >
+            </label>
+
+            <label class="flex items-center">
+              <input
+                v-model="formData.auto_detect_format"
+                type="checkbox"
+                class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
+              />
+              <span class="ml-2 text-sm text-gray-700"
+                >Auto-detectar formato</span
+              >
+            </label>
           </div>
 
           <div class="mt-4">
@@ -148,7 +225,7 @@
                 class="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
               />
               <span class="ml-2 text-sm text-gray-700"
-                >Usar como perfil por defecto para este banco</span
+                >Usar como perfil por defecto para esta cuenta</span
               >
             </label>
           </div>
@@ -210,6 +287,7 @@
                   <option value="notes">Notas</option>
                   <option value="reference">Referencia</option>
                   <option value="category">Categoría</option>
+                  <option value="account_number">Número de Cuenta</option>
                 </select>
               </div>
 
@@ -300,7 +378,7 @@ const props = defineProps({
     type: Object,
     default: null,
   },
-  banks: {
+  accounts: {
     type: Array,
     required: true,
   },
@@ -317,12 +395,18 @@ const isEditing = computed(() => !!props.profile);
 const formData = reactive({
   name: "",
   description: "",
-  bank_id: "",
+  account_id: "",
   is_default: false,
   delimiter: ",",
   has_header: true,
+  encoding: "utf-8",
   date_format: "DD/MM/YYYY",
   decimal_separator: ".",
+  sheet_name: "",
+  header_row: 1,
+  start_row: 2,
+  skip_empty_rows: true,
+  auto_detect_format: true,
   column_mappings: [],
 });
 
@@ -350,10 +434,15 @@ async function apiRequest(url, options = {}) {
 function addColumnMapping() {
   formData.column_mappings.push({
     source_column_name: "",
+    source_column_index: null,
     target_field_name: "",
     is_required: true,
     position: formData.column_mappings.length + 1,
     transformation_rule: null,
+    default_value: null,
+    min_value: null,
+    max_value: null,
+    regex_pattern: null,
   });
 }
 
@@ -373,8 +462,8 @@ function validateForm() {
     throw new Error("El nombre del perfil es requerido");
   }
 
-  if (!formData.bank_id) {
-    throw new Error("Debe seleccionar un banco");
+  if (!formData.account_id) {
+    throw new Error("Debe seleccionar una cuenta");
   }
 
   if (!formData.column_mappings.length) {
@@ -440,18 +529,29 @@ onMounted(() => {
     Object.assign(formData, {
       name: props.profile.name,
       description: props.profile.description || "",
-      bank_id: props.profile.bank_id,
+      account_id: props.profile.account_id,
       is_default: props.profile.is_default,
       delimiter: props.profile.delimiter,
       has_header: props.profile.has_header,
+      encoding: props.profile.encoding || "utf-8",
       date_format: props.profile.date_format,
       decimal_separator: props.profile.decimal_separator,
+      sheet_name: props.profile.sheet_name || "",
+      header_row: props.profile.header_row || 1,
+      start_row: props.profile.start_row || 2,
+      skip_empty_rows: props.profile.skip_empty_rows !== false, // default true
+      auto_detect_format: props.profile.auto_detect_format !== false, // default true
       column_mappings: props.profile.column_mappings.map((mapping) => ({
         source_column_name: mapping.source_column_name,
+        source_column_index: mapping.source_column_index,
         target_field_name: mapping.target_field_name,
         is_required: mapping.is_required,
         position: mapping.position,
         transformation_rule: mapping.transformation_rule,
+        default_value: mapping.default_value,
+        min_value: mapping.min_value,
+        max_value: mapping.max_value,
+        regex_pattern: mapping.regex_pattern,
       })),
     });
   } else {

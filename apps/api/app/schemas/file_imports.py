@@ -48,7 +48,7 @@ class FileColumnMappingResponse(FileColumnMappingBase):
 class FileImportProfileBase(BaseModel):
     name: str
     description: Optional[str] = None
-    bank_id: int
+    account_id: int
     is_default: bool = False
     
     # Configuración para archivos delimitados (CSV, algunos Excel)
