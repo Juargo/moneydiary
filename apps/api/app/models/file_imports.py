@@ -16,6 +16,18 @@ class ImportStatus(enum.Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+class AmountSchemaType(enum.Enum):
+    """Define cómo se representan los montos en el archivo"""
+    SINGLE_COLUMN = "single_column"  # Una columna con positivos/negativos
+    SEPARATE_COLUMNS = "separate_columns"  # Columnas separadas para débito/crédito
+    DEBIT_CREDIT = "debit_credit"  # Columnas Débito/Crédito específicas
+
+class TransactionTypeDetection(enum.Enum):
+    """Define cómo detectar el tipo de transacción"""
+    BY_AMOUNT_SIGN = "by_amount_sign"  # Por signo del monto (positivo/negativo)
+    BY_COLUMN_TYPE = "by_column_type"  # Por tipo de columna (débito/crédito)
+    BY_EXPLICIT_FIELD = "by_explicit_field"  # Por campo explícito en el archivo
+
 class FileImport(Base):
     __tablename__ = 'file_imports'
     __table_args__ = {'schema': 'app'}
@@ -55,6 +67,7 @@ class FileImportProfile(Base):
     name = Column(String, nullable=False)
     description = Column(Text)
     is_default = Column(Boolean, nullable=False, default=False)
+    file_type = Column(Enum(ImportFileType), nullable=False, default=ImportFileType.CSV)  # Tipo de archivo esperado
     
     # Configuración para archivos delimitados (CSV, algunos Excel)
     delimiter = Column(String(1), nullable=False, default=",")
@@ -64,6 +77,23 @@ class FileImportProfile(Base):
     date_format = Column(String, nullable=False, default="YYYY-MM-DD")
     decimal_separator = Column(String(1), nullable=False, default=".")
     encoding = Column(String, default="utf-8")  # Para archivos CSV
+    
+    # Configuración de esquema de montos
+    amount_schema = Column(Enum(AmountSchemaType), nullable=False, default=AmountSchemaType.SINGLE_COLUMN)
+    transaction_type_detection = Column(Enum(TransactionTypeDetection), nullable=False, default=TransactionTypeDetection.BY_AMOUNT_SIGN)
+    
+    # Para esquema de columna única (positivos/negativos)
+    # Se mapea en column_mappings con target_field_name = "amount"
+    
+    # Para esquemas de columnas separadas
+    # Se definen mapeos específicos:
+    # - "debit_amount" -> columna de débitos/egresos
+    # - "credit_amount" -> columna de créditos/ingresos
+    # - "transaction_type" -> columna que indica tipo (opcional)
+    
+    # Reglas de interpretación
+    positive_is_income = Column(Boolean, default=True)  # True: positivo=ingreso, False: positivo=gasto
+    debit_column_is_expense = Column(Boolean, default=True)  # True: débito=gasto, False: débito=ingreso
     
     # Configuración específica para Excel
     sheet_name = Column(String)  # Nombre de la hoja a importar (None = primera hoja)
@@ -89,13 +119,17 @@ class FileColumnMapping(Base):
     profile_id = Column(Integer, ForeignKey('file_import_profiles.id'), nullable=False)
     source_column_name = Column(String, nullable=False)  # Nombre en el archivo
     source_column_index = Column(Integer)  # Índice de columna (para archivos sin header)
-    target_field_name = Column(String, nullable=False)  # Campo destino en Transaction
+    target_field_name = Column(String, nullable=False)  # Campo destino: amount, debit_amount, credit_amount, date, description, etc.
     is_required = Column(Boolean, nullable=False, default=True)
     position = Column(Integer)  # Orden de procesamiento
     
     # Reglas de transformación
     transformation_rule = Column(Text)  # JSON con reglas específicas
     default_value = Column(String)  # Valor por defecto si está vacío
+    
+    # Para campos de monto - configuración adicional
+    amount_multiplier = Column(String, default="1")  # Multiplicador para el monto (ej: "-1" para invertir signo)
+    treat_empty_as_zero = Column(Boolean, default=True)  # Si tratar vacíos como 0
     
     # Validaciones
     min_value = Column(String)  # Para números/fechas
@@ -121,3 +155,68 @@ class ImportError(Base):
     created_at = Column(TIMESTAMP)
 
     import_data = relationship("FileImport", backref="errors")
+
+# ============================
+# DOCUMENTACIÓN DE ESQUEMAS DE MONTOS
+# ============================
+
+"""
+ESQUEMAS DE MANEJO DE MONTOS EN ARCHIVOS DE BANCOS:
+
+1. SINGLE_COLUMN (Una columna con positivos/negativos):
+   - Mapeo: "amount" -> "Monto" 
+   - Lógica: 
+     * Si positive_is_income=True: Positivo=Ingreso, Negativo=Gasto
+     * Si positive_is_income=False: Positivo=Gasto, Negativo=Ingreso
+
+2. SEPARATE_COLUMNS (Columnas separadas débito/crédito):
+   - Mapeo: 
+     * "debit_amount" -> "Débito" o "Cargo" o "Egreso"
+     * "credit_amount" -> "Crédito" o "Abono" o "Ingreso"
+   - Lógica:
+     * Si debit_column_is_expense=True: Débito=Gasto, Crédito=Ingreso
+     * Si debit_column_is_expense=False: Débito=Ingreso, Crédito=Gasto
+
+3. DEBIT_CREDIT (Igual que SEPARATE_COLUMNS pero con nombres específicos):
+   - Similar a SEPARATE_COLUMNS pero con convención contable estricta
+
+DETECCIÓN DE TIPO DE TRANSACCIÓN:
+
+1. BY_AMOUNT_SIGN: Basado en el signo del monto final
+2. BY_COLUMN_TYPE: Basado en qué columna tiene valor (débito vs crédito)
+3. BY_EXPLICIT_FIELD: Basado en un campo específico del archivo que indica el tipo
+
+CAMPOS TARGET ESPECIALES:
+- "amount": Monto principal (para esquema de columna única)
+- "debit_amount": Monto de débito
+- "credit_amount": Monto de crédito
+- "transaction_type": Tipo explícito de transacción
+- "date": Fecha de transacción
+- "description": Descripción
+- "reference": Referencia o número de transacción
+- "notes": Notas adicionales
+- "category": Categoría (si viene en el archivo)
+
+EJEMPLOS DE USO:
+
+Banco que usa una columna con positivos/negativos:
+- amount_schema = SINGLE_COLUMN
+- transaction_type_detection = BY_AMOUNT_SIGN
+- positive_is_income = False (porque los gastos suelen ser negativos)
+- Mapeo: "Monto" -> "amount"
+
+Banco que usa columnas separadas:
+- amount_schema = SEPARATE_COLUMNS  
+- transaction_type_detection = BY_COLUMN_TYPE
+- debit_column_is_expense = True
+- Mapeos: 
+  * "Débito" -> "debit_amount"
+  * "Crédito" -> "credit_amount"
+
+Banco con campo explícito de tipo:
+- amount_schema = SINGLE_COLUMN
+- transaction_type_detection = BY_EXPLICIT_FIELD
+- Mapeos:
+  * "Monto" -> "amount"
+  * "Tipo" -> "transaction_type"
+"""

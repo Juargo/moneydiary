@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -16,6 +16,18 @@ class ImportStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+class AmountSchemaType(str, Enum):
+    """Define cómo se representan los montos en el archivo"""
+    SINGLE_COLUMN = "single_column"  # Una columna con positivos/negativos
+    SEPARATE_COLUMNS = "separate_columns"  # Columnas separadas para débito/crédito
+    DEBIT_CREDIT = "debit_credit"  # Columnas Débito/Crédito específicas
+
+class TransactionTypeDetection(str, Enum):
+    """Define cómo detectar el tipo de transacción"""
+    BY_AMOUNT_SIGN = "by_amount_sign"  # Por signo del monto (positivo/negativo)
+    BY_COLUMN_TYPE = "by_column_type"  # Por tipo de columna (débito/crédito)
+    BY_EXPLICIT_FIELD = "by_explicit_field"  # Por campo explícito en el archivo
+
 class FileColumnMappingBase(BaseModel):
     source_column_name: str
     source_column_index: Optional[int] = None
@@ -24,6 +36,8 @@ class FileColumnMappingBase(BaseModel):
     position: Optional[int] = None
     transformation_rule: Optional[str] = None
     default_value: Optional[str] = None
+    amount_multiplier: str = "1"  # Multiplicador para el monto
+    treat_empty_as_zero: bool = True  # Si tratar vacíos como 0
     min_value: Optional[str] = None
     max_value: Optional[str] = None
     regex_pattern: Optional[str] = None
@@ -31,7 +45,10 @@ class FileColumnMappingBase(BaseModel):
 class FileColumnMappingCreate(FileColumnMappingBase):
     @field_validator('target_field_name')
     def validate_target_field(cls, v):
-        valid_fields = ['date', 'amount', 'description', 'notes', 'category', 'reference', 'account_number']
+        valid_fields = [
+            'date', 'amount', 'description', 'notes', 'category', 'reference', 'account_number',
+            'income_amount', 'expense_amount', 'debit_amount', 'credit_amount', 'transaction_type'
+        ]
         if v not in valid_fields:
             raise ValueError(f'Campo objetivo debe ser uno de: {", ".join(valid_fields)}')
         return v
@@ -50,6 +67,7 @@ class FileImportProfileBase(BaseModel):
     description: Optional[str] = None
     account_id: int
     is_default: bool = False
+    file_type: ImportFileType = ImportFileType.CSV  # Tipo de archivo esperado
     
     # Configuración para archivos delimitados (CSV, algunos Excel)
     delimiter: str = ","
@@ -59,6 +77,12 @@ class FileImportProfileBase(BaseModel):
     # Configuración de formato
     date_format: str = "DD/MM/YYYY"
     decimal_separator: str = "."
+    
+    # Configuración de esquema de montos
+    amount_schema: AmountSchemaType = AmountSchemaType.SINGLE_COLUMN
+    transaction_type_detection: TransactionTypeDetection = TransactionTypeDetection.BY_AMOUNT_SIGN
+    positive_is_income: bool = True  # True: positivo=ingreso, False: positivo=gasto
+    debit_column_is_expense: bool = True  # True: débito=gasto, False: débito=ingreso
     
     # Configuración específica para Excel
     sheet_name: Optional[str] = None
@@ -93,6 +117,31 @@ class FileImportProfileCreate(FileImportProfileBase):
         if v < 1:
             raise ValueError('La fila de inicio debe ser mayor a 0')
         return v
+    
+    @model_validator(mode='before')
+    @classmethod
+    def validate_amount_schema_consistency(cls, values):
+        """Validar consistencia entre amount_schema y column_mappings"""
+        if isinstance(values, dict):
+            amount_schema = values.get('amount_schema')
+            column_mappings = values.get('column_mappings', [])
+            
+            # Obtener target fields de los mapeos
+            target_fields = [mapping.get('target_field_name', '') if isinstance(mapping, dict) 
+                           else getattr(mapping, 'target_field_name', '') 
+                           for mapping in column_mappings]
+            
+            if amount_schema == AmountSchemaType.SINGLE_COLUMN:
+                # Para esquema de columna única, debe haber un mapeo 'amount'
+                if 'amount' not in target_fields:
+                    raise ValueError('Para esquema SINGLE_COLUMN debe existir un mapeo con target_field_name="amount"')
+                    
+            elif amount_schema in [AmountSchemaType.SEPARATE_COLUMNS, AmountSchemaType.DEBIT_CREDIT]:
+                # Para esquemas separados, debe haber mapeos 'debit_amount' y 'credit_amount'
+                if 'debit_amount' not in target_fields or 'credit_amount' not in target_fields:
+                    raise ValueError('Para esquemas SEPARATE_COLUMNS/DEBIT_CREDIT deben existir mapeos "debit_amount" y "credit_amount"')
+        
+        return values
 
 class FileImportProfileUpdate(BaseModel):
     name: Optional[str] = None

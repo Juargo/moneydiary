@@ -290,6 +290,86 @@
           </div>
         </div>
 
+        <!-- Configuración de esquema de montos -->
+        <div class="border-t pt-6 mb-6">
+          <h4 class="text-md font-medium text-gray-900 mb-4">
+            Configuración de Montos
+          </h4>
+
+          <div class="bg-blue-50 p-4 rounded-md">
+            <h5 class="text-sm font-medium text-blue-900 mb-2">
+              💡 Cómo mapear los montos
+            </h5>
+            <div class="text-sm text-blue-800 space-y-2">
+              <p>
+                <strong>Monto (único):</strong> Para archivos con una sola
+                columna de monto con valores positivos/negativos. El tipo se
+                determina por el signo.
+              </p>
+              <p>
+                <strong>Ingreso:</strong> Para columnas que contienen solo
+                ingresos.
+                <span class="font-semibold text-green-700"
+                  >Automáticamente marcado como ingreso.</span
+                >
+              </p>
+              <p>
+                <strong>Egreso/Gasto:</strong> Para columnas que contienen solo
+                gastos.
+                <span class="font-semibold text-red-700"
+                  >Automáticamente marcado como gasto.</span
+                >
+              </p>
+              <p>
+                <strong>Débito/Crédito:</strong> Para archivos que usan
+                terminología contable. El tipo se determina según convención
+                contable.
+              </p>
+              <p>
+                <strong>Tipo de Transacción:</strong> Solo si el archivo tiene
+                una columna que indica explícitamente el tipo (ej: "INGRESO",
+                "GASTO", "D", "C").
+                <span class="font-semibold text-blue-700"
+                  >Opcional - solo mapea si existe en tu archivo.</span
+                >
+              </p>
+            </div>
+          </div>
+
+          <!-- Configuración para monto único -->
+          <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Si usas "Monto (único)", ¿cómo interpretar los signos?
+            </label>
+            <div class="space-y-2">
+              <label class="flex items-center">
+                <input
+                  v-model="formData.positive_is_income"
+                  :value="true"
+                  type="radio"
+                  name="sign_interpretation"
+                  class="text-primary-600"
+                />
+                <span class="ml-2 text-sm">
+                  Positivo = Ingreso, Negativo = Gasto (más común)
+                </span>
+              </label>
+              <label class="flex items-center">
+                <input
+                  v-model="formData.positive_is_income"
+                  :value="false"
+                  type="radio"
+                  name="sign_interpretation"
+                  class="text-primary-600"
+                />
+                <span class="ml-2 text-sm">
+                  Positivo = Gasto, Negativo = Ingreso
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <!-- Mapeo de columnas -->
         <div class="border-t pt-6 mb-6">
           <div class="flex justify-between items-center mb-4">
@@ -345,12 +425,21 @@
                 >
                   <option value="">Mapear a...</option>
                   <option value="date">Fecha</option>
-                  <option value="amount">Monto</option>
+
+                  <!-- Opciones de monto -->
+                  <option value="amount">Monto (único)</option>
+                  <option value="income_amount">Ingreso</option>
+                  <option value="expense_amount">Egreso/Gasto</option>
+                  <option value="debit_amount">Débito</option>
+                  <option value="credit_amount">Crédito</option>
+
+                  <!-- Otras opciones -->
                   <option value="description">Descripción</option>
                   <option value="notes">Notas</option>
                   <option value="reference">Referencia</option>
                   <option value="category">Categoría</option>
                   <option value="account_number">Número de Cuenta</option>
+                  <option value="transaction_type">Tipo de Transacción</option>
                 </select>
               </div>
 
@@ -405,6 +494,57 @@
             >
               <p>No hay mapeos configurados</p>
               <p class="text-sm">Agrega al menos un mapeo para fecha y monto</p>
+            </div>
+          </div>
+
+          <!-- Guía de ayuda -->
+          <div class="mt-6 bg-blue-50 p-4 rounded-md">
+            <h5 class="text-sm font-medium text-blue-900 mb-2">
+              💡 Guía rápida de mapeo
+            </h5>
+            <div class="text-sm text-blue-800 space-y-1">
+              <p>
+                <strong>Campos requeridos:</strong> Necesitas mapear al menos
+                "Fecha" y un campo de monto.
+              </p>
+
+              <p><strong>Ejemplos de mapeo (SIN columna de tipo):</strong></p>
+              <ul class="list-disc list-inside space-y-1 ml-2">
+                <li>
+                  <strong>Archivo con una columna:</strong> "Fecha" → Fecha,
+                  "Monto" → Monto (único)
+                  <span class="text-green-600">✓ Tipo por signo</span>
+                </li>
+                <li>
+                  <strong>Archivo con columnas separadas:</strong> "Fecha" →
+                  Fecha, "Ingresos" → Ingreso, "Gastos" → Egreso/Gasto
+                  <span class="text-green-600">✓ Tipo automático</span>
+                </li>
+                <li>
+                  <strong>Archivo contable:</strong> "Fecha" → Fecha, "Debe" →
+                  Débito, "Haber" → Crédito
+                  <span class="text-green-600">✓ Tipo por convención</span>
+                </li>
+              </ul>
+
+              <p><strong>Con columna de tipo (opcional):</strong></p>
+              <ul class="list-disc list-inside space-y-1 ml-2">
+                <li>
+                  <strong>Con tipo explícito:</strong> Además mapea "Tipo" →
+                  Tipo de Transacción
+                  <span class="text-blue-600">ℹ Solo si existe</span>
+                </li>
+              </ul>
+
+              <div
+                class="mt-3 p-2 bg-green-100 rounded border-l-4 border-green-400"
+              >
+                <p class="text-green-800 text-xs">
+                  <strong>📌 Nota importante:</strong> No necesitas una columna
+                  de tipo de transacción. El sistema determina automáticamente
+                  si es ingreso o gasto según el mapeo que elijas.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -466,6 +606,10 @@ const formData = reactive({
   encoding: "utf-8",
   date_format: "DD/MM/YYYY",
   decimal_separator: ".",
+
+  // Configuración simplificada para monto único
+  positive_is_income: true, // Solo se usa cuando hay mapeo a "amount"
+
   sheet_name: "",
   header_row: 1,
   start_row: 2,
@@ -504,6 +648,8 @@ function addColumnMapping() {
     position: formData.column_mappings.length + 1,
     transformation_rule: null,
     default_value: null,
+    amount_multiplier: "1",
+    treat_empty_as_zero: true,
     min_value: null,
     max_value: null,
     regex_pattern: null,
@@ -538,26 +684,37 @@ function validateForm() {
     throw new Error("Debe agregar al menos un mapeo de columna");
   }
 
-  // Validar que exista mapeo para fecha y monto
+  // Validar que exista mapeo para fecha
   const hasDate = formData.column_mappings.some(
     (m) => m.target_field_name === "date"
-  );
-  const hasAmount = formData.column_mappings.some(
-    (m) => m.target_field_name === "amount"
   );
 
   if (!hasDate) {
     throw new Error('Debe mapear al menos una columna a "Fecha"');
   }
 
-  if (!hasAmount) {
-    throw new Error('Debe mapear al menos una columna a "Monto"');
-  }
-
-  // Validar mapeos duplicados
+  // Validar que exista al menos un mapeo de monto
   const targetFields = formData.column_mappings
     .map((m) => m.target_field_name)
     .filter(Boolean);
+
+  const amountFields = targetFields.filter((field) =>
+    [
+      "amount",
+      "income_amount",
+      "expense_amount",
+      "debit_amount",
+      "credit_amount",
+    ].includes(field)
+  );
+
+  if (amountFields.length === 0) {
+    throw new Error(
+      "Debe mapear al menos una columna de monto (Monto, Ingreso, Egreso, Débito o Crédito)"
+    );
+  }
+
+  // Validar mapeos duplicados
   const uniqueTargets = [...new Set(targetFields)];
 
   if (targetFields.length !== uniqueTargets.length) {
@@ -605,6 +762,10 @@ onMounted(() => {
       encoding: props.profile.encoding || "utf-8",
       date_format: props.profile.date_format,
       decimal_separator: props.profile.decimal_separator,
+
+      // Campo simplificado
+      positive_is_income: props.profile.positive_is_income !== false, // default true
+
       sheet_name: props.profile.sheet_name || "",
       header_row: props.profile.header_row || 1,
       start_row: props.profile.start_row || 2,
@@ -618,6 +779,8 @@ onMounted(() => {
         position: mapping.position,
         transformation_rule: mapping.transformation_rule,
         default_value: mapping.default_value,
+        amount_multiplier: mapping.amount_multiplier || "1",
+        treat_empty_as_zero: mapping.treat_empty_as_zero !== false,
         min_value: mapping.min_value,
         max_value: mapping.max_value,
         regex_pattern: mapping.regex_pattern,
