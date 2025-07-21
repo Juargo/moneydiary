@@ -85,7 +85,28 @@
             Configuración del Archivo
           </h4>
 
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- Selector de tipo de archivo -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Tipo de archivo *
+            </label>
+            <select
+              v-model="formData.file_type"
+              class="w-full border border-gray-300 rounded-md px-3 py-2"
+              required
+            >
+              <option value="">Selecciona el tipo de archivo</option>
+              <option value="csv">CSV (Valores separados por comas)</option>
+              <option value="excel">Excel (.xlsx)</option>
+              <option value="xls">Excel Legacy (.xls)</option>
+            </select>
+          </div>
+
+          <!-- Configuración para archivos CSV -->
+          <div
+            v-if="formData.file_type === 'csv'"
+            class="grid grid-cols-1 md:grid-cols-4 gap-4"
+          >
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Delimitador
@@ -98,6 +119,20 @@
                 <option value=";">Punto y coma (;)</option>
                 <option value="\t">Tabulación</option>
                 <option value="|">Pipe (|)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Codificación
+              </label>
+              <select
+                v-model="formData.encoding"
+                class="w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value="utf-8">UTF-8</option>
+                <option value="latin-1">Latin-1</option>
+                <option value="cp1252">Windows-1252</option>
               </select>
             </div>
 
@@ -129,58 +164,82 @@
                 <option value=",">Coma (,)</option>
               </select>
             </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Codificación
-              </label>
-              <select
-                v-model="formData.encoding"
-                class="w-full border border-gray-300 rounded-md px-3 py-2"
-              >
-                <option value="utf-8">UTF-8</option>
-                <option value="latin-1">Latin-1</option>
-                <option value="cp1252">Windows-1252</option>
-              </select>
-            </div>
           </div>
 
-          <!-- Configuración específica para Excel -->
-          <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Nombre de hoja (Excel)
-              </label>
-              <input
-                v-model="formData.sheet_name"
-                type="text"
-                placeholder="Deja vacío para usar la primera hoja"
-                class="w-full border border-gray-300 rounded-md px-3 py-2"
-              />
+          <!-- Configuración para archivos Excel -->
+          <div
+            v-if="
+              formData.file_type === 'excel' || formData.file_type === 'xls'
+            "
+            class="space-y-4"
+          >
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Formato de fecha
+                </label>
+                <select
+                  v-model="formData.date_format"
+                  class="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  <option value="DD-MM-YYYY">DD-MM-YYYY</option>
+                  <option value="DD.MM.YYYY">DD.MM.YYYY</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Separador decimal
+                </label>
+                <select
+                  v-model="formData.decimal_separator"
+                  class="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  <option value=".">Punto (.)</option>
+                  <option value=",">Coma (,)</option>
+                </select>
+              </div>
             </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Fila de encabezados
-              </label>
-              <input
-                v-model="formData.header_row"
-                type="number"
-                min="1"
-                class="w-full border border-gray-300 rounded-md px-3 py-2"
-              />
-            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre de hoja
+                </label>
+                <input
+                  v-model="formData.sheet_name"
+                  type="text"
+                  placeholder="Deja vacío para usar la primera hoja"
+                  class="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
+              </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Fila de inicio de datos
-              </label>
-              <input
-                v-model="formData.start_row"
-                type="number"
-                min="1"
-                class="w-full border border-gray-300 rounded-md px-3 py-2"
-              />
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Fila de encabezados
+                </label>
+                <input
+                  v-model="formData.header_row"
+                  type="number"
+                  min="1"
+                  class="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Fila de inicio de datos
+                </label>
+                <input
+                  v-model="formData.start_row"
+                  type="number"
+                  min="1"
+                  class="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
+              </div>
             </div>
           </div>
 
@@ -268,7 +327,11 @@
                 <input
                   v-model="mapping.source_column_name"
                   type="text"
-                  placeholder="Nombre de columna en Excel"
+                  :placeholder="
+                    formData.file_type === 'csv'
+                      ? 'Nombre de columna en CSV'
+                      : 'Nombre de columna en Excel'
+                  "
                   required
                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                 />
@@ -397,6 +460,7 @@ const formData = reactive({
   description: "",
   account_id: "",
   is_default: false,
+  file_type: "",
   delimiter: ",",
   has_header: true,
   encoding: "utf-8",
@@ -466,6 +530,10 @@ function validateForm() {
     throw new Error("Debe seleccionar una cuenta");
   }
 
+  if (!formData.file_type) {
+    throw new Error("Debe seleccionar un tipo de archivo");
+  }
+
   if (!formData.column_mappings.length) {
     throw new Error("Debe agregar al menos un mapeo de columna");
   }
@@ -531,6 +599,7 @@ onMounted(() => {
       description: props.profile.description || "",
       account_id: props.profile.account_id,
       is_default: props.profile.is_default,
+      file_type: props.profile.file_type || "csv", // Default to CSV if not specified
       delimiter: props.profile.delimiter,
       has_header: props.profile.has_header,
       encoding: props.profile.encoding || "utf-8",

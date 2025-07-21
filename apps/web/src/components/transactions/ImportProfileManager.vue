@@ -306,8 +306,8 @@ async function fetchProfiles() {
 
 // GraphQL query para obtener las cuentas
 const GET_ACCOUNTS_QUERY = `
-  query GetAccounts($activeOnly: Boolean = true) {
-    accounts(activeOnly: $activeOnly) {
+  query GetAccounts {
+    myAccounts {
       id
       name
       accountNumber
@@ -321,7 +321,7 @@ const GET_ACCOUNTS_QUERY = `
         code
         logoUrl
       }
-      balance
+      currentBalance
       active
       createdAt
       updatedAt
@@ -360,9 +360,12 @@ async function graphqlRequest(query, variables = {}) {
 
 async function fetchAccounts() {
   try {
+    console.log("Iniciando consulta GraphQL para cuentas...");
     // Realizar consulta GraphQL para obtener cuentas activas
-    const data = await graphqlRequest(GET_ACCOUNTS_QUERY, { activeOnly: true });
-    accounts.value = data.accounts || [];
+    const data = await graphqlRequest(GET_ACCOUNTS_QUERY);
+    console.log("Respuesta GraphQL:", data);
+    accounts.value = data.myAccounts || [];
+    console.log("Cuentas cargadas:", accounts.value.length);
   } catch (err) {
     console.error("Error al cargar cuentas:", err);
 
