@@ -60,6 +60,7 @@ class FileImport(Base):
 
 class FileImportProfile(Base):
     __tablename__ = 'file_import_profiles'
+    __table_args__ = {'schema': 'app'}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
@@ -114,6 +115,7 @@ class FileImportProfile(Base):
 
 class FileColumnMapping(Base):
     __tablename__ = 'file_column_mappings'
+    __table_args__ = {'schema': 'app'}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     profile_id = Column(Integer, ForeignKey('file_import_profiles.id'), nullable=False)
@@ -143,6 +145,7 @@ class FileColumnMapping(Base):
 
 class ImportError(Base):
     __tablename__ = 'import_errors'
+    __table_args__ = {'schema': 'app'}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     import_id = Column(Integer, ForeignKey('file_imports.id'), nullable=False)
