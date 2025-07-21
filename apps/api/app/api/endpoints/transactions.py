@@ -19,7 +19,8 @@ from ...services.transaction_service import (
     delete_transaction,
     get_user_transactions,
     import_transactions_from_csv,
-    import_transactions_from_excel
+    import_transactions_from_excel,
+    import_transactions_with_profile
 )
 from ...utils.fastapi_auth import get_current_user
 from ...models.users import User
@@ -224,15 +225,15 @@ router = APIRouter()
 
 @router.post("/import-csv", response_model=TransactionImportResponse)
 async def import_csv_endpoint(
-    account_id: int = Form(...),
+    profile_id: int = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Importa transacciones desde un archivo CSV"""
+    """Importa transacciones usando un perfil de importación"""
     try:
         # Validar tipo de archivo
-        if not file.filename.endswith('.csv'):
+        if not file.filename or not file.filename.endswith('.csv'):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="El archivo debe ser un CSV"
@@ -240,14 +241,13 @@ async def import_csv_endpoint(
         
         # Leer contenido del archivo
         content = await file.read()
-        csv_content = content.decode('utf-8')
         
-        # Procesar CSV
-        result = import_transactions_from_csv(
+        # Procesar con perfil
+        result = import_transactions_with_profile(
             db, 
             current_user.id, 
-            account_id, 
-            csv_content, 
+            profile_id, 
+            content, 
             file.filename
         )
         
@@ -269,28 +269,28 @@ async def import_csv_endpoint(
         
 @router.post("/import-excel", response_model=TransactionImportResponse)
 async def import_excel_endpoint(
-    account_id: int = Form(...),
+    profile_id: int = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Importa transacciones desde un archivo Excel (xlsx/xls)"""
+    """Importa transacciones usando un perfil de importación"""
     try:
         # Validar tipo de archivo
-        if not file.filename.lower().endswith(('.xlsx', '.xls')):
+        if not file.filename or not file.filename.lower().endswith(('.xlsx', '.xls', '.csv')):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El archivo debe ser Excel (.xlsx o .xls)"
+                detail="El archivo debe ser Excel (.xlsx, .xls) o CSV"
             )
         
         # Leer contenido del archivo
         content = await file.read()
         
-        # Procesar Excel
-        result = import_transactions_from_excel(
+        # Procesar con perfil
+        result = import_transactions_with_profile(
             db, 
             current_user.id, 
-            account_id, 
+            profile_id, 
             content, 
             file.filename
         )
@@ -305,8 +305,8 @@ async def import_excel_endpoint(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error importing Excel: {e}")
+        print(f"Error importing file: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error procesando archivo Excel: {str(e)}"
+            detail=f"Error procesando archivo: {str(e)}"
         )
