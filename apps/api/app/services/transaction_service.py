@@ -8,6 +8,7 @@ from openpyxl import load_workbook
 import io
 import csv
 import pandas as pd
+import xlrd
 
 from ..models.transactions import Transaction, TransactionStatus
 from ..models.accounts import Account
@@ -433,15 +434,37 @@ def import_transactions_with_profile(
     }
     
     try:
+        # Verificar que el archivo no esté vacío
+        if not file_content:
+            raise ValueError("El archivo está vacío")
+        
+        print(f"Procesando archivo: {filename}, tamaño: {len(file_content)} bytes")
+        
         # Determinar el tipo de archivo y procesarlo
-        if filename.lower().endswith('.csv'):
+        filename_lower = filename.lower()
+        if filename_lower.endswith('.csv'):
+            print("Procesando como CSV")
             return _process_csv_with_profile(db, user_id, profile, column_mappings, file_content, results)
-        elif filename.lower().endswith(('.xlsx', '.xls')):
+        elif filename_lower.endswith(('.xlsx', '.xls')):
+            print("Procesando como Excel")
             return _process_excel_with_profile(db, user_id, profile, column_mappings, file_content, results)
         else:
-            raise ValueError("Tipo de archivo no soportado")
+            # Intentar detectar por contenido si la extensión no es clara
+            try:
+                # Intentar como texto (CSV)
+                content_preview = file_content[:1024].decode('utf-8', errors='ignore')
+                if any(delimiter in content_preview for delimiter in [',', ';', '\t']):
+                    print("Detectado como CSV por contenido")
+                    return _process_csv_with_profile(db, user_id, profile, column_mappings, file_content, results)
+            except:
+                pass
+            
+            # Si no se puede detectar, asumir Excel
+            print("Procesando como Excel por defecto")
+            return _process_excel_with_profile(db, user_id, profile, column_mappings, file_content, results)
             
     except Exception as e:
+        print(f"Error en import_transactions_with_profile: {str(e)}")
         raise ValueError(f"Error procesando archivo: {str(e)}")
 
 def _process_csv_with_profile(
@@ -527,18 +550,71 @@ def _process_excel_with_profile(
     file_content: bytes,
     results: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """Procesa un archivo Excel usando el perfil de importación"""
+    """Procesa un archivo Excel usando el perfil de importación - soporta .xlsx y .xls"""
     
     try:
-        # Cargar el workbook
-        workbook = load_workbook(io.BytesIO(file_content), read_only=True, data_only=True)
+        # Verificar que el contenido no esté vacío
+        if not file_content:
+            raise ValueError("El archivo está vacío")
         
-        # Seleccionar la hoja
-        sheet_name = getattr(profile, 'sheet_name', None)
-        if sheet_name:
-            worksheet = workbook[sheet_name]
-        else:
-            worksheet = workbook.active
+        # Verificar tamaño mínimo para un archivo Excel válido
+        if len(file_content) < 100:
+            raise ValueError("El archivo es demasiado pequeño para ser un Excel válido")
+        
+        # Intentar cargar primero como .xlsx, luego como .xls
+        worksheet = None
+        workbook = None
+        is_xls_format = False
+        
+        try:
+            print(f"Intentando cargar como Excel .xlsx, primeros 50 bytes: {file_content[:50]}")
+            workbook = load_workbook(io.BytesIO(file_content), read_only=True, data_only=True)
+            print(f"Excel .xlsx cargado exitosamente, hojas disponibles: {workbook.sheetnames}")
+            
+            # Seleccionar la hoja
+            sheet_name = getattr(profile, 'sheet_name', None)
+            if sheet_name:
+                try:
+                    worksheet = workbook[sheet_name]
+                except KeyError:
+                    available_sheets = workbook.sheetnames
+                    raise ValueError(f"Hoja '{sheet_name}' no encontrada. Hojas disponibles: {', '.join(available_sheets)}")
+            else:
+                worksheet = workbook.active
+                
+        except Exception as xlsx_error:
+            print(f"Error cargando como .xlsx: {str(xlsx_error)}")
+            try:
+                print("Intentando cargar como Excel .xls...")
+                workbook = xlrd.open_workbook(file_contents=file_content)
+                is_xls_format = True
+                
+                # Para .xls, seleccionar la hoja
+                sheet_name = getattr(profile, 'sheet_name', None)
+                if sheet_name:
+                    try:
+                        worksheet = workbook.sheet_by_name(sheet_name)
+                    except Exception:  # xlrd puede lanzar diferentes tipos de errores
+                        available_sheets = workbook.sheet_names()
+                        raise ValueError(f"Hoja '{sheet_name}' no encontrada. Hojas disponibles: {', '.join(available_sheets)}")
+                else:
+                    worksheet = workbook.sheet_by_index(0)
+                    
+                print(f"Excel .xls cargado exitosamente")
+                
+            except Exception as xls_error:
+                print(f"Error cargando como .xls: {str(xls_error)}")
+                # Si falla como Excel, intentar detectar si es realmente un CSV
+                try:
+                    content_str = file_content.decode('utf-8')
+                    if ',' in content_str or ';' in content_str:
+                        raise ValueError("El archivo parece ser CSV, no Excel. Use el endpoint de CSV o cambie la extensión del archivo.")
+                except UnicodeDecodeError:
+                    pass
+                raise ValueError(f"Archivo Excel inválido. Errores: .xlsx: {str(xlsx_error)}, .xls: {str(xls_error)}")
+            
+        if worksheet is None:
+            raise ValueError("No se pudo obtener una hoja de trabajo válida del archivo Excel")
         
         # Crear mapeo de columnas
         column_map = {}
@@ -546,28 +622,41 @@ def _process_excel_with_profile(
         header_row_num = getattr(profile, 'header_row', 1)
         
         if has_header and header_row_num:
-            # Leer la fila de headers
-            header_row = list(worksheet.iter_rows(
-                min_row=header_row_num,
-                max_row=header_row_num,
-                values_only=True
-            ))[0]
+            # Leer la fila de headers según el formato
+            header_row = None
             
-            for mapping in column_mappings:
-                source_column_name = getattr(mapping, 'source_column_name', None)
-                source_column_index = getattr(mapping, 'source_column_index', None)
-                target_field_name = getattr(mapping, 'target_field_name', '')
-                
-                if source_column_name:
-                    try:
-                        column_index = header_row.index(source_column_name)
-                        column_map[target_field_name] = column_index
-                    except ValueError:
+            if is_xls_format:
+                # Para .xls usar xlrd (índices 0-based)
+                header_row_idx = header_row_num - 1
+                # Usar hasattr para verificar si existen los atributos antes de usarlos
+                if hasattr(worksheet, 'nrows') and hasattr(worksheet, 'ncols') and hasattr(worksheet, 'cell_value'):
+                    if header_row_idx < worksheet.nrows:  # type: ignore
+                        header_row = [worksheet.cell_value(header_row_idx, col) for col in range(worksheet.ncols)]  # type: ignore
+            else:
+                # Para .xlsx usar openpyxl
+                if hasattr(worksheet, 'iter_rows'):
+                    header_row = list(worksheet.iter_rows(  # type: ignore
+                        min_row=header_row_num,
+                        max_row=header_row_num,
+                        values_only=True
+                    ))[0]
+            
+            if header_row:
+                for mapping in column_mappings:
+                    source_column_name = getattr(mapping, 'source_column_name', None)
+                    source_column_index = getattr(mapping, 'source_column_index', None)
+                    target_field_name = getattr(mapping, 'target_field_name', '')
+                    
+                    if source_column_name:
+                        try:
+                            column_index = header_row.index(source_column_name)
+                            column_map[target_field_name] = column_index
+                        except ValueError:
+                            if source_column_index is not None:
+                                column_map[target_field_name] = source_column_index
+                    else:
                         if source_column_index is not None:
                             column_map[target_field_name] = source_column_index
-                else:
-                    if source_column_index is not None:
-                        column_map[target_field_name] = source_column_index
         else:
             # Usar índices configurados
             for mapping in column_mappings:
@@ -583,30 +672,60 @@ def _process_excel_with_profile(
         
         skip_empty_rows = getattr(profile, 'skip_empty_rows', True)
         
-        for row_idx, row in enumerate(worksheet.iter_rows(
-            min_row=start_row_num,
-            values_only=True
-        ), start=start_row_num):
+        if is_xls_format:
+            # Procesar filas para .xls
+            start_row_idx = start_row_num - 1  # xlrd usa índices 0-based
             
-            if skip_empty_rows and (not row or all(cell is None or str(cell).strip() == '' for cell in row)):
-                continue
-                
-            results['total_records'] += 1
-            
-            try:
-                transaction_data = _extract_transaction_data(list(row), column_map, profile, row_idx)
-                account_id = getattr(profile, 'account_id')
-                transaction_data.account_id = account_id
-                
-                create_transaction(db, user_id, transaction_data)
-                results['successful_imports'] += 1
-                
-            except Exception as e:
-                results['failed_imports'] += 1
-                results['errors'].append(f"Fila {row_idx}: {str(e)}")
-                continue
+            if hasattr(worksheet, 'nrows') and hasattr(worksheet, 'ncols') and hasattr(worksheet, 'cell_value'):
+                for row_idx in range(start_row_idx, worksheet.nrows):  # type: ignore
+                    row = [worksheet.cell_value(row_idx, col) for col in range(worksheet.ncols)]  # type: ignore
+                    
+                    if skip_empty_rows and (not row or all(cell is None or str(cell).strip() == '' for cell in row)):
+                        continue
+                        
+                    results['total_records'] += 1
+                    
+                    try:
+                        transaction_data = _extract_transaction_data(row, column_map, profile, row_idx + 1)
+                        account_id = getattr(profile, 'account_id')
+                        transaction_data.account_id = account_id
+                        
+                        create_transaction(db, user_id, transaction_data)
+                        results['successful_imports'] += 1
+                        
+                    except Exception as e:
+                        results['failed_imports'] += 1
+                        results['errors'].append(f"Fila {row_idx + 1}: {str(e)}")
+                        continue
+        else:
+            # Procesar filas para .xlsx
+            if hasattr(worksheet, 'iter_rows'):
+                for row_idx, row in enumerate(worksheet.iter_rows(  # type: ignore
+                    min_row=start_row_num,
+                    values_only=True
+                ), start=start_row_num):
+                    
+                    if skip_empty_rows and (not row or all(cell is None or str(cell).strip() == '' for cell in row)):
+                        continue
+                        
+                    results['total_records'] += 1
+                    
+                    try:
+                        transaction_data = _extract_transaction_data(list(row), column_map, profile, row_idx)
+                        account_id = getattr(profile, 'account_id')
+                        transaction_data.account_id = account_id
+                        
+                        create_transaction(db, user_id, transaction_data)
+                        results['successful_imports'] += 1
+                        
+                    except Exception as e:
+                        results['failed_imports'] += 1
+                        results['errors'].append(f"Fila {row_idx}: {str(e)}")
+                        continue
         
-        workbook.close()
+        # Cerrar el workbook si es openpyxl
+        if not is_xls_format and hasattr(workbook, 'close'):
+            workbook.close()  # type: ignore
         
     except Exception as e:
         raise ValueError(f"Error procesando Excel: {str(e)}")

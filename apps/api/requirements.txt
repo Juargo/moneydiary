@@ -162,3 +162,4 @@ psycopg2-binary==2.9.9
 fastapi-oauth2
 python-jose[cryptography]
 httpx
+xlrd==2.0.1

@@ -394,9 +394,8 @@ async function handleImport() {
     const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
 
     // Determinar el endpoint según el tipo de archivo
-    const isExcel = selectedFile.value.name
-      .toLowerCase()
-      .endsWith((".xlsx", ".xls"));
+    const fileName = selectedFile.value.name.toLowerCase();
+    const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
     const endpoint = isExcel
       ? "/api/v1/transactions/import-excel"
       : "/api/v1/transactions/import-csv";
