@@ -981,7 +981,7 @@ def _extract_transaction_data(
     
     logger.debug(f"  Fecha procesada: {transaction_date}")
     
-    # Extraer montos según el esquema configurado
+    # Extraer montos - detectar automáticamente el esquema disponible
     amount = 0.0
     amount_schema = getattr(profile, 'amount_schema')
     
@@ -990,46 +990,69 @@ def _extract_transaction_data(
     else:
         schema_value = str(amount_schema)
     
-    logger.debug(f"  Esquema de monto: {schema_value}")
+    logger.debug(f"  Esquema configurado: {schema_value}")
     
-    if schema_value == 'SINGLE_COLUMN':
-        # Una sola columna con positivos/negativos
+    # Detectar qué tipos de columnas están disponibles
+    has_single_amount = 'amount' in column_map
+    has_separate_amounts = ('expense_amount' in column_map and 'income_amount' in column_map) or \
+                          ('debit_amount' in column_map and 'credit_amount' in column_map)
+    
+    logger.debug(f"  Columnas disponibles: single_amount={has_single_amount}, separate_amounts={has_separate_amounts}")
+    logger.debug(f"  Mapeo de columnas: {list(column_map.keys())}")
+    
+    if has_separate_amounts:
+        # Usar columnas separadas (prioritario)
+        logger.debug("  Usando lógica de columnas separadas")
+        
+        # Primero intentar con expense_amount/income_amount
+        expense_amount = parse_excel_amount(get_cell_value('expense_amount', 0))
+        income_amount = parse_excel_amount(get_cell_value('income_amount', 0))
+        
+        # Si no están disponibles, usar debit_amount/credit_amount
+        if expense_amount == 0 and income_amount == 0:
+            debit_amount = parse_excel_amount(get_cell_value('debit_amount', 0))
+            credit_amount = parse_excel_amount(get_cell_value('credit_amount', 0))
+            
+            debit_column_is_expense = getattr(profile, 'debit_column_is_expense', True)
+            
+            logger.debug(f"  Montos débito/crédito: debit={debit_amount}, credit={credit_amount}")
+            logger.debug(f"  debit_column_is_expense: {debit_column_is_expense}")
+            
+            if debit_amount != 0:
+                amount = -abs(debit_amount) if debit_column_is_expense else abs(debit_amount)
+                logger.debug(f"  Usando debit_amount: {amount}")
+            elif credit_amount != 0:
+                amount = abs(credit_amount) if not debit_column_is_expense else -abs(credit_amount)
+                logger.debug(f"  Usando credit_amount: {amount}")
+        else:
+            logger.debug(f"  Montos ingreso/gasto: expense={expense_amount}, income={income_amount}")
+            
+            if expense_amount != 0:
+                amount = -abs(expense_amount)  # Gastos siempre negativos
+                logger.debug(f"  Usando expense_amount: {amount}")
+            elif income_amount != 0:
+                amount = abs(income_amount)  # Ingresos siempre positivos
+                logger.debug(f"  Usando income_amount: {amount}")
+                
+    elif has_single_amount:
+        # Usar columna única
+        logger.debug("  Usando lógica de columna única")
         amount_value = get_cell_value('amount', 0)
         amount = parse_excel_amount(amount_value)
+        
+        logger.debug(f"  Monto único obtenido: {amount}")
         
         # Aplicar reglas de interpretación
         positive_is_income = getattr(profile, 'positive_is_income', True)
         if not positive_is_income:
             amount = -amount  # Invertir signo si positivo no es ingreso
             logger.debug(f"  Signo invertido por configuración: {amount}")
-            
-    elif schema_value in ['SEPARATE_COLUMNS', 'DEBIT_CREDIT']:
-        # Columnas separadas para débito/crédito
-        debit_amount = parse_excel_amount(get_cell_value('debit_amount', 0))
-        credit_amount = parse_excel_amount(get_cell_value('credit_amount', 0))
-        
-        # También soportar los nuevos campos expense_amount e income_amount
-        expense_amount = parse_excel_amount(get_cell_value('expense_amount', 0))
-        income_amount = parse_excel_amount(get_cell_value('income_amount', 0))
-        
-        debit_column_is_expense = getattr(profile, 'debit_column_is_expense', True)
-        
-        logger.debug(f"  Montos separados: debit={debit_amount}, credit={credit_amount}, expense={expense_amount}, income={income_amount}")
-        logger.debug(f"  debit_column_is_expense: {debit_column_is_expense}")
-        
-        # Determinar el monto final
-        if debit_amount != 0:
-            amount = -abs(debit_amount) if debit_column_is_expense else abs(debit_amount)
-            logger.debug(f"  Usando debit_amount: {amount}")
-        elif credit_amount != 0:
-            amount = abs(credit_amount) if not debit_column_is_expense else -abs(credit_amount)
-            logger.debug(f"  Usando credit_amount: {amount}")
-        elif expense_amount != 0:
-            amount = -abs(expense_amount)  # Gastos siempre negativos
-            logger.debug(f"  Usando expense_amount: {amount}")
-        elif income_amount != 0:
-            amount = abs(income_amount)  # Ingresos siempre positivos
-            logger.debug(f"  Usando income_amount: {amount}")
+    
+    else:
+        # No se encontraron columnas de monto válidas
+        logger.error(f"  No se encontraron columnas de monto válidas en el mapeo")
+        logger.error(f"  Columnas mapeadas: {list(column_map.keys())}")
+        raise ValueError("No se encontraron columnas de monto válidas en la configuración")
     
     if amount == 0:
         logger.error(f"Fila {row_idx}: El monto no puede ser cero")
