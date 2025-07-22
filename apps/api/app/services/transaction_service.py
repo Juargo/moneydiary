@@ -9,14 +9,21 @@ import io
 import csv
 import pandas as pd
 import xlrd
+import logging
 
 from ..models.transactions import Transaction, TransactionStatus
 from ..models.accounts import Account
 from ..models.file_imports import FileImportProfile, FileColumnMapping
 from ..schemas.transactions import TransactionCreateRequest, TransactionUpdateRequest
 
+# Configurar logger
+logger = logging.getLogger(__name__)
+
 def create_transaction(db: Session, user_id: int, transaction_data: TransactionCreateRequest) -> Transaction:
     """Crea una nueva transacción"""
+    
+    logger.info(f"Iniciando creación de transacción para usuario {user_id}")
+    logger.debug(f"Datos de transacción: amount={transaction_data.amount}, account_id={transaction_data.account_id}, description='{transaction_data.description}'")
     
     # Verificar que la cuenta pertenece al usuario
     account = db.query(Account).filter(
@@ -26,7 +33,10 @@ def create_transaction(db: Session, user_id: int, transaction_data: TransactionC
     ).first()
     
     if not account:
+        logger.error(f"Cuenta {transaction_data.account_id} no encontrada o no autorizada para usuario {user_id}")
         raise ValueError("Cuenta no encontrada o no autorizada")
+    
+    logger.debug(f"Cuenta encontrada: {account.name} (ID: {account.id}), balance actual: {account.current_balance}")
     
     # Si hay cuenta de transferencia, verificar que también pertenece al usuario
     if transaction_data.transfer_account_id:
@@ -37,7 +47,10 @@ def create_transaction(db: Session, user_id: int, transaction_data: TransactionC
         ).first()
         
         if not transfer_account:
+            logger.error(f"Cuenta de transferencia {transaction_data.transfer_account_id} no encontrada para usuario {user_id}")
             raise ValueError("Cuenta de transferencia no encontrada o no autorizada")
+        
+        logger.debug(f"Cuenta de transferencia encontrada: {transfer_account.name} (ID: {transfer_account.id})")
     
     # Crear la transacción
     db_transaction = Transaction(
@@ -61,17 +74,29 @@ def create_transaction(db: Session, user_id: int, transaction_data: TransactionC
     )
     
     db.add(db_transaction)
+    logger.debug(f"Transacción agregada a la sesión de BD")
     
     # Actualizar balance de la cuenta
-    account.current_balance += Decimal(str(transaction_data.amount))
+    old_balance = account.current_balance
+    account.current_balance += Decimal(str(transaction_data.amount))  # type: ignore
+    logger.debug(f"Balance de cuenta {account.id} actualizado: {old_balance} -> {account.current_balance}")
     
     # Si es transferencia, actualizar cuenta destino
     if transaction_data.transfer_account_id and transaction_data.amount < 0:
         transfer_account = db.query(Account).filter(Account.id == transaction_data.transfer_account_id).first()
         if transfer_account:
-            transfer_account.current_balance += abs(Decimal(str(transaction_data.amount)))
+            old_transfer_balance = transfer_account.current_balance
+            transfer_account.current_balance += abs(Decimal(str(transaction_data.amount)))  # type: ignore
+            logger.debug(f"Balance de cuenta de transferencia {transfer_account.id} actualizado: {old_transfer_balance} -> {transfer_account.current_balance}")
     
-    db.commit()
+    try:
+        db.commit()
+        logger.info(f"Transacción creada exitosamente con ID {db_transaction.id}")
+    except Exception as e:
+        logger.error(f"Error al hacer commit de la transacción: {str(e)}")
+        db.rollback()
+        raise
+    
     db.refresh(db_transaction)
     
     return db_transaction
@@ -88,31 +113,53 @@ def get_user_transactions(
 ) -> List[Transaction]:
     """Obtiene las transacciones del usuario con filtros"""
     
+    logger.info(f"Obteniendo transacciones para usuario {user_id}")
+    logger.debug(f"Filtros: account_id={account_id}, start_date={start_date}, end_date={end_date}, category_id={category_id}, skip={skip}, limit={limit}")
+    
     query = db.query(Transaction).filter(Transaction.user_id == user_id)
     
     if account_id:
         query = query.filter(Transaction.account_id == account_id)
+        logger.debug(f"Filtro aplicado: account_id={account_id}")
     
     if start_date:
         query = query.filter(Transaction.transaction_date >= start_date)
+        logger.debug(f"Filtro aplicado: start_date={start_date}")
     
     if end_date:
         query = query.filter(Transaction.transaction_date <= end_date)
+        logger.debug(f"Filtro aplicado: end_date={end_date}")
     
     if category_id:
         query = query.filter(Transaction.category_id == category_id)
+        logger.debug(f"Filtro aplicado: category_id={category_id}")
     
     query = query.order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
     query = query.offset(skip).limit(limit)
     
-    return query.all()
+    try:
+        transactions = query.all()
+        logger.info(f"Se encontraron {len(transactions)} transacciones para usuario {user_id}")
+        return transactions
+    except Exception as e:
+        logger.error(f"Error al obtener transacciones para usuario {user_id}: {str(e)}")
+        raise
 
 def get_user_transaction(db: Session, user_id: int, transaction_id: int) -> Optional[Transaction]:
     """Obtiene una transacción específica del usuario"""
-    return db.query(Transaction).filter(
+    logger.debug(f"Buscando transacción {transaction_id} para usuario {user_id}")
+    
+    transaction = db.query(Transaction).filter(
         Transaction.id == transaction_id,
         Transaction.user_id == user_id
     ).first()
+    
+    if transaction:
+        logger.debug(f"Transacción {transaction_id} encontrada")
+    else:
+        logger.warning(f"Transacción {transaction_id} no encontrada para usuario {user_id}")
+    
+    return transaction
 
 def update_transaction(
     db: Session, 
@@ -122,6 +169,9 @@ def update_transaction(
 ) -> Optional[Transaction]:
     """Actualiza una transacción existente"""
     
+    logger.info(f"Iniciando actualización de transacción {transaction_id} para usuario {user_id}")
+    logger.debug(f"Datos de actualización: {transaction_data.dict(exclude_unset=True)}")
+    
     # Obtener la transacción
     db_transaction = db.query(Transaction).filter(
         Transaction.id == transaction_id,
@@ -129,7 +179,10 @@ def update_transaction(
     ).first()
     
     if not db_transaction:
+        logger.warning(f"Transacción {transaction_id} no encontrada para usuario {user_id}")
         return None
+    
+    logger.debug(f"Transacción encontrada: amount={db_transaction.amount}, account_id={db_transaction.account_id}")
     
     # Guardar monto anterior para ajustar balances
     old_amount = db_transaction.amount
@@ -140,16 +193,21 @@ def update_transaction(
     
     for field, value in update_data.items():
         if hasattr(db_transaction, field):
+            logger.debug(f"Actualizando campo {field}: {getattr(db_transaction, field)} -> {value}")
             setattr(db_transaction, field, value)
     
     db_transaction.updated_at = datetime.utcnow()
     
     # Ajustar balances si cambió el monto o la cuenta
     if 'amount' in update_data or 'account_id' in update_data:
+        logger.debug("Ajustando balances de cuentas por cambio de monto o cuenta")
+        
         # Revertir el monto anterior de la cuenta anterior
         old_account = db.query(Account).filter(Account.id == old_account_id).first()
         if old_account:
-            old_account.current_balance -= old_amount
+            old_balance = old_account.current_balance
+            old_account.current_balance -= old_amount  # type: ignore
+            logger.debug(f"Balance cuenta anterior {old_account_id}: {old_balance} -> {old_account.current_balance}")
         
         # Aplicar nuevo monto a la cuenta (nueva o misma)
         new_account_id = update_data.get('account_id', old_account_id)
@@ -157,9 +215,18 @@ def update_transaction(
         
         new_account = db.query(Account).filter(Account.id == new_account_id).first()
         if new_account:
-            new_account.current_balance += new_amount
+            new_balance = new_account.current_balance
+            new_account.current_balance += new_amount  # type: ignore
+            logger.debug(f"Balance cuenta nueva {new_account_id}: {new_balance} -> {new_account.current_balance}")
     
-    db.commit()
+    try:
+        db.commit()
+        logger.info(f"Transacción {transaction_id} actualizada exitosamente")
+    except Exception as e:
+        logger.error(f"Error al actualizar transacción {transaction_id}: {str(e)}")
+        db.rollback()
+        raise
+    
     db.refresh(db_transaction)
     
     return db_transaction
@@ -167,41 +234,60 @@ def update_transaction(
 def delete_transaction(db: Session, user_id: int, transaction_id: int) -> bool:
     """Elimina una transacción"""
     
+    logger.info(f"Iniciando eliminación de transacción {transaction_id} para usuario {user_id}")
+    
     db_transaction = db.query(Transaction).filter(
         Transaction.id == transaction_id,
         Transaction.user_id == user_id
     ).first()
     
     if not db_transaction:
+        logger.warning(f"Transacción {transaction_id} no encontrada para usuario {user_id}")
         return False
+    
+    logger.debug(f"Transacción encontrada: amount={db_transaction.amount}, account_id={db_transaction.account_id}")
     
     # Revertir el balance de la cuenta
     account = db.query(Account).filter(Account.id == db_transaction.account_id).first()
     if account:
-        account.current_balance -= db_transaction.amount
+        old_balance = account.current_balance
+        account.current_balance -= db_transaction.amount  # type: ignore
+        logger.debug(f"Balance cuenta {account.id} revertido: {old_balance} -> {account.current_balance}")
     
     # Si era transferencia, revertir cuenta destino
-    if db_transaction.transfer_account_id and db_transaction.amount < 0:
+    if db_transaction.transfer_account_id and db_transaction.amount < 0:  # type: ignore
         transfer_account = db.query(Account).filter(Account.id == db_transaction.transfer_account_id).first()
         if transfer_account:
-            transfer_account.current_balance -= abs(db_transaction.amount)
+            old_transfer_balance = transfer_account.current_balance
+            transfer_account.current_balance -= abs(db_transaction.amount)  # type: ignore
+            logger.debug(f"Balance cuenta transferencia {transfer_account.id} revertido: {old_transfer_balance} -> {transfer_account.current_balance}")
     
-    db.delete(db_transaction)
-    db.commit()
-    
-    return True
+    try:
+        db.delete(db_transaction)
+        db.commit()
+        logger.info(f"Transacción {transaction_id} eliminada exitosamente")
+        return True
+    except Exception as e:
+        logger.error(f"Error al eliminar transacción {transaction_id}: {str(e)}")
+        db.rollback()
+        raise
 
 def parse_excel_date(value):
     """Convierte diferentes formatos de fecha de Excel a date"""
     if value is None:
         return None
     
+    logger.debug(f"Parseando fecha: {value} (tipo: {type(value)})")
+    
     # Si ya es un objeto datetime
     if isinstance(value, datetime):
-        return value.date()
+        result = value.date()
+        logger.debug(f"Fecha convertida desde datetime: {result}")
+        return result
     
     # Si ya es un objeto date
     if isinstance(value, date):
+        logger.debug(f"Fecha ya es date: {value}")
         return value
     
     # Si es string, intentar parsear diferentes formatos
@@ -217,10 +303,13 @@ def parse_excel_date(value):
         
         for fmt in date_formats:
             try:
-                return datetime.strptime(value.strip(), fmt).date()
+                result = datetime.strptime(value.strip(), fmt).date()
+                logger.debug(f"Fecha parseada con formato {fmt}: {result}")
+                return result
             except ValueError:
                 continue
         
+        logger.error(f"Formato de fecha no válido: {value}")
         raise ValueError(f"Formato de fecha no válido: {value}")
     
     # Si es un número (serial date de Excel)
@@ -228,10 +317,14 @@ def parse_excel_date(value):
         try:
             # Excel cuenta días desde 1900-01-01 (con ajuste por bug de año bisiesto)
             excel_epoch = datetime(1899, 12, 30)
-            return (excel_epoch + timedelta(days=value)).date()
-        except:
+            result = (excel_epoch + timedelta(days=value)).date()
+            logger.debug(f"Fecha convertida desde serial Excel {value}: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Error convirtiendo fecha numérica {value}: {str(e)}")
             raise ValueError(f"Fecha numérica no válida: {value}")
     
+    logger.error(f"Tipo de fecha no soportado: {type(value)}")
     raise ValueError(f"Tipo de fecha no soportado: {type(value)}")
 
 def parse_excel_amount(value):
@@ -239,8 +332,12 @@ def parse_excel_amount(value):
     if value is None or value == '':
         return 0.0
     
+    logger.debug(f"Parseando monto: {value} (tipo: {type(value)})")
+    
     if isinstance(value, (int, float)):
-        return float(value)
+        result = float(value)
+        logger.debug(f"Monto convertido desde número: {result}")
+        return result
     
     if isinstance(value, str):
         # Limpiar el string
@@ -249,12 +346,17 @@ def parse_excel_amount(value):
         # Manejar paréntesis como negativos (formato contable)
         if clean_value.startswith('(') and clean_value.endswith(')'):
             clean_value = '-' + clean_value[1:-1]
+            logger.debug(f"Formato contable detectado, valor limpio: {clean_value}")
         
         try:
-            return float(clean_value)
-        except ValueError:
+            result = float(clean_value)
+            logger.debug(f"Monto parseado desde string: {result}")
+            return result
+        except ValueError as e:
+            logger.error(f"Error parseando monto '{value}': {str(e)}")
             raise ValueError(f"Monto no válido: {value}")
     
+    logger.error(f"Tipo de monto no soportado: {type(value)}")
     raise ValueError(f"Tipo de monto no soportado: {type(value)}")
 
 def detect_excel_columns(worksheet):
@@ -295,6 +397,9 @@ def import_transactions_from_excel(
 ) -> Dict[str, Any]:
     """Importa transacciones desde contenido Excel"""
     
+    logger.info(f"Iniciando importación de Excel para usuario {user_id}, cuenta {account_id}, archivo: {filename}")
+    logger.debug(f"Tamaño del archivo: {len(file_content)} bytes")
+    
     # Verificar que la cuenta pertenece al usuario
     account = db.query(Account).filter(
         Account.id == account_id,
@@ -303,7 +408,10 @@ def import_transactions_from_excel(
     ).first()
     
     if not account:
+        logger.error(f"Cuenta {account_id} no encontrada o no autorizada para usuario {user_id}")
         raise ValueError("Cuenta no encontrada o no autorizada")
+    
+    logger.debug(f"Cuenta encontrada: {account.name} (ID: {account.id})")
     
     results = {
         'total_records': 0,
@@ -314,24 +422,34 @@ def import_transactions_from_excel(
     
     try:
         # Cargar el workbook desde bytes
+        logger.debug("Cargando workbook de Excel")
         workbook = load_workbook(io.BytesIO(file_content), read_only=True, data_only=True)
         
         # Usar la primera hoja
         worksheet = workbook.active
+        logger.debug(f"Hoja activa seleccionada: {worksheet.title if worksheet else 'None'}")
         
         # Detectar columnas automáticamente
+        logger.debug("Detectando columnas automáticamente")
         column_map, header_row = detect_excel_columns(worksheet)
+        logger.debug(f"Columnas detectadas: {column_map}")
+        logger.debug(f"Fila de encabezados: {header_row}")
         
         if not column_map.get('date') or not column_map.get('amount'):
-            raise ValueError("No se pudieron detectar las columnas requeridas (fecha y monto). Verifica que el archivo tenga headers en la primera fila.")
+            error_msg = "No se pudieron detectar las columnas requeridas (fecha y monto). Verifica que el archivo tenga headers en la primera fila."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
         # Procesar filas
-        for row_idx, row in enumerate(worksheet.iter_rows(min_row=header_row + 1), start=header_row + 1):
+        logger.debug("Iniciando procesamiento de filas")
+        for row_idx, row in enumerate(worksheet.iter_rows(min_row=header_row + 1), start=header_row + 1):  # type: ignore
             # Saltar filas vacías
             if all(cell.value is None or str(cell.value).strip() == '' for cell in row):
+                logger.debug(f"Saltando fila vacía {row_idx}")
                 continue
                 
             results['total_records'] += 1
+            logger.debug(f"Procesando fila {row_idx}")
             
             try:
                 # Extraer valores de las celdas
@@ -339,6 +457,8 @@ def import_transactions_from_excel(
                 amount_value = row[column_map['amount'] - 1].value if column_map.get('amount') else None
                 description_value = row[column_map['description'] - 1].value if column_map.get('description') else ""
                 notes_value = row[column_map['notes'] - 1].value if column_map.get('notes') else ""
+                
+                logger.debug(f"Fila {row_idx} - Valores extraídos: date={date_value}, amount={amount_value}, description='{description_value}'")
                 
                 # Validar y convertir valores
                 transaction_date = parse_excel_date(date_value)
@@ -362,16 +482,22 @@ def import_transactions_from_excel(
                 
                 create_transaction(db, user_id, transaction_data)
                 results['successful_imports'] += 1
+                logger.debug(f"Fila {row_idx} importada exitosamente")
                 
             except Exception as e:
                 results['failed_imports'] += 1
-                results['errors'].append(f"Fila {row_idx}: {str(e)}")
+                error_msg = f"Fila {row_idx}: {str(e)}"
+                results['errors'].append(error_msg)
+                logger.warning(f"Error en fila {row_idx}: {str(e)}")
                 continue
         
         workbook.close()
+        logger.info(f"Importación completada: {results['successful_imports']} exitosas, {results['failed_imports']} fallidas de {results['total_records']} total")
                 
     except Exception as e:
-        raise ValueError(f"Error procesando archivo Excel: {str(e)}")
+        error_msg = f"Error procesando archivo Excel: {str(e)}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
     
     return results
 
@@ -399,6 +525,9 @@ def import_transactions_with_profile(
 ) -> Dict[str, Any]:
     """Importa transacciones usando un perfil de importación configurado"""
     
+    logger.info(f"Iniciando importación con perfil para usuario {user_id}, perfil {profile_id}, archivo: {filename}")
+    logger.debug(f"Tamaño del archivo: {len(file_content)} bytes")
+    
     # Obtener el perfil de importación
     profile = db.query(FileImportProfile).filter(
         FileImportProfile.id == profile_id,
@@ -406,7 +535,10 @@ def import_transactions_with_profile(
     ).first()
     
     if not profile:
+        logger.error(f"Perfil de importación {profile_id} no encontrado para usuario {user_id}")
         raise ValueError("Perfil de importación no encontrado")
+    
+    logger.debug(f"Perfil encontrado: {profile.name} (ID: {profile.id}), cuenta: {profile.account_id}")
     
     # Verificar que la cuenta pertenece al usuario
     account = db.query(Account).filter(
@@ -416,7 +548,10 @@ def import_transactions_with_profile(
     ).first()
     
     if not account:
+        logger.error(f"Cuenta {profile.account_id} no encontrada o no autorizada para usuario {user_id}")
         raise ValueError("Cuenta no encontrada o no autorizada")
+    
+    logger.debug(f"Cuenta encontrada: {account.name} (ID: {account.id})")
     
     # Obtener los mapeos de columnas
     column_mappings = db.query(FileColumnMapping).filter(
@@ -424,7 +559,12 @@ def import_transactions_with_profile(
     ).order_by(FileColumnMapping.position).all()
     
     if not column_mappings:
+        logger.error(f"No se encontraron mapeos de columnas para el perfil {profile_id}")
         raise ValueError("No se encontraron mapeos de columnas para el perfil")
+    
+    logger.debug(f"Mapeos de columnas encontrados: {len(column_mappings)} mapeos")
+    for mapping in column_mappings:
+        logger.debug(f"  - {mapping.target_field_name}: columna {mapping.source_column_index} / '{mapping.source_column_name}'")
     
     results = {
         'total_records': 0,
@@ -436,36 +576,40 @@ def import_transactions_with_profile(
     try:
         # Verificar que el archivo no esté vacío
         if not file_content:
+            logger.error("El archivo está vacío")
             raise ValueError("El archivo está vacío")
         
-        print(f"Procesando archivo: {filename}, tamaño: {len(file_content)} bytes")
+        logger.debug(f"Procesando archivo: {filename}, tamaño: {len(file_content)} bytes")
         
         # Determinar el tipo de archivo y procesarlo
         filename_lower = filename.lower()
         if filename_lower.endswith('.csv'):
-            print("Procesando como CSV")
+            logger.info("Procesando como CSV")
             return _process_csv_with_profile(db, user_id, profile, column_mappings, file_content, results)
         elif filename_lower.endswith(('.xlsx', '.xls')):
-            print("Procesando como Excel")
+            logger.info("Procesando como Excel")
             return _process_excel_with_profile(db, user_id, profile, column_mappings, file_content, results)
         else:
             # Intentar detectar por contenido si la extensión no es clara
+            logger.debug("Extensión no reconocida, intentando detectar por contenido")
             try:
                 # Intentar como texto (CSV)
                 content_preview = file_content[:1024].decode('utf-8', errors='ignore')
                 if any(delimiter in content_preview for delimiter in [',', ';', '\t']):
-                    print("Detectado como CSV por contenido")
+                    logger.info("Detectado como CSV por contenido")
                     return _process_csv_with_profile(db, user_id, profile, column_mappings, file_content, results)
-            except:
+            except Exception as e:
+                logger.debug(f"Error detectando como CSV: {str(e)}")
                 pass
             
             # Si no se puede detectar, asumir Excel
-            print("Procesando como Excel por defecto")
+            logger.info("Procesando como Excel por defecto")
             return _process_excel_with_profile(db, user_id, profile, column_mappings, file_content, results)
             
     except Exception as e:
-        print(f"Error en import_transactions_with_profile: {str(e)}")
-        raise ValueError(f"Error procesando archivo: {str(e)}")
+        error_msg = f"Error procesando archivo: {str(e)}"
+        logger.error(f"Error en import_transactions_with_profile: {str(e)}")
+        raise ValueError(error_msg)
 
 def _process_csv_with_profile(
     db: Session,
@@ -477,23 +621,29 @@ def _process_csv_with_profile(
 ) -> Dict[str, Any]:
     """Procesa un archivo CSV usando el perfil de importación"""
     
+    logger.info(f"Procesando CSV para usuario {user_id} con perfil {profile.id}")
+    
     try:
         # Decodificar el contenido
         encoding = getattr(profile, 'encoding', 'utf-8') or 'utf-8'
+        logger.debug(f"Decodificando CSV con encoding: {encoding}")
         csv_content = file_content.decode(encoding)
         
         # Crear un reader CSV
         delimiter = getattr(profile, 'delimiter', ',') or ','
+        logger.debug(f"Usando delimitador: '{delimiter}'")
         csv_reader = csv.reader(
             io.StringIO(csv_content),
             delimiter=delimiter
         )
         
         rows = list(csv_reader)
+        logger.debug(f"CSV cargado: {len(rows)} filas totales")
         
         # Saltar headers si existen
         has_header = getattr(profile, 'has_header', True)
         start_row = 1 if has_header else 0
+        logger.debug(f"Tiene headers: {has_header}, fila de inicio: {start_row}")
         
         # Crear mapeo de columnas por nombre o índice
         column_map = {}
@@ -508,21 +658,31 @@ def _process_csv_with_profile(
                     header_row = rows[0]
                     column_index = header_row.index(source_column_name)
                     column_map[target_field_name] = column_index
+                    logger.debug(f"Mapeo por nombre: {target_field_name} -> columna {column_index} ('{source_column_name}')")
                 except (IndexError, ValueError):
                     # Si no se encuentra, usar el índice configurado
                     if source_column_index is not None:
                         column_map[target_field_name] = source_column_index
+                        logger.debug(f"Mapeo por índice (fallback): {target_field_name} -> columna {source_column_index}")
             else:
                 # Usar el índice configurado
                 if source_column_index is not None:
                     column_map[target_field_name] = source_column_index
+                    logger.debug(f"Mapeo por índice: {target_field_name} -> columna {source_column_index}")
+        
+        logger.debug(f"Mapeo final de columnas: {column_map}")
         
         # Procesar filas de datos
-        for row_idx, row in enumerate(rows[start_row:], start=start_row + 1):
+        data_rows = rows[start_row:]
+        logger.debug(f"Procesando {len(data_rows)} filas de datos")
+        
+        for row_idx, row in enumerate(data_rows, start=start_row + 1):
             if not row or all(not cell.strip() for cell in row):
+                logger.debug(f"Saltando fila vacía {row_idx}")
                 continue
                 
             results['total_records'] += 1
+            logger.debug(f"Procesando fila {row_idx}: {row}")
             
             try:
                 transaction_data = _extract_transaction_data(row, column_map, profile, row_idx)
@@ -531,14 +691,21 @@ def _process_csv_with_profile(
                 
                 create_transaction(db, user_id, transaction_data)
                 results['successful_imports'] += 1
+                logger.debug(f"Fila {row_idx} importada exitosamente")
                 
             except Exception as e:
                 results['failed_imports'] += 1
-                results['errors'].append(f"Fila {row_idx}: {str(e)}")
+                error_msg = f"Fila {row_idx}: {str(e)}"
+                results['errors'].append(error_msg)
+                logger.warning(f"Error en fila {row_idx}: {str(e)}")
                 continue
                 
+        logger.info(f"CSV procesado: {results['successful_imports']} exitosas, {results['failed_imports']} fallidas de {results['total_records']} total")
+                
     except Exception as e:
-        raise ValueError(f"Error procesando CSV: {str(e)}")
+        error_msg = f"Error procesando CSV: {str(e)}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
     
     return results
 
@@ -552,13 +719,17 @@ def _process_excel_with_profile(
 ) -> Dict[str, Any]:
     """Procesa un archivo Excel usando el perfil de importación - soporta .xlsx y .xls"""
     
+    logger.info(f"Procesando Excel para usuario {user_id} con perfil {profile.id}")
+    
     try:
         # Verificar que el contenido no esté vacío
         if not file_content:
+            logger.error("El archivo está vacío")
             raise ValueError("El archivo está vacío")
         
         # Verificar tamaño mínimo para un archivo Excel válido
         if len(file_content) < 100:
+            logger.error(f"Archivo demasiado pequeño: {len(file_content)} bytes")
             raise ValueError("El archivo es demasiado pequeño para ser un Excel válido")
         
         # Intentar cargar primero como .xlsx, luego como .xls
@@ -567,25 +738,29 @@ def _process_excel_with_profile(
         is_xls_format = False
         
         try:
-            print(f"Intentando cargar como Excel .xlsx, primeros 50 bytes: {file_content[:50]}")
+            logger.debug(f"Intentando cargar como Excel .xlsx, primeros 50 bytes: {file_content[:50]}")
             workbook = load_workbook(io.BytesIO(file_content), read_only=True, data_only=True)
-            print(f"Excel .xlsx cargado exitosamente, hojas disponibles: {workbook.sheetnames}")
+            logger.info(f"Excel .xlsx cargado exitosamente, hojas disponibles: {workbook.sheetnames}")
             
             # Seleccionar la hoja
             sheet_name = getattr(profile, 'sheet_name', None)
             if sheet_name:
                 try:
                     worksheet = workbook[sheet_name]
+                    logger.debug(f"Hoja seleccionada: {sheet_name}")
                 except KeyError:
                     available_sheets = workbook.sheetnames
-                    raise ValueError(f"Hoja '{sheet_name}' no encontrada. Hojas disponibles: {', '.join(available_sheets)}")
+                    error_msg = f"Hoja '{sheet_name}' no encontrada. Hojas disponibles: {', '.join(available_sheets)}"
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
             else:
                 worksheet = workbook.active
+                logger.debug(f"Hoja activa seleccionada: {worksheet.title if worksheet else 'None'}")
                 
         except Exception as xlsx_error:
-            print(f"Error cargando como .xlsx: {str(xlsx_error)}")
+            logger.warning(f"Error cargando como .xlsx: {str(xlsx_error)}")
             try:
-                print("Intentando cargar como Excel .xls...")
+                logger.debug("Intentando cargar como Excel .xls...")
                 workbook = xlrd.open_workbook(file_contents=file_content)
                 is_xls_format = True
                 
@@ -594,32 +769,43 @@ def _process_excel_with_profile(
                 if sheet_name:
                     try:
                         worksheet = workbook.sheet_by_name(sheet_name)
+                        logger.debug(f"Hoja .xls seleccionada: {sheet_name}")
                     except Exception:  # xlrd puede lanzar diferentes tipos de errores
                         available_sheets = workbook.sheet_names()
-                        raise ValueError(f"Hoja '{sheet_name}' no encontrada. Hojas disponibles: {', '.join(available_sheets)}")
+                        error_msg = f"Hoja '{sheet_name}' no encontrada. Hojas disponibles: {', '.join(available_sheets)}"
+                        logger.error(error_msg)
+                        raise ValueError(error_msg)
                 else:
                     worksheet = workbook.sheet_by_index(0)
+                    logger.debug("Hoja activa .xls seleccionada (índice 0)")
                     
-                print(f"Excel .xls cargado exitosamente")
+                logger.info("Excel .xls cargado exitosamente")
                 
             except Exception as xls_error:
-                print(f"Error cargando como .xls: {str(xls_error)}")
+                logger.error(f"Error cargando como .xls: {str(xls_error)}")
                 # Si falla como Excel, intentar detectar si es realmente un CSV
                 try:
                     content_str = file_content.decode('utf-8')
                     if ',' in content_str or ';' in content_str:
-                        raise ValueError("El archivo parece ser CSV, no Excel. Use el endpoint de CSV o cambie la extensión del archivo.")
+                        error_msg = "El archivo parece ser CSV, no Excel. Use el endpoint de CSV o cambie la extensión del archivo."
+                        logger.error(error_msg)
+                        raise ValueError(error_msg)
                 except UnicodeDecodeError:
                     pass
-                raise ValueError(f"Archivo Excel inválido. Errores: .xlsx: {str(xlsx_error)}, .xls: {str(xls_error)}")
+                error_msg = f"Archivo Excel inválido. Errores: .xlsx: {str(xlsx_error)}, .xls: {str(xls_error)}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
             
         if worksheet is None:
+            logger.error("No se pudo obtener una hoja de trabajo válida")
             raise ValueError("No se pudo obtener una hoja de trabajo válida del archivo Excel")
         
         # Crear mapeo de columnas
+        logger.debug("Creando mapeo de columnas")
         column_map = {}
         has_header = getattr(profile, 'has_header', True)
         header_row_num = getattr(profile, 'header_row', 1)
+        logger.debug(f"Configuración: has_header={has_header}, header_row={header_row_num}")
         
         if has_header and header_row_num:
             # Leer la fila de headers según el formato
@@ -628,18 +814,22 @@ def _process_excel_with_profile(
             if is_xls_format:
                 # Para .xls usar xlrd (índices 0-based)
                 header_row_idx = header_row_num - 1
+                logger.debug(f"Leyendo headers .xls en fila {header_row_idx}")
                 # Usar hasattr para verificar si existen los atributos antes de usarlos
                 if hasattr(worksheet, 'nrows') and hasattr(worksheet, 'ncols') and hasattr(worksheet, 'cell_value'):
                     if header_row_idx < worksheet.nrows:  # type: ignore
                         header_row = [worksheet.cell_value(header_row_idx, col) for col in range(worksheet.ncols)]  # type: ignore
+                        logger.debug(f"Headers .xls encontrados: {header_row}")
             else:
                 # Para .xlsx usar openpyxl
+                logger.debug(f"Leyendo headers .xlsx en fila {header_row_num}")
                 if hasattr(worksheet, 'iter_rows'):
                     header_row = list(worksheet.iter_rows(  # type: ignore
                         min_row=header_row_num,
                         max_row=header_row_num,
                         values_only=True
                     ))[0]
+                    logger.debug(f"Headers .xlsx encontrados: {header_row}")
             
             if header_row:
                 for mapping in column_mappings:
@@ -651,19 +841,26 @@ def _process_excel_with_profile(
                         try:
                             column_index = header_row.index(source_column_name)
                             column_map[target_field_name] = column_index
+                            logger.debug(f"Mapeo por nombre: {target_field_name} -> columna {column_index} ('{source_column_name}')")
                         except ValueError:
                             if source_column_index is not None:
                                 column_map[target_field_name] = source_column_index
+                                logger.debug(f"Mapeo por índice (fallback): {target_field_name} -> columna {source_column_index}")
                     else:
                         if source_column_index is not None:
                             column_map[target_field_name] = source_column_index
+                            logger.debug(f"Mapeo por índice: {target_field_name} -> columna {source_column_index}")
         else:
             # Usar índices configurados
+            logger.debug("Usando mapeo por índices (sin headers)")
             for mapping in column_mappings:
                 source_column_index = getattr(mapping, 'source_column_index', None)
                 target_field_name = getattr(mapping, 'target_field_name', '')
                 if source_column_index is not None:
                     column_map[target_field_name] = source_column_index
+                    logger.debug(f"Mapeo por índice: {target_field_name} -> columna {source_column_index}")
+        
+        logger.debug(f"Mapeo final de columnas: {column_map}")
         
         # Procesar filas de datos
         start_row_num = getattr(profile, 'start_row', None)
@@ -671,19 +868,26 @@ def _process_excel_with_profile(
             start_row_num = header_row_num + 1 if header_row_num else 1
         
         skip_empty_rows = getattr(profile, 'skip_empty_rows', True)
+        logger.debug(f"Configuración procesamiento: start_row={start_row_num}, skip_empty_rows={skip_empty_rows}")
         
         if is_xls_format:
             # Procesar filas para .xls
             start_row_idx = start_row_num - 1  # xlrd usa índices 0-based
+            logger.debug(f"Procesando filas .xls desde índice {start_row_idx}")
             
             if hasattr(worksheet, 'nrows') and hasattr(worksheet, 'ncols') and hasattr(worksheet, 'cell_value'):
-                for row_idx in range(start_row_idx, worksheet.nrows):  # type: ignore
+                total_rows = worksheet.nrows  # type: ignore
+                logger.debug(f"Total de filas en .xls: {total_rows}")
+                
+                for row_idx in range(start_row_idx, total_rows):
                     row = [worksheet.cell_value(row_idx, col) for col in range(worksheet.ncols)]  # type: ignore
                     
                     if skip_empty_rows and (not row or all(cell is None or str(cell).strip() == '' for cell in row)):
+                        logger.debug(f"Saltando fila vacía {row_idx + 1}")
                         continue
                         
                     results['total_records'] += 1
+                    logger.debug(f"Procesando fila .xls {row_idx + 1}: {row}")
                     
                     try:
                         transaction_data = _extract_transaction_data(row, column_map, profile, row_idx + 1)
@@ -692,13 +896,17 @@ def _process_excel_with_profile(
                         
                         create_transaction(db, user_id, transaction_data)
                         results['successful_imports'] += 1
+                        logger.debug(f"Fila .xls {row_idx + 1} importada exitosamente")
                         
                     except Exception as e:
                         results['failed_imports'] += 1
-                        results['errors'].append(f"Fila {row_idx + 1}: {str(e)}")
+                        error_msg = f"Fila {row_idx + 1}: {str(e)}"
+                        results['errors'].append(error_msg)
+                        logger.warning(f"Error en fila .xls {row_idx + 1}: {str(e)}")
                         continue
         else:
             # Procesar filas para .xlsx
+            logger.debug(f"Procesando filas .xlsx desde fila {start_row_num}")
             if hasattr(worksheet, 'iter_rows'):
                 for row_idx, row in enumerate(worksheet.iter_rows(  # type: ignore
                     min_row=start_row_num,
@@ -706,9 +914,11 @@ def _process_excel_with_profile(
                 ), start=start_row_num):
                     
                     if skip_empty_rows and (not row or all(cell is None or str(cell).strip() == '' for cell in row)):
+                        logger.debug(f"Saltando fila vacía {row_idx}")
                         continue
                         
                     results['total_records'] += 1
+                    logger.debug(f"Procesando fila .xlsx {row_idx}: {row}")
                     
                     try:
                         transaction_data = _extract_transaction_data(list(row), column_map, profile, row_idx)
@@ -717,18 +927,26 @@ def _process_excel_with_profile(
                         
                         create_transaction(db, user_id, transaction_data)
                         results['successful_imports'] += 1
+                        logger.debug(f"Fila .xlsx {row_idx} importada exitosamente")
                         
                     except Exception as e:
                         results['failed_imports'] += 1
-                        results['errors'].append(f"Fila {row_idx}: {str(e)}")
+                        error_msg = f"Fila {row_idx}: {str(e)}"
+                        results['errors'].append(error_msg)
+                        logger.warning(f"Error en fila .xlsx {row_idx}: {str(e)}")
                         continue
         
         # Cerrar el workbook si es openpyxl
         if not is_xls_format and hasattr(workbook, 'close'):
             workbook.close()  # type: ignore
+            logger.debug("Workbook .xlsx cerrado")
+        
+        logger.info(f"Excel procesado: {results['successful_imports']} exitosas, {results['failed_imports']} fallidas de {results['total_records']} total")
         
     except Exception as e:
-        raise ValueError(f"Error procesando Excel: {str(e)}")
+        error_msg = f"Error procesando Excel: {str(e)}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
     
     return results
 
@@ -740,20 +958,28 @@ def _extract_transaction_data(
 ) -> TransactionCreateRequest:
     """Extrae los datos de transacción de una fila usando el mapeo de columnas"""
     
+    logger.debug(f"Extrayendo datos de transacción de fila {row_idx}")
+    
     def get_cell_value(field_name: str, default=None):
         if field_name in column_map and column_map[field_name] < len(row):
             value = row[column_map[field_name]]
+            logger.debug(f"  {field_name}: {value} (columna {column_map[field_name]})")
             return value if value is not None else default
+        logger.debug(f"  {field_name}: {default} (no mapeado o fuera de rango)")
         return default
     
     # Extraer fecha
     date_value = get_cell_value('date')
     if not date_value:
+        logger.error(f"Fila {row_idx}: Fecha requerida pero no encontrada")
         raise ValueError("Fecha requerida")
     
     transaction_date = parse_excel_date(date_value)
     if transaction_date is None:
+        logger.error(f"Fila {row_idx}: Fecha inválida: {date_value}")
         raise ValueError("Fecha inválida")
+    
+    logger.debug(f"  Fecha procesada: {transaction_date}")
     
     # Extraer montos según el esquema configurado
     amount = 0.0
@@ -764,6 +990,8 @@ def _extract_transaction_data(
     else:
         schema_value = str(amount_schema)
     
+    logger.debug(f"  Esquema de monto: {schema_value}")
+    
     if schema_value == 'SINGLE_COLUMN':
         # Una sola columna con positivos/negativos
         amount_value = get_cell_value('amount', 0)
@@ -773,6 +1001,7 @@ def _extract_transaction_data(
         positive_is_income = getattr(profile, 'positive_is_income', True)
         if not positive_is_income:
             amount = -amount  # Invertir signo si positivo no es ingreso
+            logger.debug(f"  Signo invertido por configuración: {amount}")
             
     elif schema_value in ['SEPARATE_COLUMNS', 'DEBIT_CREDIT']:
         # Columnas separadas para débito/crédito
@@ -785,24 +1014,36 @@ def _extract_transaction_data(
         
         debit_column_is_expense = getattr(profile, 'debit_column_is_expense', True)
         
+        logger.debug(f"  Montos separados: debit={debit_amount}, credit={credit_amount}, expense={expense_amount}, income={income_amount}")
+        logger.debug(f"  debit_column_is_expense: {debit_column_is_expense}")
+        
         # Determinar el monto final
         if debit_amount != 0:
             amount = -abs(debit_amount) if debit_column_is_expense else abs(debit_amount)
+            logger.debug(f"  Usando debit_amount: {amount}")
         elif credit_amount != 0:
             amount = abs(credit_amount) if not debit_column_is_expense else -abs(credit_amount)
+            logger.debug(f"  Usando credit_amount: {amount}")
         elif expense_amount != 0:
             amount = -abs(expense_amount)  # Gastos siempre negativos
+            logger.debug(f"  Usando expense_amount: {amount}")
         elif income_amount != 0:
             amount = abs(income_amount)  # Ingresos siempre positivos
+            logger.debug(f"  Usando income_amount: {amount}")
     
     if amount == 0:
+        logger.error(f"Fila {row_idx}: El monto no puede ser cero")
         raise ValueError("El monto no puede ser cero")
     
     # Extraer otros campos
     description = str(get_cell_value('description', '')).strip()
     notes = str(get_cell_value('notes', '')).strip()
     
-    return TransactionCreateRequest(
+    logger.debug(f"  Monto final: {amount}")
+    logger.debug(f"  Descripción: '{description}'")
+    logger.debug(f"  Notas: '{notes}'")
+    
+    transaction_request = TransactionCreateRequest(
         amount=amount,
         description=description,
         transaction_date=transaction_date,
@@ -810,3 +1051,6 @@ def _extract_transaction_data(
         notes=notes,
         status_id=1  # Por defecto "completada"
     )
+    
+    logger.debug(f"Transacción extraída exitosamente de fila {row_idx}")
+    return transaction_request
