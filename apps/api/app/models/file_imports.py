@@ -4,10 +4,19 @@ import enum
 from .base import Base
 
 class ImportFileType(enum.Enum):
-    CSV = "csv"
-    EXCEL = "excel"
-    XLS = "xls"
-    XLSX = "xlsx"
+    CSV = "CSV"
+    EXCEL = "EXCEL"
+    XLS = "XLS"
+    XLSX = "XLSX"
+    
+    @classmethod
+    def _missing_(cls, value):
+        """Permite valores en minúsculas y los convierte a mayúsculas"""
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.lower() == value.lower():
+                    return member
+        return None
 
 class ImportStatus(enum.Enum):
     PENDING = "pending"

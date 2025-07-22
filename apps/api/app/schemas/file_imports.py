@@ -4,10 +4,19 @@ from datetime import datetime
 from enum import Enum
 
 class ImportFileType(str, Enum):
-    CSV = "csv"
-    EXCEL = "excel"
-    XLS = "xls"
-    XLSX = "xlsx"
+    CSV = "CSV"
+    EXCEL = "EXCEL"
+    XLS = "XLS"
+    XLSX = "XLSX"
+    
+    @classmethod
+    def _missing_(cls, value):
+        """Permite valores en minúsculas y los convierte a mayúsculas"""
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.lower() == value.lower():
+                    return member
+        return None
 
 class ImportStatus(str, Enum):
     PENDING = "pending"
@@ -94,6 +103,14 @@ class FileImportProfileBase(BaseModel):
 class FileImportProfileCreate(FileImportProfileBase):
     column_mappings: List[FileColumnMappingCreate] = []
     
+    @field_validator('file_type', mode='before')
+    @classmethod
+    def validate_file_type(cls, v):
+        """Convierte file_type a mayúsculas si es string"""
+        if isinstance(v, str):
+            return v.upper()
+        return v
+    
     @field_validator('delimiter')
     def validate_delimiter(cls, v):
         if v not in [',', ';', '\t', '|']:
@@ -163,6 +180,14 @@ class FileImportProfileUpdate(BaseModel):
     skip_empty_rows: Optional[bool] = None
     auto_detect_format: Optional[bool] = None
     column_mappings: Optional[List[FileColumnMappingCreate]] = None
+    
+    @field_validator('file_type', mode='before')
+    @classmethod
+    def validate_file_type(cls, v):
+        """Convierte file_type a mayúsculas si es string"""
+        if isinstance(v, str):
+            return v.upper()
+        return v
 
 class FileImportProfileResponse(FileImportProfileBase):
     id: int
