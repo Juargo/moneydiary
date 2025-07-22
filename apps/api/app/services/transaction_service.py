@@ -75,7 +75,7 @@ def create_transaction(db: Session, user_id: int, transaction_data: TransactionC
     
     # Actualizar balance de la cuenta
     old_balance = account.current_balance
-    account.current_balance += Decimal(str(transaction_data.amount))  # type: ignore
+    account.current_balance += float(transaction_data.amount)  # type: ignore
     logger.debug(f"Balance de cuenta {account.id} actualizado: {old_balance} -> {account.current_balance}")
     
     # Si es transferencia, actualizar cuenta destino
@@ -83,7 +83,7 @@ def create_transaction(db: Session, user_id: int, transaction_data: TransactionC
         transfer_account = db.query(Account).filter(Account.id == transaction_data.transfer_account_id).first()
         if transfer_account:
             old_transfer_balance = transfer_account.current_balance
-            transfer_account.current_balance += abs(Decimal(str(transaction_data.amount)))  # type: ignore
+            transfer_account.current_balance += abs(float(transaction_data.amount))  # type: ignore
             logger.debug(f"Balance de cuenta de transferencia {transfer_account.id} actualizado: {old_transfer_balance} -> {transfer_account.current_balance}")
     
     try:
@@ -203,12 +203,12 @@ def update_transaction(
         old_account = db.query(Account).filter(Account.id == old_account_id).first()
         if old_account:
             old_balance = old_account.current_balance
-            old_account.current_balance -= old_amount  # type: ignore
+            old_account.current_balance -= float(old_amount)  # type: ignore
             logger.debug(f"Balance cuenta anterior {old_account_id}: {old_balance} -> {old_account.current_balance}")
         
         # Aplicar nuevo monto a la cuenta (nueva o misma)
         new_account_id = update_data.get('account_id', old_account_id)
-        new_amount = Decimal(str(update_data.get('amount', old_amount)))
+        new_amount = float(update_data.get('amount', old_amount))
         
         new_account = db.query(Account).filter(Account.id == new_account_id).first()
         if new_account:
@@ -248,7 +248,7 @@ def delete_transaction(db: Session, user_id: int, transaction_id: int) -> bool:
     account = db.query(Account).filter(Account.id == db_transaction.account_id).first()
     if account:
         old_balance = account.current_balance
-        account.current_balance -= db_transaction.amount  # type: ignore
+        account.current_balance -= float(db_transaction.amount)  # type: ignore
         logger.debug(f"Balance cuenta {account.id} revertido: {old_balance} -> {account.current_balance}")
     
     # Si era transferencia, revertir cuenta destino
@@ -256,7 +256,7 @@ def delete_transaction(db: Session, user_id: int, transaction_id: int) -> bool:
         transfer_account = db.query(Account).filter(Account.id == db_transaction.transfer_account_id).first()
         if transfer_account:
             old_transfer_balance = transfer_account.current_balance
-            transfer_account.current_balance -= abs(db_transaction.amount)  # type: ignore
+            transfer_account.current_balance -= abs(float(db_transaction.amount))  # type: ignore
             logger.debug(f"Balance cuenta transferencia {transfer_account.id} revertido: {old_transfer_balance} -> {transfer_account.current_balance}")
     
     try:
