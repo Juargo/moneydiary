@@ -19,6 +19,42 @@ from ..schemas.transactions import TransactionCreateRequest, TransactionUpdateRe
 # Configurar logger
 logger = logging.getLogger(__name__)
 
+def get_default_transaction_status_id(db: Session):
+    """Obtiene el ID de estado de transacción por defecto, creándolo si no existe"""
+    
+    # Buscar un estado existente
+    status = db.query(TransactionStatus).first()
+    
+    if status:
+        status_id = status.id
+        logger.debug(f"Estado de transacción existente encontrado: {status_id} - {status.name}")
+        return status_id
+    
+    # Si no existe ningún estado, crear uno por defecto
+    logger.warning("No se encontraron estados de transacción, creando estado por defecto")
+    default_status = TransactionStatus(
+        id=1,
+        name="Completada",
+        description="Transacción completada exitosamente"
+    )
+    
+    try:
+        db.add(default_status)
+        db.commit()
+        db.refresh(default_status)
+        status_id = default_status.id
+        logger.info(f"Estado de transacción por defecto creado: {status_id} - {default_status.name}")
+        return status_id
+    except Exception as e:
+        logger.error(f"Error creando estado por defecto: {str(e)}")
+        db.rollback()
+        # Si falla la creación, intentar obtener uno existente nuevamente
+        existing_status = db.query(TransactionStatus).first()
+        if existing_status:
+            return existing_status.id
+        else:
+            raise ValueError("No se pudo crear ni obtener un estado de transacción válido")
+
 def create_transaction(db: Session, user_id: int, transaction_data: TransactionCreateRequest) -> Transaction:
     """Crea una nueva transacción"""
     
@@ -53,17 +89,26 @@ def create_transaction(db: Session, user_id: int, transaction_data: TransactionC
         logger.debug(f"Cuenta de transferencia encontrada: {transfer_account.name} (ID: {transfer_account.id})")
     
     # Crear la transacción
+    # Asegurar que el monto sea un Decimal con precisión adecuada
+    amount_decimal = Decimal(str(transaction_data.amount)).quantize(Decimal('0.01'))
+    
+    # Obtener un status_id válido
+    status_id = transaction_data.status_id
+    if not status_id:
+        status_id = get_default_transaction_status_id(db)
+        logger.debug(f"Usando status_id por defecto: {status_id}")
+    
     db_transaction = Transaction(
         user_id=user_id,
         account_id=transaction_data.account_id,
-        amount=Decimal(str(transaction_data.amount)),
+        amount=amount_decimal,
         description=transaction_data.description,
         notes=transaction_data.notes,
         transaction_date=transaction_data.transaction_date,
         transfer_account_id=transaction_data.transfer_account_id,
         subcategory_id=transaction_data.subcategory_id,
         envelope_id=transaction_data.envelope_id,
-        status_id=transaction_data.status_id,
+        status_id=status_id,
         is_recurring=transaction_data.is_recurring,
         is_planned=transaction_data.is_planned,
         kakebo_emotion=transaction_data.kakebo_emotion,
@@ -190,6 +235,9 @@ def update_transaction(
     
     for field, value in update_data.items():
         if hasattr(db_transaction, field):
+            # Convertir amount a Decimal con precisión adecuada
+            if field == 'amount' and value is not None:
+                value = Decimal(str(value)).quantize(Decimal('0.01'))
             logger.debug(f"Actualizando campo {field}: {getattr(db_transaction, field)} -> {value}")
             setattr(db_transaction, field, value)
     
@@ -467,6 +515,12 @@ def import_transactions_from_excel(
                 if amount == 0:
                     raise ValueError("El monto no puede ser cero")
                 
+                # Redondear el monto a 2 decimales para evitar problemas de precisión
+                amount = round(amount, 2)
+                
+                # Obtener un status_id válido
+                default_status_id = get_default_transaction_status_id(db)
+                
                 # Crear transacción
                 transaction_data = TransactionCreateRequest(
                     amount=amount,
@@ -474,7 +528,7 @@ def import_transactions_from_excel(
                     transaction_date=transaction_date,
                     account_id=account_id,
                     notes=str(notes_value) if notes_value else "",
-                    status_id=1  # Por defecto "completada"
+                    status_id=default_status_id
                 )
                 
                 create_transaction(db, user_id, transaction_data)
@@ -682,7 +736,7 @@ def _process_csv_with_profile(
             logger.debug(f"Procesando fila {row_idx}: {row}")
             
             try:
-                transaction_data = _extract_transaction_data(row, column_map, profile, row_idx)
+                transaction_data = _extract_transaction_data(db, row, column_map, profile, row_idx)
                 account_id = getattr(profile, 'account_id')
                 transaction_data.account_id = account_id
                 
@@ -887,7 +941,7 @@ def _process_excel_with_profile(
                     logger.debug(f"Procesando fila .xls {row_idx + 1}: {row}")
                     
                     try:
-                        transaction_data = _extract_transaction_data(row, column_map, profile, row_idx + 1)
+                        transaction_data = _extract_transaction_data(db, row, column_map, profile, row_idx + 1)
                         account_id = getattr(profile, 'account_id')
                         transaction_data.account_id = account_id
                         
@@ -918,7 +972,7 @@ def _process_excel_with_profile(
                     logger.debug(f"Procesando fila .xlsx {row_idx}: {row}")
                     
                     try:
-                        transaction_data = _extract_transaction_data(list(row), column_map, profile, row_idx)
+                        transaction_data = _extract_transaction_data(db, list(row), column_map, profile, row_idx)
                         account_id = getattr(profile, 'account_id')
                         transaction_data.account_id = account_id
                         
@@ -948,6 +1002,7 @@ def _process_excel_with_profile(
     return results
 
 def _extract_transaction_data(
+    db: Session,
     row: List,
     column_map: Dict[str, int],
     profile: FileImportProfile,
@@ -1063,13 +1118,19 @@ def _extract_transaction_data(
     logger.debug(f"  Descripción: '{description}'")
     logger.debug(f"  Notas: '{notes}'")
     
+    # Redondear el monto a 2 decimales para evitar problemas de precisión
+    amount = round(amount, 2)
+    
+    # Obtener un status_id válido  
+    default_status_id = get_default_transaction_status_id(db)
+    
     transaction_request = TransactionCreateRequest(
         amount=amount,
         description=description,
         transaction_date=transaction_date,
         account_id=0,  # Se asignará después
         notes=notes,
-        status_id=1,  # Por defecto "completada"
+        status_id=default_status_id,  # Usar status válido
         # No incluir campos opcionales que no vienen del archivo
         subcategory_id=None,
         envelope_id=None,
