@@ -10,7 +10,6 @@ class TransactionBase(BaseModel):
     transaction_date: date
     account_id: int
     transfer_account_id: Optional[int] = None
-    category_id: Optional[int] = None
     subcategory_id: Optional[int] = None
     envelope_id: Optional[int] = None
     status_id: int = 1  # Por defecto "completada"
@@ -38,7 +37,6 @@ class TransactionUpdateRequest(BaseModel):
     notes: Optional[str] = None
     transaction_date: Optional[date] = None
     transfer_account_id: Optional[int] = None
-    category_id: Optional[int] = None
     subcategory_id: Optional[int] = None
     envelope_id: Optional[int] = None
     status_id: Optional[int] = None

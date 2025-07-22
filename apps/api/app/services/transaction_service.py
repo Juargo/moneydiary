@@ -61,16 +61,13 @@ def create_transaction(db: Session, user_id: int, transaction_data: TransactionC
         notes=transaction_data.notes,
         transaction_date=transaction_data.transaction_date,
         transfer_account_id=transaction_data.transfer_account_id,
-        category_id=transaction_data.category_id,
         subcategory_id=transaction_data.subcategory_id,
         envelope_id=transaction_data.envelope_id,
         status_id=transaction_data.status_id,
         is_recurring=transaction_data.is_recurring,
         is_planned=transaction_data.is_planned,
         kakebo_emotion=transaction_data.kakebo_emotion,
-        external_id=transaction_data.external_id,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        external_id=transaction_data.external_id
     )
     
     db.add(db_transaction)
@@ -107,14 +104,14 @@ def get_user_transactions(
     account_id: Optional[int] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    category_id: Optional[int] = None,
+    subcategory_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 50
 ) -> List[Transaction]:
     """Obtiene las transacciones del usuario con filtros"""
     
     logger.info(f"Obteniendo transacciones para usuario {user_id}")
-    logger.debug(f"Filtros: account_id={account_id}, start_date={start_date}, end_date={end_date}, category_id={category_id}, skip={skip}, limit={limit}")
+    logger.debug(f"Filtros: account_id={account_id}, start_date={start_date}, end_date={end_date}, subcategory_id={subcategory_id}, skip={skip}, limit={limit}")
     
     query = db.query(Transaction).filter(Transaction.user_id == user_id)
     
@@ -130,9 +127,9 @@ def get_user_transactions(
         query = query.filter(Transaction.transaction_date <= end_date)
         logger.debug(f"Filtro aplicado: end_date={end_date}")
     
-    if category_id:
-        query = query.filter(Transaction.category_id == category_id)
-        logger.debug(f"Filtro aplicado: category_id={category_id}")
+    if subcategory_id:
+        query = query.filter(Transaction.subcategory_id == subcategory_id)
+        logger.debug(f"Filtro aplicado: subcategory_id={subcategory_id}")
     
     query = query.order_by(Transaction.transaction_date.desc(), Transaction.id.desc())
     query = query.offset(skip).limit(limit)
@@ -1072,7 +1069,15 @@ def _extract_transaction_data(
         transaction_date=transaction_date,
         account_id=0,  # Se asignará después
         notes=notes,
-        status_id=1  # Por defecto "completada"
+        status_id=1,  # Por defecto "completada"
+        # No incluir campos opcionales que no vienen del archivo
+        subcategory_id=None,
+        envelope_id=None,
+        transfer_account_id=None,
+        is_recurring=False,
+        is_planned=False,
+        kakebo_emotion=None,
+        external_id=None
     )
     
     logger.debug(f"Transacción extraída exitosamente de fila {row_idx}")
