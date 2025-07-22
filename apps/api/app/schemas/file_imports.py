@@ -147,11 +147,16 @@ class FileImportProfileUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     is_default: Optional[bool] = None
+    file_type: Optional[ImportFileType] = None
     delimiter: Optional[str] = None
     has_header: Optional[bool] = None
     date_format: Optional[str] = None
     decimal_separator: Optional[str] = None
     encoding: Optional[str] = None
+    amount_schema: Optional[AmountSchemaType] = None
+    transaction_type_detection: Optional[TransactionTypeDetection] = None
+    positive_is_income: Optional[bool] = None
+    debit_column_is_expense: Optional[bool] = None
     sheet_name: Optional[str] = None
     header_row: Optional[int] = None
     start_row: Optional[int] = None
