@@ -96,15 +96,15 @@
               required
             >
               <option value="">Selecciona el tipo de archivo</option>
-              <option value="csv">CSV (Valores separados por comas)</option>
-              <option value="excel">Excel (.xlsx)</option>
-              <option value="xls">Excel Legacy (.xls)</option>
+              <option value="CSV">CSV (Valores separados por comas)</option>
+              <option value="XLSX">Excel (.xlsx)</option>
+              <option value="XLS">Excel Legacy (.xls)</option>
             </select>
           </div>
 
           <!-- Configuración para archivos CSV -->
           <div
-            v-if="formData.file_type === 'csv'"
+            v-if="formData.file_type === 'CSV'"
             class="grid grid-cols-1 md:grid-cols-4 gap-4"
           >
             <div>
@@ -168,9 +168,7 @@
 
           <!-- Configuración para archivos Excel -->
           <div
-            v-if="
-              formData.file_type === 'excel' || formData.file_type === 'xls'
-            "
+            v-if="formData.file_type === 'XLSX' || formData.file_type === 'XLS'"
             class="space-y-4"
           >
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
