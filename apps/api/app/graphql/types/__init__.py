@@ -8,6 +8,16 @@
 # from .goals import FinancialGoalType, GoalContributionType
 # from .imports import CsvImportType, CsvImportProfileType
 # from .projections import ProjectionSettingType, MonthlyProjectionType
+
+# Importar tipos de transacciones
+from .transaction import Transaction, TransactionConnection, TransactionFilters, TransactionStatus
+
+__all__ = [
+    'Transaction',
+    'TransactionConnection', 
+    'TransactionFilters',
+    'TransactionStatus'
+]
 # from .simulations import FinancialSimulationType, SimulationScenarioType
 
 # Add any utility types or custom scalars here

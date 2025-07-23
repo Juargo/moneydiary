@@ -75,6 +75,16 @@ except Exception as e:
     def get_account_types(info: Info) -> list:
         return []
 
+# Importar queries de transacciones - temporalmente deshabilitado
+# TODO: Implementar queries de transacciones
+def get_my_transactions_placeholder():
+    """Placeholder para transacciones"""
+    return []
+
+def get_my_transaction_placeholder():
+    """Placeholder para transacción individual"""
+    return None
+
 @strawberry.type
 class Query:
     @strawberry.field
@@ -98,6 +108,10 @@ class Query:
     
     # Consultas de tipos de cuenta
     account_types = strawberry.field(resolver=get_account_types)
+    
+    # Consultas de transacciones - temporalmente deshabilitadas
+    # my_transactions = strawberry.field(resolver=get_my_transactions)
+    # my_transaction = strawberry.field(resolver=get_my_transaction)
 
 @strawberry.type
 class Mutation:
