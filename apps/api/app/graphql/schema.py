@@ -75,15 +75,20 @@ except Exception as e:
     def get_account_types(info: Info) -> list:
         return []
 
-# Importar queries de transacciones - temporalmente deshabilitado
-# TODO: Implementar queries de transacciones
-def get_my_transactions_placeholder():
-    """Placeholder para transacciones"""
-    return []
-
-def get_my_transaction_placeholder():
-    """Placeholder para transacción individual"""
-    return None
+# Importar queries de transacciones
+try:
+    from .queries.transaction_simple import get_my_transactions, get_my_transaction
+    logger.debug("✅ Transaction queries importadas correctamente")
+except Exception as e:
+    logger.error(f"❌ Error importando transaction queries: {e}")
+    # Crear resolver fallback
+    @strawberry.field
+    def get_my_transactions(info: Info) -> dict:
+        return {"transactions": [], "total_count": 0}
+    
+    @strawberry.field
+    def get_my_transaction(info: Info, transaction_id: int) -> None:
+        return None
 
 @strawberry.type
 class Query:
@@ -109,9 +114,9 @@ class Query:
     # Consultas de tipos de cuenta
     account_types = strawberry.field(resolver=get_account_types)
     
-    # Consultas de transacciones - temporalmente deshabilitadas
-    # my_transactions = strawberry.field(resolver=get_my_transactions)
-    # my_transaction = strawberry.field(resolver=get_my_transaction)
+    # Consultas de transacciones
+    my_transactions = strawberry.field(resolver=get_my_transactions)
+    my_transaction = strawberry.field(resolver=get_my_transaction)
 
 @strawberry.type
 class Mutation:

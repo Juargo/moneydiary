@@ -10,7 +10,7 @@
           </label>
           <select
             v-model="filters.accountId"
-            @change="fetchTransactions"
+            @change="resetAndFetch"
             class="w-full border border-gray-300 rounded-md px-3 py-2"
           >
             <option value="">Todas las cuentas</option>
@@ -30,7 +30,7 @@
           </label>
           <input
             v-model="filters.startDate"
-            @change="fetchTransactions"
+            @change="resetAndFetch"
             type="date"
             class="w-full border border-gray-300 rounded-md px-3 py-2"
           />
@@ -42,7 +42,7 @@
           </label>
           <input
             v-model="filters.endDate"
-            @change="fetchTransactions"
+            @change="resetAndFetch"
             type="date"
             class="w-full border border-gray-300 rounded-md px-3 py-2"
           />
@@ -50,7 +50,7 @@
 
         <div class="flex items-end">
           <button
-            @click="fetchTransactions"
+            @click="resetAndFetch"
             class="w-full bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
           >
             Filtrar
@@ -175,7 +175,7 @@
             </span>
             <button
               @click="nextPage"
-              :disabled="transactions.length < pageSize"
+              :disabled="currentPage * pageSize >= totalCount"
               class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
             >
               Siguiente
@@ -199,6 +199,7 @@ const accounts = ref([]);
 const loading = ref(false);
 const error = ref(null);
 const currentPage = ref(1);
+const totalCount = ref(0);
 const pageSize = 50;
 
 // Filtros
@@ -208,19 +209,93 @@ const filters = reactive({
   endDate: "",
 });
 
-// Funciones (simplificadas para este ejemplo)
+// Funciones
 async function fetchTransactions() {
   loading.value = true;
   error.value = null;
 
   try {
-    // Aquí iría la llamada a la API REST para obtener transacciones
-    // Por ahora solo simulamos
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    transactions.value = [];
+    const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+
+    // Construir filtros para la query
+    const queryFilters = {};
+    if (filters.accountId) {
+      queryFilters.accountId = parseInt(filters.accountId);
+    }
+    if (filters.startDate) {
+      queryFilters.startDate = filters.startDate;
+    }
+    if (filters.endDate) {
+      queryFilters.endDate = filters.endDate;
+    }
+
+    // Calcular skip para paginación
+    const skip = (currentPage.value - 1) * pageSize;
+
+    const response = await fetch(`${apiUrl}/graphql`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authStore.accessToken}`,
+      },
+      body: JSON.stringify({
+        query: `
+          query GetMyTransactions($filters: TransactionFilters, $skip: Int, $limit: Int) {
+            myTransactions(filters: $filters, skip: $skip, limit: $limit) {
+              transactions {
+                id
+                amount
+                description
+                notes
+                transactionDate
+                accountId
+                userId
+                statusId
+                isRecurring
+                isPlanned
+              }
+              totalCount
+            }
+          }
+        `,
+        variables: {
+          filters: Object.keys(queryFilters).length > 0 ? queryFilters : null,
+          skip: skip,
+          limit: pageSize,
+        },
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.errors) {
+      throw new Error(data.errors[0].message);
+    }
+
+    if (data.data && data.data.myTransactions) {
+      transactions.value = data.data.myTransactions.transactions.map((t) => ({
+        id: t.id,
+        amount: parseFloat(t.amount),
+        description: t.description,
+        notes: t.notes,
+        transaction_date: t.transactionDate,
+        account_id: t.accountId,
+        user_id: t.userId,
+        status_id: t.statusId,
+        is_recurring: t.isRecurring,
+        is_planned: t.isPlanned,
+      }));
+      totalCount.value = data.data.myTransactions.totalCount || 0;
+      console.log(
+        `Transacciones cargadas: ${transactions.value.length} de ${totalCount.value} total`
+      );
+    } else {
+      transactions.value = [];
+      totalCount.value = 0;
+    }
   } catch (err) {
     console.error("Error al obtener transacciones:", err);
-    error.value = err.message;
+    error.value = err.message || "Error al cargar transacciones";
   } finally {
     loading.value = false;
   }
@@ -279,6 +354,11 @@ function getAccountName(accountId) {
     : "Cuenta desconocida";
 }
 
+function resetAndFetch() {
+  currentPage.value = 1;
+  fetchTransactions();
+}
+
 function previousPage() {
   if (currentPage.value > 1) {
     currentPage.value--;
@@ -287,8 +367,11 @@ function previousPage() {
 }
 
 function nextPage() {
-  currentPage.value++;
-  fetchTransactions();
+  const hasMorePages = currentPage.value * pageSize < totalCount.value;
+  if (hasMorePages) {
+    currentPage.value++;
+    fetchTransactions();
+  }
 }
 
 onMounted(async () => {
