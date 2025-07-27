@@ -334,7 +334,7 @@ import PatternCard from "./PatternCard.vue";
 import PatternFormModal from "./PatternFormModal.vue";
 import PatternTestModal from "./PatternTestModal.vue";
 import PatternSuggestionsModal from "./PatternSuggestionsModal.vue";
-import ConfirmationModal from "../common/ConfirmationModal.vue";
+import ConfirmationModal from "./ConfirmationModal.vue";
 
 const patternStore = usePatternStore();
 

@@ -238,12 +238,12 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { usePatternStore } from "../stores/patternStore";
-import PatternList from "../components/patterns/PatternList.vue";
-import PatternFormModal from "../components/patterns/PatternFormModal.vue";
-import PatternTestModal from "../components/patterns/PatternTestModal.vue";
-import PatternSuggestionsModal from "../components/patterns/PatternSuggestionsModal.vue";
-import ConfirmationModal from "../components/patterns/ConfirmationModal.vue";
+import { usePatternStore } from "../../stores/patternStore";
+import PatternList from "../../components/patterns/PatternList.vue";
+import PatternFormModal from "../../components/patterns/PatternFormModal.vue";
+import PatternTestModal from "../../components/patterns/PatternTestModal.vue";
+import PatternSuggestionsModal from "../../components/patterns/PatternSuggestionsModal.vue";
+import ConfirmationModal from "../../components/patterns/ConfirmationModal.vue";
 
 const patternStore = usePatternStore();
 

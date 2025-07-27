@@ -1,0 +1,92 @@
+---
+interface Props {
+  currentPage: 'dashboard' | 'accounts' | 'transactions' | 'patterns';
+}
+
+const { currentPage } = Astro.props;
+
+function getNavClass(page: string) {
+  return page === currentPage 
+    ? "border-blue-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium";
+}
+
+function getMobileNavClass(page: string) {
+  return page === currentPage
+    ? "bg-blue-50 border-blue-500 text-blue-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+    : "border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium";
+}
+---
+
+<nav class="bg-white shadow-sm">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between h-16">
+      <div class="flex">
+        <div class="flex-shrink-0 flex items-center">
+          <a href="/" class="text-xl font-bold text-blue-600">MoneyDiary</a>
+        </div>
+        <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+          <a href="/dashboard" class={getNavClass('dashboard')}>
+            Dashboard
+          </a>
+          <a href="/dashboard/accounts" class={getNavClass('accounts')}>
+            Cuentas
+          </a>
+          <a href="/dashboard/transactions" class={getNavClass('transactions')}>
+            Transacciones
+          </a>
+          <a href="/patterns" class={getNavClass('patterns')}>
+            Patrones
+          </a>
+        </div>
+      </div>
+      <div class="flex items-center">
+        <!-- Botón de menú móvil -->
+        <div class="-mr-2 flex items-center sm:hidden">
+          <button type="button" class="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100" id="mobile-menu-button">
+            <span class="sr-only">Abrir menú principal</span>
+            <svg class="block h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+        </div>
+        <!-- Menú de usuario -->
+        <div data-vue-app>
+          <slot name="user-menu" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menú móvil -->
+  <div class="sm:hidden hidden" id="mobile-menu">
+    <div class="pt-2 pb-3 space-y-1">
+      <a href="/dashboard" class={getMobileNavClass('dashboard')}>
+        Dashboard
+      </a>
+      <a href="/dashboard/accounts" class={getMobileNavClass('accounts')}>
+        Cuentas
+      </a>
+      <a href="/dashboard/transactions" class={getMobileNavClass('transactions')}>
+        Transacciones
+      </a>
+      <a href="/patterns" class={getMobileNavClass('patterns')}>
+        Patrones
+      </a>
+    </div>
+  </div>
+</nav>
+
+<script>
+  // Configurar menú móvil cuando se use este componente
+  document.addEventListener('DOMContentLoaded', () => {
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    
+    if (mobileMenuButton && mobileMenu) {
+      mobileMenuButton.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+      });
+    }
+  });
+</script>

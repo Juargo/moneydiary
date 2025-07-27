@@ -22,13 +22,44 @@ import UserMenu from "../../components/auth/UserMenu.vue";
               <a href="/dashboard/transactions" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                 Transacciones
               </a>
+              <a href="/patterns" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                Patrones
+              </a>
             </div>
           </div>
           <div class="flex items-center">
+            <!-- Botón de menú móvil -->
+            <div class="-mr-2 flex items-center sm:hidden">
+              <button type="button" class="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100" id="mobile-menu-button">
+                <span class="sr-only">Abrir menú principal</span>
+                <svg class="block h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
+            <!-- Menú de usuario -->
             <div data-vue-app>
               <UserMenu client:load />
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Menú móvil -->
+      <div class="sm:hidden hidden" id="mobile-menu">
+        <div class="pt-2 pb-3 space-y-1">
+          <a href="/dashboard" class="bg-blue-50 border-blue-500 text-blue-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+            Dashboard
+          </a>
+          <a href="/dashboard/accounts" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+            Cuentas
+          </a>
+          <a href="/dashboard/transactions" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+            Transacciones
+          </a>
+          <a href="/patterns" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+            Patrones
+          </a>
         </div>
       </div>
     </nav>
@@ -42,12 +73,91 @@ import UserMenu from "../../components/auth/UserMenu.vue";
       <main>
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
           <div class="px-4 py-8 sm:px-0">
+            <!-- Tarjetas de acceso rápido -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <!-- Tarjeta de Cuentas -->
+              <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                      <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                      </svg>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Cuentas</dt>
+                        <dd class="text-lg font-medium text-gray-900">Gestionar</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-3">
+                  <div class="text-sm">
+                    <a href="/dashboard/accounts" class="font-medium text-blue-600 hover:text-blue-500">Ver todas las cuentas</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tarjeta de Transacciones -->
+              <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                      <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                      </svg>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Transacciones</dt>
+                        <dd class="text-lg font-medium text-gray-900">Gestionar</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-3">
+                  <div class="text-sm">
+                    <a href="/dashboard/transactions" class="font-medium text-blue-600 hover:text-blue-500">Ver transacciones</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tarjeta de Patrones -->
+              <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                      <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                      </svg>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Patrones</dt>
+                        <dd class="text-lg font-medium text-gray-900">Configurar</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-3">
+                  <div class="text-sm">
+                    <a href="/patterns" class="font-medium text-blue-600 hover:text-blue-500">Gestionar patrones</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mensaje de bienvenida -->
             <div class="border-4 border-dashed border-gray-200 rounded-lg h-96 p-4 flex items-center justify-center">
               <div class="text-center">
                 <h2 class="text-xl font-semibold text-gray-700" id="welcome-message">
                   Bienvenido a tu Dashboard
                 </h2>
                 <p class="mt-2 text-gray-500">Aquí podrás gestionar todas tus finanzas personales.</p>
+                <div class="mt-6">
+                  <p class="text-sm text-gray-400">Usa las tarjetas de arriba para acceder rápidamente a las diferentes secciones.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -66,6 +176,16 @@ import UserMenu from "../../components/auth/UserMenu.vue";
     initPinia();
 
     console.log('Dashboard page loaded');
+    
+    // Configurar menú móvil
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    
+    if (mobileMenuButton && mobileMenu) {
+      mobileMenuButton.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+      });
+    }
     
     // const { useAuthStore } = await import('../../stores/authStore');
     // const authStore = useAuthStore();
