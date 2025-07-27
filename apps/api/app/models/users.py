@@ -50,6 +50,7 @@ class User(Base):
     financial_methods = relationship("FinancialMethod", secondary=user_financial_methods, back_populates="users") # Relación con los métodos financieros
     transactions = relationship("Transaction", back_populates="user") # Relación con las transacciones
     recurring_patterns = relationship("RecurringPattern", back_populates="user") # Relación con los patrones recurrentes
+    description_patterns = relationship("DescriptionPattern", back_populates="user") # Relación con los patrones de descripción
     envelopes = relationship("Envelope", back_populates="user") # Relación con los sobres
 
     @property

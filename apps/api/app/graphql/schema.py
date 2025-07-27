@@ -90,6 +90,58 @@ except Exception as e:
     def get_my_transaction(info: Info, transaction_id: int) -> None:
         return None
 
+# Importar queries de patrones de descripción
+try:
+    from .queries.description_pattern import DescriptionPatternQueries
+    description_pattern_queries = DescriptionPatternQueries()
+    logger.debug("✅ Description pattern queries importadas correctamente")
+except Exception as e:
+    logger.error(f"❌ Error importando description pattern queries: {e}")
+    # Crear resolvers fallback
+    @strawberry.field
+    def my_description_patterns(info: Info) -> list:
+        return []
+    
+    @strawberry.field
+    def description_pattern(info: Info, pattern_id: int) -> None:
+        return None
+    
+    @strawberry.field
+    def test_description_patterns(info: Info, input: dict) -> dict:
+        return {"description": "", "results": [], "best_match": None}
+    
+    @strawberry.field
+    def suggest_description_patterns(info: Info, input: dict) -> dict:
+        return {"suggestions": []}
+    
+    @strawberry.field
+    def description_pattern_statistics(info: Info) -> dict:
+        return {"total_patterns": 0, "active_patterns": 0, "auto_apply_patterns": 0, "total_matches": 0}
+
+# Importar mutations de patrones de descripción
+try:
+    from .mutations.description_pattern import DescriptionPatternMutations
+    description_pattern_mutations = DescriptionPatternMutations()
+    logger.debug("✅ Description pattern mutations importadas correctamente")
+except Exception as e:
+    logger.error(f"❌ Error importando description pattern mutations: {e}")
+    # Crear mutations fallback
+    @strawberry.field
+    def create_description_pattern(info: Info, input: dict) -> None:
+        return None
+    
+    @strawberry.field
+    def update_description_pattern(info: Info, pattern_id: int, input: dict) -> None:
+        return None
+    
+    @strawberry.field
+    def delete_description_pattern(info: Info, pattern_id: int) -> bool:
+        return False
+    
+    @strawberry.field
+    def apply_pattern_to_transactions(info: Info, pattern_id: int, transaction_ids: list = None) -> int:
+        return 0
+
 @strawberry.type
 class Query:
     @strawberry.field
@@ -117,6 +169,55 @@ class Query:
     # Consultas de transacciones
     my_transactions = strawberry.field(resolver=get_my_transactions)
     my_transaction = strawberry.field(resolver=get_my_transaction)
+    
+    # Consultas de patrones de descripción
+    @strawberry.field
+    async def my_description_patterns(
+        self, 
+        info: Info,
+        active_only: bool = True,
+        skip: int = 0,
+        limit: int = 100
+    ) -> list:
+        """Obtener los patrones de descripción del usuario actual"""
+        try:
+            return description_pattern_queries.my_description_patterns(
+                info, active_only, skip, limit
+            )
+        except:
+            return []
+    
+    @strawberry.field
+    async def description_pattern(self, info: Info, pattern_id: int):
+        """Obtener un patrón específico por ID"""
+        try:
+            return description_pattern_queries.description_pattern(info, pattern_id)
+        except:
+            return None
+    
+    @strawberry.field  
+    async def test_description_patterns(self, info: Info, input: dict):
+        """Probar patrones contra una descripción"""
+        try:
+            return description_pattern_queries.test_description_patterns(info, input)
+        except:
+            return {"description": "", "results": [], "best_match": None}
+    
+    @strawberry.field
+    async def suggest_description_patterns(self, info: Info, input: dict):
+        """Generar sugerencias de patrones"""
+        try:
+            return description_pattern_queries.suggest_description_patterns(info, input)
+        except:
+            return {"suggestions": []}
+    
+    @strawberry.field
+    async def description_pattern_statistics(self, info: Info):
+        """Obtener estadísticas de patrones"""
+        try:
+            return description_pattern_queries.description_pattern_statistics(info)
+        except:
+            return {"total_patterns": 0, "active_patterns": 0, "auto_apply_patterns": 0, "total_matches": 0}
 
 @strawberry.type
 class Mutation:
@@ -124,6 +225,50 @@ class Mutation:
     google_auth = strawberry.field(resolver=google_auth)
     refresh_token = strawberry.field(resolver=refresh_token)
     logout = strawberry.field(resolver=logout)
+    
+    # Mutaciones de patrones de descripción
+    @strawberry.field
+    async def create_description_pattern(self, info: Info, input: dict):
+        """Crear un nuevo patrón de descripción"""
+        try:
+            return description_pattern_mutations.create_description_pattern(info, input)
+        except Exception as e:
+            logger.error(f"Error creando patrón de descripción: {e}")
+            return None
+    
+    @strawberry.field
+    async def update_description_pattern(self, info: Info, pattern_id: int, input: dict):
+        """Actualizar un patrón de descripción existente"""
+        try:
+            return description_pattern_mutations.update_description_pattern(info, pattern_id, input)
+        except Exception as e:
+            logger.error(f"Error actualizando patrón de descripción: {e}")
+            return None
+    
+    @strawberry.field
+    async def delete_description_pattern(self, info: Info, pattern_id: int) -> bool:
+        """Eliminar un patrón de descripción"""
+        try:
+            return description_pattern_mutations.delete_description_pattern(info, pattern_id)
+        except Exception as e:
+            logger.error(f"Error eliminando patrón de descripción: {e}")
+            return False
+    
+    @strawberry.field
+    async def apply_pattern_to_transactions(
+        self, 
+        info: Info, 
+        pattern_id: int, 
+        transaction_ids: list[int] = None
+    ) -> int:
+        """Aplicar un patrón específico a transacciones retroactivamente"""
+        try:
+            return description_pattern_mutations.apply_pattern_to_transactions(
+                info, pattern_id, transaction_ids
+            )
+        except Exception as e:
+            logger.error(f"Error aplicando patrón a transacciones: {e}")
+            return 0
 
 # Crear schema con consultas y mutaciones
 try:
