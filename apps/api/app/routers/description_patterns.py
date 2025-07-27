@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from ..database import get_db
-from ..middleware import get_current_user
+from ..utils.fastapi_auth import get_current_user
 from ..models.users import User
 from ..services.description_pattern_service import DescriptionPatternService
 from ..schemas.description_patterns import (

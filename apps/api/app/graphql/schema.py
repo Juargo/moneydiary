@@ -1,8 +1,19 @@
 import strawberry
 from strawberry.types import Info
+from typing import List, Optional
 import logging
 
 from ..version import __version__
+from .types.description_pattern import (
+    DescriptionPattern, 
+    PatternTestResponse, 
+    PatternSuggestionResponse,
+    PatternTestInput,
+    PatternSuggestionInput,
+    PatternStatistics,
+    DescriptionPatternCreateInput,
+    DescriptionPatternUpdateInput
+)
 
 logger = logging.getLogger(__name__)
 
@@ -99,24 +110,24 @@ except Exception as e:
     logger.error(f"❌ Error importando description pattern queries: {e}")
     # Crear resolvers fallback
     @strawberry.field
-    def my_description_patterns(info: Info) -> list:
+    def my_description_patterns(info: Info) -> List[DescriptionPattern]:
         return []
     
     @strawberry.field
-    def description_pattern(info: Info, pattern_id: int) -> None:
+    def description_pattern(info: Info, pattern_id: int) -> Optional[DescriptionPattern]:
         return None
     
     @strawberry.field
-    def test_description_patterns(info: Info, input: dict) -> dict:
-        return {"description": "", "results": [], "best_match": None}
+    def test_description_patterns(info: Info, input: PatternTestInput) -> PatternTestResponse:
+        return PatternTestResponse(description="", results=[], best_match=None)
     
     @strawberry.field
-    def suggest_description_patterns(info: Info, input: dict) -> dict:
-        return {"suggestions": []}
+    def suggest_description_patterns(info: Info, input: PatternSuggestionInput) -> PatternSuggestionResponse:
+        return PatternSuggestionResponse(suggestions=[])
     
     @strawberry.field
-    def description_pattern_statistics(info: Info) -> dict:
-        return {"total_patterns": 0, "active_patterns": 0, "auto_apply_patterns": 0, "total_matches": 0}
+    def description_pattern_statistics(info: Info) -> PatternStatistics:
+        return PatternStatistics(total_patterns=0, active_patterns=0, auto_apply_patterns=0, total_matches=0)
 
 # Importar mutations de patrones de descripción
 try:
@@ -127,11 +138,11 @@ except Exception as e:
     logger.error(f"❌ Error importando description pattern mutations: {e}")
     # Crear mutations fallback
     @strawberry.field
-    def create_description_pattern(info: Info, input: dict) -> None:
+    def create_description_pattern(info: Info, input: DescriptionPatternCreateInput) -> Optional[DescriptionPattern]:
         return None
     
     @strawberry.field
-    def update_description_pattern(info: Info, pattern_id: int, input: dict) -> None:
+    def update_description_pattern(info: Info, pattern_id: int, input: DescriptionPatternUpdateInput) -> Optional[DescriptionPattern]:
         return None
     
     @strawberry.field
@@ -139,7 +150,7 @@ except Exception as e:
         return False
     
     @strawberry.field
-    def apply_pattern_to_transactions(info: Info, pattern_id: int, transaction_ids: list = None) -> int:
+    def apply_pattern_to_transactions(info: Info, pattern_id: int, transaction_ids: Optional[List[int]] = None) -> int:
         return 0
 
 @strawberry.type
@@ -174,12 +185,12 @@ class Query:
     @strawberry.field
     async def my_description_patterns(
         self, 
-        info: Info,
-        active_only: bool = True,
-        skip: int = 0,
-        limit: int = 100
-    ) -> list:
-        """Obtener los patrones de descripción del usuario actual"""
+        info: Info, 
+        active_only: bool = True, 
+        skip: int = 0, 
+        limit: int = 50
+    ) -> List[DescriptionPattern]:
+        """Obtener patrones del usuario actual"""
         try:
             return description_pattern_queries.my_description_patterns(
                 info, active_only, skip, limit
@@ -188,7 +199,7 @@ class Query:
             return []
     
     @strawberry.field
-    async def description_pattern(self, info: Info, pattern_id: int):
+    async def description_pattern(self, info: Info, pattern_id: int) -> Optional[DescriptionPattern]:
         """Obtener un patrón específico por ID"""
         try:
             return description_pattern_queries.description_pattern(info, pattern_id)
@@ -196,28 +207,28 @@ class Query:
             return None
     
     @strawberry.field  
-    async def test_description_patterns(self, info: Info, input: dict):
+    async def test_description_patterns(self, info: Info, input: PatternTestInput) -> PatternTestResponse:
         """Probar patrones contra una descripción"""
         try:
             return description_pattern_queries.test_description_patterns(info, input)
         except:
-            return {"description": "", "results": [], "best_match": None}
+            return PatternTestResponse(description="", results=[], best_match=None)
     
     @strawberry.field
-    async def suggest_description_patterns(self, info: Info, input: dict):
+    async def suggest_description_patterns(self, info: Info, input: PatternSuggestionInput) -> PatternSuggestionResponse:
         """Generar sugerencias de patrones"""
         try:
             return description_pattern_queries.suggest_description_patterns(info, input)
         except:
-            return {"suggestions": []}
+            return PatternSuggestionResponse(suggestions=[])
     
     @strawberry.field
-    async def description_pattern_statistics(self, info: Info):
+    async def description_pattern_statistics(self, info: Info) -> PatternStatistics:
         """Obtener estadísticas de patrones"""
         try:
             return description_pattern_queries.description_pattern_statistics(info)
         except:
-            return {"total_patterns": 0, "active_patterns": 0, "auto_apply_patterns": 0, "total_matches": 0}
+            return PatternStatistics(total_patterns=0, active_patterns=0, auto_apply_patterns=0, total_matches=0)
 
 @strawberry.type
 class Mutation:
@@ -228,7 +239,7 @@ class Mutation:
     
     # Mutaciones de patrones de descripción
     @strawberry.field
-    async def create_description_pattern(self, info: Info, input: dict):
+    async def create_description_pattern(self, info: Info, input: DescriptionPatternCreateInput) -> Optional[DescriptionPattern]:
         """Crear un nuevo patrón de descripción"""
         try:
             return description_pattern_mutations.create_description_pattern(info, input)
@@ -237,7 +248,7 @@ class Mutation:
             return None
     
     @strawberry.field
-    async def update_description_pattern(self, info: Info, pattern_id: int, input: dict):
+    async def update_description_pattern(self, info: Info, pattern_id: int, input: DescriptionPatternUpdateInput) -> Optional[DescriptionPattern]:
         """Actualizar un patrón de descripción existente"""
         try:
             return description_pattern_mutations.update_description_pattern(info, pattern_id, input)
