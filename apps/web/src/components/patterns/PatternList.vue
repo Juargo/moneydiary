@@ -179,6 +179,7 @@
           @click="fetchSuggestions"
           class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center space-x-2"
           :disabled="loading"
+          :title="'Analiza tus transacciones para encontrar patrones repetidos y sugerir reglas automáticas'"
         >
           <svg
             class="w-4 h-4"
@@ -193,7 +194,7 @@
               d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
             ></path>
           </svg>
-          <span>{{ loading ? "Generando..." : "Generar Sugerencias" }}</span>
+          <span>{{ loading ? "Analizando..." : "Generar Sugerencias" }}</span>
         </button>
 
         <button
@@ -223,6 +224,39 @@
             showInactive ? "Ocultar Inactivos" : "Mostrar Inactivos"
           }}</span>
         </button>
+      </div>
+
+      <!-- Información sobre sugerencias -->
+      <div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div class="flex items-start space-x-3">
+          <svg
+            class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
+          </svg>
+          <div class="text-sm text-blue-800">
+            <p class="font-medium mb-1">¿Cómo funcionan las sugerencias?</p>
+            <p>
+              El sistema analiza
+              <strong>todas tus transacciones</strong> (categorizadas y sin
+              categorizar) para encontrar patrones repetidos en las
+              descripciones. Te sugerirá reglas automáticas basadas en:
+            </p>
+            <ul class="list-disc list-inside mt-2 space-y-1">
+              <li>Palabras que aparecen frecuentemente</li>
+              <li>Prefijos y sufijos comunes</li>
+              <li>Descripciones exactas repetidas</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -438,7 +472,7 @@ function createPatternFromSuggestion(suggestion) {
 // Funciones para sugerencias
 async function fetchSuggestions() {
   try {
-    await getPatternSuggestions({ limit: 10, minOccurrences: 3 });
+    await getPatternSuggestions({ limit: 15, minOccurrences: 2 });
   } catch (error) {
     console.error("Error fetching suggestions:", error);
   }

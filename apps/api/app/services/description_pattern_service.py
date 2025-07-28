@@ -333,15 +333,57 @@ class DescriptionPatternService:
         request: PatternSuggestionRequest
     ) -> PatternSuggestionResponse:
         """Generar sugerencias de patrones basadas en transacciones existentes"""
-        # Obtener transacciones del usuario con subcategorías asignadas
-        transactions = db.query(Transaction).filter(
+        # Obtener TODAS las transacciones del usuario con descripción (categorizadas y no categorizadas)
+        all_transactions = db.query(Transaction).filter(
             and_(
                 Transaction.user_id == user_id,
                 Transaction.description.isnot(None),
-                Transaction.subcategory_id.isnot(None)
+                Transaction.description != ""
             )
         ).all()
 
+        if not all_transactions:
+            return PatternSuggestionResponse(suggestions=[])
+
+        # Separar transacciones categorizadas y no categorizadas
+        categorized_transactions = [t for t in all_transactions if t.subcategory_id is not None]
+        uncategorized_transactions = [t for t in all_transactions if t.subcategory_id is None]
+        
+        suggestions = []
+
+        # 1. Analizar transacciones ya categorizadas (algoritmo original)
+        if categorized_transactions:
+            suggestions.extend(
+                DescriptionPatternService._analyze_categorized_transactions(
+                    categorized_transactions, request
+                )
+            )
+
+        # 2. Analizar transacciones NO categorizadas para encontrar patrones repetidos
+        if uncategorized_transactions:
+            suggestions.extend(
+                DescriptionPatternService._analyze_uncategorized_transactions(
+                    uncategorized_transactions, request
+                )
+            )
+
+        # Eliminar duplicados y ordenar por puntuación de confianza y número de ocurrencias
+        unique_suggestions = {}
+        for suggestion in suggestions:
+            key = f"{suggestion.suggested_pattern}_{suggestion.pattern_type}"
+            if key not in unique_suggestions or suggestion.confidence_score > unique_suggestions[key].confidence_score:
+                unique_suggestions[key] = suggestion
+
+        final_suggestions = list(unique_suggestions.values())
+        final_suggestions.sort(key=lambda x: (x.confidence_score, x.occurrence_count), reverse=True)
+        
+        return PatternSuggestionResponse(
+            suggestions=final_suggestions[:request.limit]
+        )
+
+    @staticmethod
+    def _analyze_categorized_transactions(transactions: List[Transaction], request: PatternSuggestionRequest) -> List[PatternSuggestion]:
+        """Analizar transacciones categorizadas para generar sugerencias"""
         # Agrupar por subcategoría y analizar descripciones
         subcategory_descriptions = {}
         for transaction in transactions:
@@ -372,31 +414,65 @@ class DescriptionPatternService:
                     )
                     suggestions.append(suggestion)
 
-        # Ordenar por puntuación de confianza y número de ocurrencias
-        suggestions.sort(key=lambda x: (x.confidence_score, x.occurrence_count), reverse=True)
+        return suggestions
+
+    @staticmethod
+    def _analyze_uncategorized_transactions(transactions: List[Transaction], request: PatternSuggestionRequest) -> List[PatternSuggestion]:
+        """Analizar transacciones NO categorizadas para encontrar patrones repetidos"""
+        descriptions = [t.description.strip() for t in transactions]
         
-        return PatternSuggestionResponse(
-            suggestions=suggestions[:request.limit]
-        )
+        if len(descriptions) < request.min_occurrences:
+            return []
+
+        suggestions = []
+        
+        # Analizar patrones comunes en descripciones no categorizadas
+        suggested_patterns = DescriptionPatternService._analyze_descriptions(descriptions)
+        
+        for pattern_info in suggested_patterns:
+            if pattern_info['count'] >= request.min_occurrences:
+                # Para transacciones no categorizadas, la confianza se basa en la frecuencia
+                confidence = min(pattern_info['count'] / len(descriptions), 0.8)  # Máximo 0.8 para no categorizadas
+                
+                suggestion = PatternSuggestion(
+                    suggested_pattern=pattern_info['pattern'],
+                    pattern_type=pattern_info['type'],
+                    description_sample=pattern_info['sample'],
+                    occurrence_count=pattern_info['count'],
+                    suggested_subcategory_id=None,  # Sin subcategoría sugerida
+                    confidence_score=confidence
+                )
+                suggestions.append(suggestion)
+
+        return suggestions
 
     @staticmethod
     def _analyze_descriptions(descriptions: List[str]) -> List[Dict[str, Any]]:
-        """Analizar descripciones para encontrar patrones comunes"""
+        """Analizar descripciones para encontrar patrones comunes mejorado"""
         patterns = []
         
-        # Análisis de palabras comunes
+        # Filtrar descripciones vacías o muy cortas
+        valid_descriptions = [desc for desc in descriptions if len(desc.strip()) >= 3]
+        if len(valid_descriptions) < 2:
+            return patterns
+        
+        # 1. Análisis de palabras comunes (mejorado)
         all_words = []
-        for desc in descriptions:
-            words = desc.lower().split()
-            all_words.extend(words)
+        for desc in valid_descriptions:
+            # Limpiar y normalizar palabras
+            words = desc.lower().replace(',', ' ').replace('.', ' ').split()
+            # Filtrar palabras comunes en español que no son útiles
+            stop_words = {'de', 'la', 'el', 'en', 'a', 'y', 'que', 'es', 'se', 'no', 'te', 'lo', 'le', 'da', 'su', 'por', 'son', 'con', 'para', 'una', 'sus', 'les', 'del', 'las', 'al', 'un', 'ser', 'son', 'está', 'están'}
+            filtered_words = [word for word in words if len(word) > 2 and word not in stop_words]
+            all_words.extend(filtered_words)
         
         word_counts = Counter(all_words)
         
         # Sugerir patrones basados en palabras frecuentes
-        for word, count in word_counts.most_common(10):
-            if len(word) > 2 and count >= 2:  # Filtrar palabras muy cortas o poco frecuentes
-                matching_descriptions = [desc for desc in descriptions if word.lower() in desc.lower()]
-                if matching_descriptions:
+        for word, count in word_counts.most_common(15):
+            if count >= 2:  # Al menos 2 ocurrencias
+                matching_descriptions = [desc for desc in valid_descriptions if word.lower() in desc.lower()]
+                if len(matching_descriptions) >= 2:
                     patterns.append({
                         'pattern': word,
                         'type': PatternType.CONTAINS,
@@ -404,28 +480,71 @@ class DescriptionPatternService:
                         'sample': matching_descriptions[0]
                     })
 
-        # Análisis de prefijos comunes
-        if len(descriptions) > 1:
-            # Encontrar prefijos comunes de 4+ caracteres
-            for length in range(4, min(20, max(len(d) for d in descriptions) + 1)):
+        # 2. Análisis de prefijos comunes (mejorado)
+        if len(valid_descriptions) > 1:
+            # Encontrar prefijos comunes de diferentes longitudes
+            for length in range(4, min(25, max(len(d) for d in valid_descriptions) + 1)):
                 prefix_counts = Counter()
-                for desc in descriptions:
+                for desc in valid_descriptions:
                     if len(desc) >= length:
                         prefix = desc[:length].strip()
-                        if prefix:
+                        # Solo considerar prefijos que no terminen en medio de una palabra
+                        if prefix and (len(desc) == length or desc[length] == ' '):
                             prefix_counts[prefix] += 1
                 
                 for prefix, count in prefix_counts.items():
-                    if count >= 2:
-                        matching_descriptions = [desc for desc in descriptions if desc.startswith(prefix)]
+                    if count >= 2 and len(prefix.strip()) > 3:
+                        matching_descriptions = [desc for desc in valid_descriptions if desc.startswith(prefix)]
                         patterns.append({
-                            'pattern': prefix,
+                            'pattern': prefix.strip(),
                             'type': PatternType.STARTS_WITH,
                             'count': count,
                             'sample': matching_descriptions[0]
                         })
 
-        return patterns
+        # 3. Análisis de sufijos comunes
+        if len(valid_descriptions) > 1:
+            for length in range(4, min(20, max(len(d) for d in valid_descriptions) + 1)):
+                suffix_counts = Counter()
+                for desc in valid_descriptions:
+                    if len(desc) >= length:
+                        suffix = desc[-length:].strip()
+                        # Solo considerar sufijos que no empiecen en medio de una palabra
+                        if suffix and (length == len(desc) or desc[-(length+1)] == ' '):
+                            suffix_counts[suffix] += 1
+                
+                for suffix, count in suffix_counts.items():
+                    if count >= 2 and len(suffix.strip()) > 3:
+                        matching_descriptions = [desc for desc in valid_descriptions if desc.endswith(suffix)]
+                        patterns.append({
+                            'pattern': suffix.strip(),
+                            'type': PatternType.ENDS_WITH,
+                            'count': count,
+                            'sample': matching_descriptions[0]
+                        })
+
+        # 4. Análisis de descripciones exactas repetidas
+        exact_counts = Counter(valid_descriptions)
+        for description, count in exact_counts.items():
+            if count >= 2:
+                patterns.append({
+                    'pattern': description,
+                    'type': PatternType.EXACT,
+                    'count': count,
+                    'sample': description
+                })
+
+        # Eliminar patrones duplicados y muy similares
+        unique_patterns = []
+        seen_patterns = set()
+        
+        for pattern in patterns:
+            pattern_key = f"{pattern['pattern'].lower()}_{pattern['type']}"
+            if pattern_key not in seen_patterns:
+                seen_patterns.add(pattern_key)
+                unique_patterns.append(pattern)
+
+        return unique_patterns
 
     @staticmethod
     def get_pattern_statistics(db: Session, user_id: int) -> Dict[str, Any]:
