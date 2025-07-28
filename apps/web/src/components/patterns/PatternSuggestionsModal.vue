@@ -552,13 +552,13 @@ function selectNone() {
 
 async function loadSuggestions() {
   try {
-    const response = await patternStore.getSuggestions({
-      minTransactions: filters.minTransactions,
-      onlyUnassigned: filters.onlyUnassigned,
+    const response = await patternStore.getPatternSuggestions({
+      limit: 20,
+      minOccurrences: filters.minTransactions,
     });
 
     // Procesar y enriquecer las sugerencias
-    suggestions.value = response.map((suggestion) => ({
+    suggestions.value = response.suggestions.map((suggestion) => ({
       ...suggestion,
       id: Math.random().toString(36).substr(2, 9),
       selected: false,

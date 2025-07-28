@@ -46,6 +46,7 @@ export const usePatternStore = defineStore("patterns", () => {
   const patterns = ref<DescriptionPattern[]>([]);
   const categories = ref<Category[]>([]);
   const subcategories = ref<Subcategory[]>([]);
+  const testResults = ref<PatternTestResponse | null>(null);
   const statistics = ref<PatternStatistics>({
     totalPatterns: 0,
     activePatterns: 0,
@@ -205,6 +206,7 @@ export const usePatternStore = defineStore("patterns", () => {
       error.value = null;
 
       const response = await patternService.testPatterns(input);
+      testResults.value = response;
       return response;
     } catch (err) {
       error.value =
@@ -292,6 +294,10 @@ export const usePatternStore = defineStore("patterns", () => {
     return categories.value.find((c) => c.id === id);
   }
 
+  function clearTestResults() {
+    testResults.value = null;
+  }
+
   // Reset store
   function $reset() {
     patterns.value = [];
@@ -303,6 +309,7 @@ export const usePatternStore = defineStore("patterns", () => {
       autoApplyPatterns: 0,
       totalMatches: 0,
     };
+    testResults.value = null;
     loading.value = false;
     error.value = null;
   }
@@ -313,6 +320,7 @@ export const usePatternStore = defineStore("patterns", () => {
     categories,
     subcategories,
     statistics,
+    testResults,
     loading,
     error,
 
@@ -334,6 +342,7 @@ export const usePatternStore = defineStore("patterns", () => {
     getPatternById,
     getSubcategoryById,
     getCategoryById,
+    clearTestResults,
     $reset,
   };
 });
