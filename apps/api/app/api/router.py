@@ -14,4 +14,4 @@ api_router.include_router(accounts.router, prefix="/accounts", tags=["accounts"]
 # api_router.include_router(banks.router, prefix="/banks", tags=["banks"])
 api_router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(import_profiles.router, prefix="/import-profiles", tags=["import-profiles"])
-api_router.include_router(description_patterns.router, prefix="/description-patterns", tags=["description-patterns"])
+api_router.include_router(description_patterns.router, tags=["description-patterns"])
