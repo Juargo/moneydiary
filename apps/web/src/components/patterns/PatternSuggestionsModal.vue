@@ -43,20 +43,19 @@
               class="border border-gray-300 rounded-md px-3 py-1 text-sm"
             >
               <option value="frequency">Frecuencia</option>
-              <option value="amount">Monto promedio</option>
-              <option value="recent">Más reciente</option>
+              <option value="confidence">Confianza</option>
             </select>
           </div>
 
           <label class="flex items-center">
             <input
-              v-model="filters.onlyUnassigned"
+              v-model="filters.showWithSubcategory"
               @change="applySuggestions"
               type="checkbox"
               class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             />
             <span class="ml-2 text-sm text-gray-700"
-              >Solo transacciones sin subcategoría</span
+              >Incluir patrones con subcategoría sugerida</span
             >
           </label>
 
@@ -156,7 +155,7 @@
                     <!-- Información del patrón -->
                     <div class="flex-1 min-w-0">
                       <h4 class="font-medium text-gray-900 mb-2">
-                        {{ suggestion.suggestedPattern }}
+                        {{ suggestion.suggested_pattern }}
                       </h4>
 
                       <!-- Estadísticas -->
@@ -177,7 +176,7 @@
                               d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                             ></path>
                           </svg>
-                          {{ suggestion.frequency }} transacciones
+                          {{ suggestion.occurrence_count }} transacciones
                         </span>
 
                         <span class="flex items-center">
@@ -191,10 +190,11 @@
                               stroke-linecap="round"
                               stroke-linejoin="round"
                               stroke-width="2"
-                              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                             ></path>
                           </svg>
-                          ${{ formatAmount(suggestion.averageAmount) }} promedio
+                          Tipo:
+                          {{ getPatternTypeLabel(suggestion.pattern_type) }}
                         </span>
 
                         <span class="flex items-center">
@@ -208,10 +208,10 @@
                               stroke-linecap="round"
                               stroke-linejoin="round"
                               stroke-width="2"
-                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                             ></path>
                           </svg>
-                          Última: {{ formatDate(suggestion.lastTransaction) }}
+                          Ejemplo: {{ suggestion.description_sample }}
                         </span>
                       </div>
 
@@ -231,7 +231,7 @@
                               v-model="suggestion.patternName"
                               type="text"
                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                              :placeholder="`Patrón para ${suggestion.suggestedPattern}`"
+                              :placeholder="`Patrón para ${suggestion.suggested_pattern}`"
                             />
                           </div>
 
@@ -299,73 +299,24 @@
                     <div class="flex-shrink-0">
                       <div class="text-center">
                         <div class="text-lg font-bold text-gray-900">
-                          {{ suggestion.confidence }}%
+                          {{ Math.round(suggestion.confidence_score * 100) }}%
                         </div>
                         <div class="text-xs text-gray-500">Confianza</div>
                         <div class="w-16 bg-gray-200 rounded-full h-2 mt-1">
                           <div
                             class="h-2 rounded-full"
-                            :class="getConfidenceColor(suggestion.confidence)"
-                            :style="{ width: suggestion.confidence + '%' }"
+                            :class="
+                              getConfidenceColor(
+                                Math.round(suggestion.confidence_score * 100)
+                              )
+                            "
+                            :style="{
+                              width:
+                                Math.round(suggestion.confidence_score * 100) +
+                                '%',
+                            }"
                           ></div>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Ejemplos de transacciones -->
-                  <div
-                    v-if="suggestion.examples && suggestion.examples.length > 0"
-                    class="mt-3"
-                  >
-                    <button
-                      @click="
-                        suggestion.showExamples = !suggestion.showExamples
-                      "
-                      class="text-sm text-primary-600 hover:text-primary-800 flex items-center"
-                    >
-                      <span
-                        >{{
-                          suggestion.showExamples ? "Ocultar" : "Ver"
-                        }}
-                        ejemplos</span
-                      >
-                      <svg
-                        class="w-4 h-4 ml-1 transform transition-transform"
-                        :class="{ 'rotate-180': suggestion.showExamples }"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 9l-7 7-7-7"
-                        ></path>
-                      </svg>
-                    </button>
-
-                    <div v-if="suggestion.showExamples" class="mt-2 space-y-1">
-                      <div
-                        v-for="(example, index) in suggestion.examples.slice(
-                          0,
-                          5
-                        )"
-                        :key="index"
-                        class="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded"
-                      >
-                        {{ example.description }}
-                        <span class="text-gray-400">
-                          (${{ formatAmount(example.amount) }} -
-                          {{ formatDate(example.date) }})
-                        </span>
-                      </div>
-                      <div
-                        v-if="suggestion.examples.length > 5"
-                        class="text-xs text-gray-500"
-                      >
-                        y {{ suggestion.examples.length - 5 }} más...
                       </div>
                     </div>
                   </div>
@@ -490,9 +441,9 @@ const suggestions = ref([]);
 const creating = ref(false);
 
 const filters = reactive({
-  minTransactions: 3,
+  minTransactions: 2,
   sortBy: "frequency",
-  onlyUnassigned: true,
+  showWithSubcategory: true,
 });
 
 // Computed
@@ -501,7 +452,7 @@ const selectedCount = computed(() => {
 });
 
 const totalTransactions = computed(() => {
-  return suggestions.value.reduce((total, s) => total + s.frequency, 0);
+  return suggestions.value.reduce((total, s) => total + s.occurrence_count, 0);
 });
 
 const estimatedSavings = computed(() => {
@@ -515,31 +466,30 @@ const sortedSuggestions = computed(() => {
 
   switch (filters.sortBy) {
     case "frequency":
-      return sorted.sort((a, b) => b.frequency - a.frequency);
-    case "amount":
-      return sorted.sort((a, b) => b.averageAmount - a.averageAmount);
-    case "recent":
-      return sorted.sort(
-        (a, b) => new Date(b.lastTransaction) - new Date(a.lastTransaction)
-      );
+      return sorted.sort((a, b) => b.occurrence_count - a.occurrence_count);
+    case "confidence":
+      return sorted.sort((a, b) => b.confidence_score - a.confidence_score);
     default:
-      return sorted;
+      return sorted.sort((a, b) => b.occurrence_count - a.occurrence_count);
   }
 });
 
 // Métodos
+function getPatternTypeLabel(type) {
+  const labels = {
+    contains: "Contiene",
+    starts_with: "Inicia con",
+    ends_with: "Termina con",
+    exact: "Exacto",
+    regex: "Expresión regular",
+  };
+  return labels[type] || type;
+}
+
 function getConfidenceColor(confidence) {
   if (confidence >= 80) return "bg-green-500";
   if (confidence >= 60) return "bg-yellow-500";
   return "bg-red-500";
-}
-
-function formatAmount(amount) {
-  return new Intl.NumberFormat("es-CL").format(Math.abs(amount));
-}
-
-function formatDate(dateString) {
-  return new Date(dateString).toLocaleDateString("es-CL");
 }
 
 function selectAll() {
@@ -554,19 +504,18 @@ async function loadSuggestions() {
   try {
     const response = await patternStore.getPatternSuggestions({
       limit: 20,
-      minOccurrences: filters.minTransactions,
+      min_occurrences: filters.minTransactions,
     });
 
-    // Procesar y enriquecer las sugerencias
+    // Procesar y enriquecer las sugerencias con el formato correcto del backend
     suggestions.value = response.suggestions.map((suggestion) => ({
       ...suggestion,
       id: Math.random().toString(36).substr(2, 9),
       selected: false,
-      showExamples: false,
-      patternName: `Patrón ${suggestion.suggestedPattern}`,
-      patternType: "contains",
+      patternName: `Patrón ${suggestion.suggested_pattern}`,
+      patternType: suggestion.pattern_type,
       autoApply: true,
-      subcategoryId: null,
+      subcategoryId: suggestion.suggested_subcategory_id,
     }));
   } catch (err) {
     console.error("Error loading suggestions:", err);
@@ -602,12 +551,13 @@ async function createSelectedPatterns() {
     for (const suggestion of selected) {
       const patternData = {
         name: suggestion.patternName.trim(),
-        pattern: suggestion.suggestedPattern,
+        pattern: suggestion.suggested_pattern,
         patternType: suggestion.patternType,
         subcategoryId: suggestion.subcategoryId,
         isActive: true,
         autoApply: suggestion.autoApply,
         priority: 1,
+        isCaseSensitive: false,
       };
 
       const created = await patternStore.createPattern(patternData);
