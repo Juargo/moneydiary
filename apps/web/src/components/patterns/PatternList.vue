@@ -238,7 +238,7 @@
       <div v-else-if="error" class="p-8 text-center text-red-600">
         {{ error }}
         <button
-          @click="fetchPatterns()"
+          @click="loadPatterns()"
           class="mt-2 block mx-auto text-sm text-primary-600 hover:text-primary-800"
         >
           Reintentar
@@ -350,13 +350,13 @@ const patternToDelete = ref(null);
 const { patterns, loading, error, statistics, suggestions } = patternStore;
 
 const {
-  fetchPatterns,
-  fetchStatistics,
-  fetchSuggestions,
+  loadPatterns,
+  loadStatistics,
+  getPatternSuggestions,
   deletePattern,
   updatePattern,
   createPattern,
-  clearSuggestions,
+  clearTestResults,
 } = patternStore;
 
 const filteredPatterns = computed(() => {
@@ -413,7 +413,7 @@ function onPatternSaved() {
   showCreateModal.value = false;
   showEditModal.value = false;
   editingPattern.value = null;
-  fetchPatterns(!showInactive.value);
+  loadPatterns(!showInactive.value);
 }
 
 function createPatternFromSuggestion(suggestion) {
@@ -435,8 +435,22 @@ function createPatternFromSuggestion(suggestion) {
   clearSuggestions();
 }
 
+// Funciones para sugerencias
+async function fetchSuggestions() {
+  try {
+    await getPatternSuggestions({ limit: 10, minOccurrences: 3 });
+  } catch (error) {
+    console.error("Error fetching suggestions:", error);
+  }
+}
+
+function clearSuggestions() {
+  // Esta función puede estar vacía o limpiar algún estado local si es necesario
+  // El store ya maneja el estado de las sugerencias
+}
+
 // Inicialización
 onMounted(async () => {
-  await Promise.all([fetchPatterns(true), fetchStatistics()]);
+  await Promise.all([loadPatterns(true), loadStatistics()]);
 });
 </script>
