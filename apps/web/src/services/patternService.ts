@@ -1,4 +1,6 @@
 // Servicio para gestionar patrones de descripción
+import { useAuthStore } from "../stores/authStore";
+
 export interface SubcategoryInfo {
   id: number;
   name: string;
@@ -99,7 +101,7 @@ class PatternService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const token = localStorage.getItem("accessToken");
+    const authStore = useAuthStore();
 
     const response = await fetch(
       `${this.baseUrl}/api/v1/description-patterns${endpoint}`,
@@ -107,7 +109,9 @@ class PatternService {
         ...options,
         headers: {
           "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
+          ...(authStore.accessToken && {
+            Authorization: `Bearer ${authStore.accessToken}`,
+          }),
           ...options.headers,
         },
       }
