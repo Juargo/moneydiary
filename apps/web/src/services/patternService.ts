@@ -102,7 +102,7 @@ class PatternService {
     const token = localStorage.getItem("accessToken");
 
     const response = await fetch(
-      `${this.baseUrl}/api/description-patterns${endpoint}`,
+      `${this.baseUrl}/api/v1/description-patterns${endpoint}`,
       {
         ...options,
         headers: {

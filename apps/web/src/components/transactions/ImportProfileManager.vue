@@ -392,7 +392,7 @@ async function createDefaultProfiles() {
   creatingDefaults.value = true;
 
   try {
-    await apiRequest("/api/import-profiles/create-defaults", {
+    await apiRequest("/api/v1/import-profiles/create-defaults", {
       method: "POST",
     });
     await fetchProfiles();
@@ -411,7 +411,7 @@ async function deleteProfile() {
   deleting.value = true;
 
   try {
-    await apiRequest(`/api/import-profiles/${profileToDelete.value.id}`, {
+    await apiRequest(`/api/v1/import-profiles/${profileToDelete.value.id}`, {
       method: "DELETE",
     });
     await fetchProfiles();
