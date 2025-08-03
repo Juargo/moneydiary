@@ -10,6 +10,8 @@ import csv
 import pandas as pd
 import xlrd
 import logging
+import hashlib
+from ..utils.transaction_utils import generate_transaction_hash, check_transaction_exists
 
 from ..models.transactions import Transaction, TransactionStatus
 from ..models.accounts import Account
@@ -55,8 +57,14 @@ def get_default_transaction_status_id(db: Session):
         else:
             raise ValueError("No se pudo crear ni obtener un estado de transacción válido")
 
-def create_transaction(db: Session, user_id: int, transaction_data: TransactionCreateRequest) -> Transaction:
-    """Crea una nueva transacción"""
+def create_transaction(
+    db: Session, 
+    user_id: int, 
+    transaction_data: TransactionCreateRequest,
+    import_source: Optional[str] = None,
+    skip_duplicate_check: bool = False
+) -> Transaction:
+    """Crea una nueva transacción con validación de duplicados"""
     
     logger.info(f"Iniciando creación de transacción para usuario {user_id}")
     logger.debug(f"Datos de transacción: amount={transaction_data.amount}, account_id={transaction_data.account_id}, description='{transaction_data.description}'")
@@ -72,23 +80,41 @@ def create_transaction(db: Session, user_id: int, transaction_data: TransactionC
         logger.error(f"Cuenta {transaction_data.account_id} no encontrada o no autorizada para usuario {user_id}")
         raise ValueError("Cuenta no encontrada o no autorizada")
     
-    logger.debug(f"Cuenta encontrada: {account.name} (ID: {account.id}), balance actual: {account.current_balance}")
-    
-    # Si hay cuenta de transferencia, verificar que también pertenece al usuario
-    if transaction_data.transfer_account_id:
-        transfer_account = db.query(Account).filter(
-            Account.id == transaction_data.transfer_account_id,
-            Account.user_id == user_id,
-            Account.active == True
-        ).first()
+    # NUEVA VALIDACIÓN DE DUPLICADOS
+    if not skip_duplicate_check:
+        logger.debug("Verificando duplicados...")
         
-        if not transfer_account:
-            logger.error(f"Cuenta de transferencia {transaction_data.transfer_account_id} no encontrada para usuario {user_id}")
-            raise ValueError("Cuenta de transferencia no encontrada o no autorizada")
+        # Generar hash del contenido
+        content_hash = generate_transaction_hash(
+            user_id=user_id,
+            account_id=transaction_data.account_id,
+            amount=Decimal(str(transaction_data.amount)),
+            description=transaction_data.description or '',
+            transaction_date=transaction_data.transaction_date,
+            external_id=transaction_data.external_id
+        )
         
-        logger.debug(f"Cuenta de transferencia encontrada: {transfer_account.name} (ID: {transfer_account.id})")
+        # Verificar si ya existe
+        exists, reason = check_transaction_exists(
+            db=db,
+            user_id=user_id,
+            account_id=transaction_data.account_id,
+            amount=Decimal(str(transaction_data.amount)),
+            description=transaction_data.description or '',
+            transaction_date=transaction_data.transaction_date,
+            external_id=transaction_data.external_id,
+            content_hash=content_hash
+        )
+        
+        if exists:
+            logger.warning(f"Transacción duplicada detectada: {reason}")
+            raise ValueError(f"Transacción duplicada: {reason}")
+        
+        logger.debug(f"No se encontraron duplicados, content_hash: {content_hash[:16]}...")
+    else:
+        content_hash = None
+        logger.debug("Verificación de duplicados saltada")
     
-    # Crear la transacción
     # Asegurar que el monto sea un Decimal con precisión adecuada
     amount_decimal = Decimal(str(transaction_data.amount)).quantize(Decimal('0.01'))
     
@@ -98,6 +124,7 @@ def create_transaction(db: Session, user_id: int, transaction_data: TransactionC
         status_id = get_default_transaction_status_id(db)
         logger.debug(f"Usando status_id por defecto: {status_id}")
     
+    # Crear la transacción con los nuevos campos
     db_transaction = Transaction(
         user_id=user_id,
         account_id=transaction_data.account_id,
@@ -112,7 +139,10 @@ def create_transaction(db: Session, user_id: int, transaction_data: TransactionC
         is_recurring=transaction_data.is_recurring,
         is_planned=transaction_data.is_planned,
         kakebo_emotion=transaction_data.kakebo_emotion,
-        external_id=transaction_data.external_id
+        external_id=transaction_data.external_id,
+        # NUEVOS CAMPOS
+        content_hash=content_hash,
+        import_source=import_source
     )
     
     db.add(db_transaction)
@@ -438,12 +468,12 @@ def import_transactions_from_excel(
     user_id: int, 
     account_id: int, 
     file_content: bytes, 
-    filename: str
+    filename: str,
+    allow_duplicates: bool = False  # NUEVO PARÁMETRO
 ) -> Dict[str, Any]:
-    """Importa transacciones desde contenido Excel"""
+    """Importa transacciones desde contenido Excel con prevención de duplicados"""
     
     logger.info(f"Iniciando importación de Excel para usuario {user_id}, cuenta {account_id}, archivo: {filename}")
-    logger.debug(f"Tamaño del archivo: {len(file_content)} bytes")
     
     # Verificar que la cuenta pertenece al usuario
     account = db.query(Account).filter(
@@ -462,6 +492,7 @@ def import_transactions_from_excel(
         'total_records': 0,
         'successful_imports': 0,
         'failed_imports': 0,
+        'skipped_duplicates': 0,  # NUEVO CONTADOR
         'errors': []
     }
     
@@ -487,7 +518,10 @@ def import_transactions_from_excel(
         
         # Procesar filas
         logger.debug("Iniciando procesamiento de filas")
-        for row_idx, row in enumerate(worksheet.iter_rows(min_row=header_row + 1), start=header_row + 1):  # type: ignore
+        if worksheet is None:
+            logger.error("No se pudo obtener una hoja de trabajo válida del archivo Excel")
+            raise ValueError("No se pudo obtener una hoja de trabajo válida del archivo Excel")
+        for row_idx, row in enumerate(worksheet.iter_rows(min_row=header_row + 1), start=header_row + 1):
             # Saltar filas vacías
             if all(cell.value is None or str(cell.value).strip() == '' for cell in row):
                 logger.debug(f"Saltando fila vacía {row_idx}")
@@ -520,7 +554,18 @@ def import_transactions_from_excel(
                 
                 # Obtener un status_id válido
                 default_status_id = get_default_transaction_status_id(db)
-                
+                # Asegurarse de que sea un int y no un SQLAlchemy Column
+                if hasattr(default_status_id, 'id'):
+                    default_status_id = default_status_id.id
+                elif hasattr(default_status_id, 'value'):
+                    default_status_id = default_status_id.value
+                elif isinstance(default_status_id, int):
+                    pass  # already int
+                else:
+                    # If it's a SQLAlchemy Column, raise an error or set a default
+                    logger.error(f"default_status_id is not an int: {default_status_id} (type: {type(default_status_id)})")
+                    raise ValueError("No se pudo obtener un status_id válido para la transacción")
+
                 # Crear transacción
                 transaction_data = TransactionCreateRequest(
                     amount=amount,
@@ -528,22 +573,39 @@ def import_transactions_from_excel(
                     transaction_date=transaction_date,
                     account_id=account_id,
                     notes=str(notes_value) if notes_value else "",
-                    status_id=default_status_id
+                    status_id=default_status_id,
+                    external_id=f"{filename}_{row_idx}"  # GENERAR external_id ÚNICO
                 )
                 
-                create_transaction(db, user_id, transaction_data)
-                results['successful_imports'] += 1
-                logger.debug(f"Fila {row_idx} importada exitosamente")
+                # CREAR CON VALIDACIÓN DE DUPLICADOS
+                try:
+                    create_transaction(
+                        db=db, 
+                        user_id=user_id, 
+                        transaction_data=transaction_data,
+                        import_source=filename,
+                        skip_duplicate_check=allow_duplicates
+                    )
+                    results['successful_imports'] += 1
+                    logger.debug(f"Fila {row_idx} importada exitosamente")
+                    
+                except ValueError as e:
+                    if "duplicada" in str(e):
+                        results['skipped_duplicates'] += 1
+                        logger.info(f"Fila {row_idx} saltada (duplicado): {str(e)}")
+                        if not allow_duplicates:
+                            continue  # Saltar sin contar como error
+                    raise  # Re-lanzar otros errores
                 
             except Exception as e:
                 results['failed_imports'] += 1
                 error_msg = f"Fila {row_idx}: {str(e)}"
                 results['errors'].append(error_msg)
-                logger.warning(f"Error en fila {row_idx}: {str(e)}")
+                logger.warning(error_msg)
                 continue
         
         workbook.close()
-        logger.info(f"Importación completada: {results['successful_imports']} exitosas, {results['failed_imports']} fallidas de {results['total_records']} total")
+        logger.info(f"Importación completada: {results['successful_imports']} exitosas, {results['skipped_duplicates']} duplicados saltados, {results['failed_imports']} fallidas de {results['total_records']} total")
                 
     except Exception as e:
         error_msg = f"Error procesando archivo Excel: {str(e)}"
@@ -1123,7 +1185,16 @@ def _extract_transaction_data(
     
     # Obtener un status_id válido  
     default_status_id = get_default_transaction_status_id(db)
-    
+    # Asegurarse de que sea un int
+    if hasattr(default_status_id, 'id'):
+        default_status_id = default_status_id.id
+    elif hasattr(default_status_id, 'value'):
+        default_status_id = default_status_id.value
+    elif isinstance(default_status_id, int):
+        pass  # already int
+    else:
+        raise ValueError("No se pudo obtener un status_id válido para la transacción")
+
     transaction_request = TransactionCreateRequest(
         amount=amount,
         description=description,

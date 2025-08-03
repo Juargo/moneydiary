@@ -242,10 +242,10 @@ async def import_csv_endpoint(
         # Leer contenido del archivo
         content = await file.read()
         
-        # Procesar con perfil
+        # Procesar con perfil - CONVERTIR A INT EXPLÍCITAMENTE
         result = import_transactions_with_profile(
             db, 
-            current_user.id, 
+            current_user.id,  # Usar el valor entero del ID del usuario
             profile_id, 
             content, 
             file.filename
@@ -286,10 +286,10 @@ async def import_excel_endpoint(
         # Leer contenido del archivo
         content = await file.read()
         
-        # Procesar con perfil
+        # Procesar con perfil - CONVERTIR A INT EXPLÍCITAMENTE
         result = import_transactions_with_profile(
             db, 
-            current_user.id, 
+            int(current_user.id),  # Conversión explícita a int
             profile_id, 
             content, 
             file.filename
@@ -310,3 +310,42 @@ async def import_excel_endpoint(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error procesando archivo: {str(e)}"
         )
+        
+@router.post("/import-excel-with-duplicates")      
+async def import_excel_with_duplicate_options(
+    account_id: int = Form(...),
+    allow_duplicates: bool = Form(False),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Importar transacciones desde Excel con opciones de duplicados"""
+    
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Nombre de archivo requerido")
+    
+    if not file.filename.lower().endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Solo se permiten archivos Excel (.xlsx, .xls)")
+    
+    try:
+        file_content = await file.read()
+        
+        result = import_transactions_from_excel(
+            db=db,
+            user_id=int(current_user.id),
+            account_id=account_id,
+            file_content=file_content,
+            filename=file.filename,
+            allow_duplicates=allow_duplicates
+        )
+        
+        return {
+            "message": "Importación completada",
+            "details": result
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error inesperado en importación: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")

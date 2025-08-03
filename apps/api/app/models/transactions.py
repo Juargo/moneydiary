@@ -1,5 +1,5 @@
 from decimal import Decimal
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text, Numeric, Boolean, TIMESTAMP
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text, Numeric, Boolean, TIMESTAMP, Index
 from sqlalchemy.orm import relationship
 from .base import Base
 
@@ -27,7 +27,11 @@ class Transaction(Base):
     recurring_pattern_id = Column(Integer, ForeignKey('recurring_patterns.id'))
     import_id = Column(Integer, ForeignKey('file_imports.id'))
     import_row_number = Column(Integer, nullable=True)
-    external_id = Column(String)
+    external_id = Column(String)  # Ya existe
+    # NUEVOS CAMPOS PARA PREVENIR DUPLICADOS
+    content_hash = Column(String(64), nullable=True)  # Hash SHA256 del contenido
+    import_source = Column(String(100), nullable=True)  # Fuente de la importación
+    
     amount = Column(Numeric, nullable=False)
     description = Column(Text)
     notes = Column(Text)
@@ -49,3 +53,18 @@ class Transaction(Base):
     recurring_pattern = relationship("RecurringPattern", back_populates="transactions")
     import_data = relationship("FileImport", back_populates="transactions")
     goal_contributions = relationship("GoalContribution", back_populates="transaction")
+
+    # ÍNDICES PARA PREVENIR DUPLICADOS
+    __table_args__ = (
+        # Índice único para external_id por usuario
+        Index('idx_user_external_id', 'user_id', 'external_id', unique=True, 
+              postgresql_where=Column('external_id').isnot(None)),
+        
+        # Índice único para content_hash por usuario
+        Index('idx_user_content_hash', 'user_id', 'content_hash', unique=True,
+              postgresql_where=Column('content_hash').isnot(None)),
+        
+        # Índice compuesto para detección de duplicados similares
+        Index('idx_user_duplicate_detection', 'user_id', 'account_id', 'amount', 
+              'transaction_date', 'description', unique=True),
+    )
