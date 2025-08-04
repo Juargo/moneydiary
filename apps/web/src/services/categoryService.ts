@@ -130,10 +130,18 @@ export const categoryGroupService = {
 
   // Crear un nuevo grupo
   async create(data: CreateCategoryGroupRequest): Promise<CategoryGroup> {
+    // Transformar isExpense a is_expense para el backend
+    const backendData = {
+      name: data.name,
+      is_expense: data.isExpense,
+      icon: data.icon,
+      display_order: data.displayOrder || 0,
+    };
+
     const response = await fetch(`${API_BASE_URL}/api/v1/categories/groups`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify(data),
+      body: JSON.stringify(backendData),
     });
     return handleResponse<CategoryGroup>(response);
   },
