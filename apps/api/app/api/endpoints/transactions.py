@@ -4,13 +4,16 @@ from typing import List, Optional
 from datetime import date
 import csv
 import io
+import logging
 
 from ...database import get_db
 from ...schemas.transactions import (
     TransactionCreateRequest, 
     TransactionUpdateRequest, 
     TransactionResponse,
-    TransactionImportResponse
+    TransactionImportResponse,
+    TransactionPreviewResponse,
+    TransactionPreviewConfirmRequest
 )
 from ...services.transaction_service import (
     create_transaction,
@@ -20,13 +23,18 @@ from ...services.transaction_service import (
     get_user_transactions,
     import_transactions_from_csv,
     import_transactions_from_excel,
-    import_transactions_with_profile
+    import_transactions_with_profile,
+    preview_transactions_with_profile,
+    confirm_transaction_preview
 )
 from ...utils.fastapi_auth import get_current_user
 from ...models.users import User
 
 # Crear el router
 router = APIRouter()
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 # @router.post("", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 # async def create_transaction_endpoint(
@@ -245,7 +253,7 @@ async def import_csv_endpoint(
         # Procesar con perfil - CONVERTIR A INT EXPLÍCITAMENTE
         result = import_transactions_with_profile(
             db, 
-            current_user.id,  # Usar el valor entero del ID del usuario
+            getattr(current_user, 'id'),  # Usar getattr para obtener el valor
             profile_id, 
             content, 
             file.filename
@@ -289,7 +297,7 @@ async def import_excel_endpoint(
         # Procesar con perfil - CONVERTIR A INT EXPLÍCITAMENTE
         result = import_transactions_with_profile(
             db, 
-            int(current_user.id),  # Conversión explícita a int
+            getattr(current_user, 'id'),  # Conversión usando getattr
             profile_id, 
             content, 
             file.filename
@@ -304,11 +312,34 @@ async def import_excel_endpoint(
         
     except HTTPException:
         raise
+    except ValueError as e:
+        # Errores de validación o procesamiento de archivo
+        error_msg = str(e)
+        if "no es un Excel válido" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El archivo '{file.filename}' no es un archivo Excel válido. Verifique que el archivo no esté corrupto."
+            )
+        elif "Perfil de importación no encontrado" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Perfil de importación no encontrado"
+            )
+        elif "Cuenta no encontrada" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cuenta no encontrada o no autorizada"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error procesando archivo: {error_msg}"
+            )
     except Exception as e:
-        print(f"Error importing file: {e}")
+        logger.error(f"Error importing file: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error procesando archivo: {str(e)}"
+            detail=f"Error interno del servidor procesando el archivo"
         )
         
 @router.post("/import-excel-with-duplicates")      
@@ -332,7 +363,7 @@ async def import_excel_with_duplicate_options(
         
         result = import_transactions_from_excel(
             db=db,
-            user_id=int(current_user.id),
+            user_id=getattr(current_user, 'id'),
             account_id=account_id,
             file_content=file_content,
             filename=file.filename,
@@ -349,3 +380,112 @@ async def import_excel_with_duplicate_options(
     except Exception as e:
         logger.error(f"Error inesperado en importación: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+@router.post("/preview-import", response_model=TransactionPreviewResponse)
+async def preview_import_endpoint(
+    profile_id: int = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Genera una previsualización de las transacciones a importar"""
+    try:
+        # Validar tipo de archivo
+        if not file.filename:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nombre de archivo requerido"
+            )
+        
+        filename_lower = file.filename.lower()
+        if not filename_lower.endswith(('.csv', '.xlsx', '.xls')):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El archivo debe ser CSV (.csv) o Excel (.xlsx, .xls)"
+            )
+        
+        # Leer contenido del archivo
+        content = await file.read()
+        
+        # Generar previsualización
+        preview = preview_transactions_with_profile(
+            db, 
+            getattr(current_user, 'id'),
+            profile_id, 
+            content, 
+            file.filename
+        )
+        
+        return TransactionPreviewResponse(**preview)
+        
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # Errores de validación o procesamiento de archivo
+        error_msg = str(e)
+        if "no es un Excel válido" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El archivo '{file.filename}' no es un archivo Excel válido. Verifique que el archivo no esté corrupto."
+            )
+        elif "Perfil de importación no encontrado" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Perfil de importación no encontrado"
+            )
+        elif "Cuenta no encontrada" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cuenta no encontrada o no autorizada"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error procesando archivo: {error_msg}"
+            )
+    except Exception as e:
+        logger.error(f"Error generando previsualización: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interno del servidor procesando el archivo"
+        )
+
+@router.post("/confirm-import", response_model=TransactionImportResponse)
+async def confirm_import_endpoint(
+    request: TransactionPreviewConfirmRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Confirma e importa las transacciones desde una previsualización"""
+    try:
+        # Convertir modifications a diccionarios si es necesario
+        modifications_dict = None
+        if request.modifications:
+            modifications_dict = {}
+            for row_num, transaction_item in request.modifications.items():
+                # Convertir TransactionPreviewItem a diccionario
+                modifications_dict[row_num] = transaction_item.dict() if hasattr(transaction_item, 'dict') else transaction_item
+        
+        result = confirm_transaction_preview(
+            db,
+            getattr(current_user, 'id'),
+            request.preview_id,
+            request.selected_transactions,
+            modifications_dict
+        )
+        
+        return TransactionImportResponse(
+            total_records=result['total_records'],
+            successful_imports=result['successful_imports'],
+            failed_imports=result['failed_imports'],
+            errors=result['errors']
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error confirmando importación: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error confirmando importación: {str(e)}"
+        )

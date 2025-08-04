@@ -1,7 +1,7 @@
 <!-- filepath: /Users/juargo/Documents/GitHub/moneydiary/apps/web/src/pages/dashboard/transactions/import.astro -->
 ---
 import MainLayout from "../../../layouts/MainLayout.astro";
-import ExcelImportComponent from "../../../components/transactions/ExcelImport.vue";
+import TransactionImportPreview from "../../../components/transactions/TransactionImportPreview.vue";
 import UserMenu from "../../../components/auth/UserMenu.vue";
 ---
 
@@ -44,15 +44,18 @@ import UserMenu from "../../../components/auth/UserMenu.vue";
                 <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
               </svg>
             </a>
-            <h1 class="text-3xl font-bold leading-tight text-gray-900">Importar Transacciones desde Excel</h1>
+            <h1 class="text-3xl font-bold leading-tight text-gray-900">Importar Transacciones</h1>
           </div>
+          <p class="mt-2 text-sm text-gray-600">
+            Previsualiza y confirma las transacciones antes de importarlas
+          </p>
         </div>
       </header>
       <main>
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
           <div class="px-4 py-8 sm:px-0">
             <div data-vue-app>
-              <ExcelImportComponent client:load />
+              <TransactionImportPreview client:load />
             </div>
           </div>
         </div>

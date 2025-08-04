@@ -1214,3 +1214,669 @@ def _extract_transaction_data(
     
     logger.debug(f"Transacción extraída exitosamente de fila {row_idx}")
     return transaction_request
+
+# Funciones para el sistema de previsualización de importación
+
+import uuid
+import json
+from datetime import datetime, timedelta
+from ..models.categories import Category, Subcategory
+
+# Cache temporal para almacenar previsualizaciones (en producción usar Redis)
+_preview_cache = {}
+
+def preview_transactions_with_profile(
+    db: Session,
+    user_id: int,
+    profile_id: int,
+    file_content: bytes,
+    filename: str
+) -> Dict[str, Any]:
+    """Genera una previsualización de las transacciones a importar sin insertarlas en la BD"""
+    
+    logger.info(f"Generando previsualización para usuario {user_id}, perfil {profile_id}, archivo: {filename}")
+    
+    # Obtener el perfil de importación
+    profile = db.query(FileImportProfile).filter(
+        FileImportProfile.id == profile_id,
+        FileImportProfile.user_id == user_id
+    ).first()
+    
+    if not profile:
+        logger.error(f"Perfil de importación {profile_id} no encontrado para usuario {user_id}")
+        raise ValueError("Perfil de importación no encontrado")
+    
+    # Verificar que la cuenta pertenece al usuario
+    account = db.query(Account).filter(
+        Account.id == profile.account_id,
+        Account.user_id == user_id,
+        Account.active == True
+    ).first()
+    
+    if not account:
+        logger.error(f"Cuenta {profile.account_id} no encontrada o no autorizada para usuario {user_id}")
+        raise ValueError("Cuenta no encontrada o no autorizada")
+    
+    # Obtener los mapeos de columnas
+    column_mappings = db.query(FileColumnMapping).filter(
+        FileColumnMapping.profile_id == profile_id
+    ).order_by(FileColumnMapping.position).all()
+    
+    if not column_mappings:
+        logger.error(f"No se encontraron mapeos de columnas para el perfil {profile_id}")
+        raise ValueError("No se encontraron mapeos de columnas para el perfil")
+    
+    # Generar un ID único para esta previsualización
+    preview_id = str(uuid.uuid4())
+    
+    try:
+        # Procesar archivo según tipo
+        filename_lower = filename.lower()
+        if filename_lower.endswith('.csv'):
+            transactions_preview = _process_csv_preview_with_profile(db, user_id, profile, column_mappings, file_content)
+        elif filename_lower.endswith(('.xlsx', '.xls')):
+            transactions_preview = _process_excel_preview_with_profile(db, user_id, profile, column_mappings, file_content)
+        else:
+            # Intentar detectar por contenido
+            try:
+                content_preview = file_content[:1024].decode('utf-8', errors='ignore')
+                if any(delimiter in content_preview for delimiter in [',', ';', '\t']):
+                    transactions_preview = _process_csv_preview_with_profile(db, user_id, profile, column_mappings, file_content)
+                else:
+                    transactions_preview = _process_excel_preview_with_profile(db, user_id, profile, column_mappings, file_content)
+            except Exception:
+                transactions_preview = _process_excel_preview_with_profile(db, user_id, profile, column_mappings, file_content)
+        
+        # Validar y enriquecer las transacciones
+        validated_transactions = []
+        valid_count = 0
+        invalid_count = 0
+        
+        for row_num, transaction_data in enumerate(transactions_preview, 1):
+            preview_item = _validate_and_enrich_transaction_preview(db, user_id, account, transaction_data, row_num)
+            validated_transactions.append(preview_item)
+            
+            if preview_item['is_valid']:
+                valid_count += 1
+            else:
+                invalid_count += 1
+        
+        # Crear la respuesta de previsualización
+        preview_response = {
+            'preview_id': preview_id,
+            'total_records': len(validated_transactions),
+            'valid_transactions': valid_count,
+            'invalid_transactions': invalid_count,
+            'account_id': account.id,
+            'account_name': account.name,
+            'profile_name': profile.name,
+            'transactions': validated_transactions,
+            'global_errors': []
+        }
+        
+        # Guardar en cache temporal (expirar en 1 hora)
+        _preview_cache[preview_id] = {
+            'data': preview_response,
+            'user_id': user_id,
+            'profile_id': profile_id,
+            'created_at': datetime.now(),
+            'expires_at': datetime.now() + timedelta(hours=1),
+            'raw_transactions': transactions_preview  # Datos originales para la confirmación
+        }
+        
+        logger.info(f"Previsualización generada exitosamente: {preview_id}, {valid_count} válidas, {invalid_count} inválidas")
+        return preview_response
+        
+    except Exception as e:
+        error_msg = f"Error generando previsualización: {str(e)}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+def confirm_transaction_preview(
+    db: Session,
+    user_id: int,
+    preview_id: str,
+    selected_transactions: Optional[List[int]] = None,
+    modifications: Optional[Dict[int, Dict]] = None
+) -> Dict[str, Any]:
+    """Confirma e importa las transacciones desde una previsualización"""
+    
+    logger.info(f"Confirmando importación de previsualización {preview_id} para usuario {user_id}")
+    
+    # Verificar que la previsualización existe y no ha expirado
+    if preview_id not in _preview_cache:
+        raise ValueError("Previsualización no encontrada o expirada")
+    
+    cache_entry = _preview_cache[preview_id]
+    
+    # Verificar que pertenece al usuario
+    if cache_entry['user_id'] != user_id:
+        raise ValueError("Previsualización no autorizada")
+    
+    # Verificar que no ha expirado
+    if datetime.now() > cache_entry['expires_at']:
+        del _preview_cache[preview_id]
+        raise ValueError("Previsualización expirada")
+    
+    preview_data = cache_entry['data']
+    raw_transactions = cache_entry['raw_transactions']
+    
+    # Obtener datos del perfil y cuenta
+    profile_id = cache_entry['profile_id']
+    profile = db.query(FileImportProfile).filter(
+        FileImportProfile.id == profile_id,
+        FileImportProfile.user_id == user_id
+    ).first()
+    
+    if not profile:
+        raise ValueError("Perfil de importación no encontrado")
+    
+    account = db.query(Account).filter(
+        Account.id == profile.account_id,
+        Account.user_id == user_id,
+        Account.active == True
+    ).first()
+    
+    if not account:
+        raise ValueError("Cuenta no encontrada o no autorizada")
+    
+    # Determinar qué transacciones importar
+    transactions_to_import = []
+    if selected_transactions is None:
+        # Importar todas las transacciones válidas
+        for i, transaction in enumerate(preview_data['transactions'], 1):
+            if transaction['is_valid']:
+                transactions_to_import.append((i, transaction))
+    else:
+        # Importar solo las seleccionadas
+        for row_num in selected_transactions:
+            if 1 <= row_num <= len(preview_data['transactions']):
+                transaction = preview_data['transactions'][row_num - 1]
+                if transaction['is_valid']:
+                    transactions_to_import.append((row_num, transaction))
+    
+    # Aplicar modificaciones si las hay
+    if modifications:
+        for row_num, modified_data in modifications.items():
+            # Encontrar la transacción en la lista a importar
+            for i, (tr_row_num, transaction) in enumerate(transactions_to_import):
+                if tr_row_num == row_num:
+                    # Aplicar modificaciones
+                    for field, value in modified_data.items():
+                        if field in transaction:
+                            transaction[field] = value
+                    break
+    
+    # Importar las transacciones
+    results = {
+        'total_records': len(transactions_to_import),
+        'successful_imports': 0,
+        'failed_imports': 0,
+        'errors': []
+    }
+    
+    default_status_id = get_default_transaction_status_id(db)
+    
+    for row_num, transaction_data in transactions_to_import:
+        try:
+            # Crear la transacción
+            new_transaction = Transaction(
+                user_id=user_id,
+                amount=Decimal(str(transaction_data.get('amount', 0))),
+                description=transaction_data.get('description'),
+                notes=transaction_data.get('notes'),
+                transaction_date=transaction_data.get('transaction_date'),
+                account_id=account.id,
+                transfer_account_id=transaction_data.get('transfer_account_id'),
+                subcategory_id=transaction_data.get('subcategory_id'),
+                envelope_id=transaction_data.get('envelope_id'),
+                status_id=transaction_data.get('status_id', default_status_id),
+                is_recurring=transaction_data.get('is_recurring', False),
+                is_planned=transaction_data.get('is_planned', False),
+                kakebo_emotion=transaction_data.get('kakebo_emotion'),
+                external_id=transaction_data.get('external_id')
+            )
+            
+            db.add(new_transaction)
+            results['successful_imports'] += 1
+            
+        except Exception as e:
+            error_msg = f"Error en fila {row_num}: {str(e)}"
+            results['errors'].append(error_msg)
+            results['failed_imports'] += 1
+            logger.error(error_msg)
+    
+    try:
+        db.commit()
+        logger.info(f"Importación confirmada: {results['successful_imports']} éxitosas, {results['failed_imports']} fallidas")
+        
+        # Limpiar cache
+        del _preview_cache[preview_id]
+        
+        return results
+        
+    except Exception as e:
+        db.rollback()
+        error_msg = f"Error confirmando importación: {str(e)}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+def _process_csv_preview_with_profile(
+    db: Session,
+    user_id: int,
+    profile: FileImportProfile,
+    column_mappings: List[FileColumnMapping],
+    file_content: bytes
+) -> List[Dict[str, Any]]:
+    """Procesa un CSV para previsualización sin insertar en BD"""
+    
+    logger.info(f"Procesando CSV para previsualización")
+    
+    encoding = getattr(profile, 'encoding', 'utf-8') or 'utf-8'
+    csv_content = file_content.decode(encoding)
+    
+    delimiter = getattr(profile, 'delimiter', ',') or ','
+    csv_reader = csv.reader(io.StringIO(csv_content), delimiter=delimiter)
+    
+    # Crear mapeo de columnas
+    column_map = {}
+    for mapping in column_mappings:
+        if mapping.source_column_index is not None:
+            column_map[mapping.source_column_index] = mapping.target_field_name
+        elif mapping.source_column_name is not None and mapping.source_column_name.strip():
+            column_map[mapping.source_column_name] = mapping.target_field_name
+    
+    transactions = []
+    
+    # Saltar headers si están configurados
+    rows = list(csv_reader)
+    start_row = getattr(profile, 'header_row', 0) or 0
+    if start_row > 0:
+        header_row = rows[start_row - 1] if start_row <= len(rows) else []
+        # Mapear nombres de columna a índices
+        for col_name, target_field in [(k, v) for k, v in column_map.items() if isinstance(k, str)]:
+            try:
+                col_index = header_row.index(col_name)
+                column_map[col_index] = target_field
+                del column_map[col_name]
+            except ValueError:
+                logger.warning(f"Columna '{col_name}' no encontrada en headers")
+        
+        data_rows = rows[start_row:]
+    else:
+        data_rows = rows
+    
+    for row_idx, row in enumerate(data_rows, 1):
+        try:
+            transaction_data = _extract_transaction_data_preview(row, column_map, row_idx, profile)
+            transactions.append(transaction_data)
+        except Exception as e:
+            logger.warning(f"Error procesando fila {row_idx}: {str(e)}")
+            # Agregar fila con error para mostrar en preview
+            transactions.append({
+                'row_number': row_idx,
+                'raw_data': {f'col_{i}': val for i, val in enumerate(row)},
+                'error': str(e)
+            })
+    
+    return transactions
+
+def _process_excel_preview_with_profile(
+    db: Session,
+    user_id: int,
+    profile: FileImportProfile,
+    column_mappings: List[FileColumnMapping],
+    file_content: bytes
+) -> List[Dict[str, Any]]:
+    """Procesa un Excel para previsualización sin insertar en BD"""
+    
+    logger.info(f"Procesando Excel para previsualización")
+    
+    # Intentar cargar como .xlsx primero
+    workbook = None
+    worksheet = None
+    is_xls_format = False
+    
+    try:
+        logger.debug("Intentando cargar como Excel .xlsx...")
+        workbook = load_workbook(io.BytesIO(file_content), read_only=True)
+        sheet_name = getattr(profile, 'sheet_name', None) or workbook.sheetnames[0]
+        worksheet = workbook[sheet_name]
+        logger.info("Excel .xlsx cargado exitosamente para previsualización")
+        
+    except Exception as xlsx_error:
+        logger.warning(f"Error cargando como .xlsx: {str(xlsx_error)}")
+        try:
+            logger.debug("Intentando cargar como Excel .xls...")
+            workbook = xlrd.open_workbook(file_contents=file_content)
+            is_xls_format = True
+            
+            # Para .xls, seleccionar la hoja
+            sheet_name = getattr(profile, 'sheet_name', None)
+            if sheet_name:
+                try:
+                    worksheet = workbook.sheet_by_name(sheet_name)
+                    logger.debug(f"Hoja .xls seleccionada: {sheet_name}")
+                except Exception:
+                    available_sheets = workbook.sheet_names()
+                    error_msg = f"Hoja '{sheet_name}' no encontrada. Hojas disponibles: {', '.join(available_sheets)}"
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
+            else:
+                worksheet = workbook.sheet_by_index(0)
+                logger.debug("Hoja activa .xls seleccionada (índice 0)")
+                
+            logger.info("Excel .xls cargado exitosamente para previsualización")
+            
+        except Exception as xls_error:
+            logger.error(f"Error cargando como .xls: {str(xls_error)}")
+            raise ValueError(f"Archivo no es un Excel válido (.xlsx/.xls): {str(xlsx_error)} | {str(xls_error)}")
+    
+    if not worksheet:
+        raise ValueError("No se pudo cargar ninguna hoja de trabajo del archivo Excel")
+    
+    # Crear mapeo de columnas
+    column_map = {}
+    for mapping in column_mappings:
+        if mapping.source_column_index is not None:
+            column_map[mapping.source_column_index] = mapping.target_field_name
+            logger.debug(f"Mapeo por índice: columna {mapping.source_column_index} -> {mapping.target_field_name}")
+        elif mapping.source_column_name is not None and mapping.source_column_name.strip():
+            column_map[mapping.source_column_name] = mapping.target_field_name
+            logger.debug(f"Mapeo por nombre: '{mapping.source_column_name}' -> {mapping.target_field_name}")
+    
+    logger.debug(f"Mapeo inicial de columnas: {column_map}")
+    
+    transactions = []
+    
+    # Obtener todas las filas según el formato
+    if is_xls_format:
+        # Para .xls usar xlrd
+        rows = []
+        for row_idx in range(worksheet.nrows):
+            row_data = []
+            for col_idx in range(worksheet.ncols):
+                try:
+                    cell_value = worksheet.cell_value(row_idx, col_idx)
+                    row_data.append(cell_value)
+                except Exception:
+                    row_data.append(None)
+            rows.append(tuple(row_data))
+    else:
+        # Para .xlsx usar openpyxl
+        rows = list(worksheet.iter_rows(values_only=True))
+    
+    logger.debug(f"Total de filas obtenidas: {len(rows)}")
+    
+    start_row = getattr(profile, 'header_row', 0) or 0
+    logger.debug(f"Configuración header_row: {start_row}")
+    
+    if start_row > 0 and start_row <= len(rows):
+        header_row = rows[start_row - 1]
+        logger.debug(f"Header row encontrada (fila {start_row}): {header_row}")
+        
+        # Mapear nombres de columna a índices
+        final_column_map = {}
+        for col_name, target_field in [(k, v) for k, v in column_map.items() if isinstance(k, str)]:
+            try:
+                col_index = header_row.index(col_name)
+                final_column_map[col_index] = target_field
+                logger.debug(f"Mapeo convertido: '{col_name}' (índice {col_index}) -> {target_field}")
+            except ValueError:
+                logger.warning(f"Columna '{col_name}' no encontrada en headers: {header_row}")
+        
+        # Añadir mapeos por índice que ya existen
+        for col_index, target_field in [(k, v) for k, v in column_map.items() if isinstance(k, int)]:
+            final_column_map[col_index] = target_field
+            logger.debug(f"Mapeo por índice mantenido: columna {col_index} -> {target_field}")
+            
+        column_map = final_column_map
+        data_rows = rows[start_row:]
+        logger.debug(f"Filas de datos a procesar: {len(data_rows)} (desde fila {start_row + 1})")
+    else:
+        data_rows = rows
+        logger.debug(f"Sin headers, procesando todas las {len(rows)} filas")
+    
+    logger.debug(f"Mapeo final de columnas: {column_map}")
+    
+    for row_idx, row in enumerate(data_rows, 1):
+        if not any(cell for cell in row if cell is not None):
+            continue  # Saltar filas vacías
+            
+        try:
+            transaction_data = _extract_transaction_data_preview(row, column_map, row_idx, profile)
+            transactions.append(transaction_data)
+        except Exception as e:
+            logger.warning(f"Error procesando fila {row_idx}: {str(e)}")
+            transactions.append({
+                'row_number': row_idx,
+                'raw_data': {f'col_{i}': val for i, val in enumerate(row)},
+                'error': str(e)
+            })
+    
+    return transactions
+
+def _extract_transaction_data_preview(row, column_map: Dict, row_idx: int, profile: Optional[FileImportProfile] = None) -> Dict[str, Any]:
+    """Extrae datos de transacción para previsualización usando la misma lógica que la importación real"""
+    
+    transaction_data = {
+        'row_number': row_idx,
+        'raw_data': {f'col_{i}': val for i, val in enumerate(row)},
+    }
+    
+    logger.debug(f"Fila {row_idx} - Datos de fila: {row}")
+    logger.debug(f"Fila {row_idx} - Mapeo de columnas recibido: {column_map}")
+    
+    def get_cell_value(field_name: str, default=None):
+        # Buscar el índice de columna que mapea a este field_name
+        column_index = None
+        for col_idx, target_field in column_map.items():
+            if target_field == field_name:
+                column_index = col_idx
+                break
+        
+        if column_index is not None and column_index < len(row):
+            value = row[column_index]
+            logger.debug(f"Fila {row_idx} - {field_name}: {value} (columna {column_index})")
+            return value if value is not None else default
+        logger.debug(f"Fila {row_idx} - {field_name}: {default} (no mapeado o fuera de rango)")
+        return default
+    
+    try:
+        # Extraer fecha usando la misma lógica que la importación
+        date_value = get_cell_value('date')
+        logger.debug(f"Fila {row_idx} - Valor de fecha extraído: {date_value} (tipo: {type(date_value)})")
+        
+        if date_value:
+            try:
+                transaction_data['transaction_date'] = parse_excel_date(date_value)
+                logger.debug(f"Fila {row_idx} - Fecha procesada: {transaction_data['transaction_date']}")
+            except Exception as e:
+                transaction_data['transaction_date'] = None
+                transaction_data['date_error'] = str(e)
+                logger.warning(f"Fila {row_idx} - Error procesando fecha: {str(e)}")
+        else:
+            transaction_data['transaction_date'] = None
+            transaction_data['date_error'] = "Fecha requerida pero no encontrada"
+            logger.warning(f"Fila {row_idx} - Fecha no encontrada")
+        
+        # Extraer montos usando la misma lógica compleja que la importación
+        amount = 0.0
+        amount_error = None
+        
+        if profile:
+            amount_schema = getattr(profile, 'amount_schema', None)
+            if amount_schema is not None and hasattr(amount_schema, 'value'):
+                schema_value = amount_schema.value
+            else:
+                schema_value = str(amount_schema) if amount_schema else 'single'
+        else:
+            schema_value = 'single'
+        
+        # Detectar qué tipos de columnas están disponibles
+        has_single_amount = any(target_field == 'amount' for target_field in column_map.values())
+        has_separate_amounts = (any(target_field == 'expense_amount' for target_field in column_map.values()) and 
+                               any(target_field == 'income_amount' for target_field in column_map.values())) or \
+                              (any(target_field == 'debit_amount' for target_field in column_map.values()) and 
+                               any(target_field == 'credit_amount' for target_field in column_map.values()))
+        
+        logger.debug(f"Fila {row_idx} - Columnas disponibles: single_amount={has_single_amount}, separate_amounts={has_separate_amounts}")
+        logger.debug(f"Fila {row_idx} - Campos mapeados: {list(column_map.values())}")
+        
+        try:
+            if has_separate_amounts:
+                # Usar columnas separadas (prioritario)
+                logger.debug(f"Fila {row_idx} - Usando lógica de columnas separadas")
+                
+                # Primero intentar con expense_amount/income_amount
+                expense_amount = parse_excel_amount(get_cell_value('expense_amount', 0))
+                income_amount = parse_excel_amount(get_cell_value('income_amount', 0))
+                
+                logger.debug(f"Fila {row_idx} - Montos ingreso/gasto: expense={expense_amount}, income={income_amount}")
+                
+                # Si no están disponibles, usar debit_amount/credit_amount
+                if expense_amount == 0 and income_amount == 0:
+                    debit_amount = parse_excel_amount(get_cell_value('debit_amount', 0))
+                    credit_amount = parse_excel_amount(get_cell_value('credit_amount', 0))
+                    
+                    debit_column_is_expense = getattr(profile, 'debit_column_is_expense', True) if profile else True
+                    
+                    logger.debug(f"Fila {row_idx} - Montos débito/crédito: debit={debit_amount}, credit={credit_amount}")
+                    logger.debug(f"Fila {row_idx} - debit_column_is_expense: {debit_column_is_expense}")
+                    
+                    if debit_amount != 0:
+                        amount = -abs(debit_amount) if debit_column_is_expense else abs(debit_amount)
+                        logger.debug(f"Fila {row_idx} - Usando debit_amount: {amount}")
+                    elif credit_amount != 0:
+                        amount = abs(credit_amount) if not debit_column_is_expense else -abs(credit_amount)
+                        logger.debug(f"Fila {row_idx} - Usando credit_amount: {amount}")
+                else:
+                    if expense_amount != 0:
+                        amount = -abs(expense_amount)  # Gastos siempre negativos
+                        logger.debug(f"Fila {row_idx} - Usando expense_amount: {amount}")
+                    elif income_amount != 0:
+                        amount = abs(income_amount)  # Ingresos siempre positivos
+                        logger.debug(f"Fila {row_idx} - Usando income_amount: {amount}")
+                        
+            elif has_single_amount:
+                # Usar columna única
+                logger.debug(f"Fila {row_idx} - Usando lógica de columna única")
+                amount_value = get_cell_value('amount', 0)
+                amount = parse_excel_amount(amount_value)
+                
+                logger.debug(f"Fila {row_idx} - Monto único obtenido: {amount}")
+                
+                # Aplicar reglas de interpretación
+                positive_is_income = getattr(profile, 'positive_is_income', True) if profile else True
+                if not positive_is_income:
+                    amount = -amount  # Invertir signo si positivo no es ingreso
+                    logger.debug(f"Fila {row_idx} - Signo invertido por configuración: {amount}")
+            else:
+                amount = 0
+                amount_error = "No se encontraron columnas de monto válidas en la configuración"
+                logger.warning(f"Fila {row_idx} - {amount_error}")
+            
+            # Redondear el monto a 2 decimales
+            amount = round(amount, 2)
+            transaction_data['amount'] = amount
+            logger.debug(f"Fila {row_idx} - Monto final: {amount}")
+            
+        except Exception as e:
+            transaction_data['amount'] = 0
+            amount_error = f"Error procesando monto: {str(e)}"
+            logger.error(f"Fila {row_idx} - {amount_error}")
+        
+        if amount_error:
+            transaction_data['amount_error'] = amount_error
+        
+        # Extraer otros campos
+        description = str(get_cell_value('description', '')).strip()
+        notes = str(get_cell_value('notes', '')).strip()
+        
+        transaction_data['description'] = description
+        transaction_data['notes'] = notes
+        
+        # Mapear todos los campos disponibles según el perfil
+        for col_idx, field_name in column_map.items():
+            if isinstance(col_idx, int) and col_idx < len(row) and field_name not in ['date', 'amount', 'description', 'notes', 'expense_amount', 'income_amount', 'debit_amount', 'credit_amount']:
+                value = row[col_idx]
+                if value is not None:
+                    transaction_data[field_name] = value
+        
+    except Exception as e:
+        transaction_data['extraction_error'] = str(e)
+    
+    return transaction_data
+
+def _validate_and_enrich_transaction_preview(
+    db: Session,
+    user_id: int,
+    account: Account,
+    transaction_data: Dict[str, Any],
+    row_num: int
+) -> Dict[str, Any]:
+    """Valida y enriquece una transacción para el preview"""
+    
+    preview_item = {
+        'row_number': row_num,
+        'amount': transaction_data.get('amount'),
+        'description': transaction_data.get('description'),
+        'notes': transaction_data.get('notes'),
+        'transaction_date': transaction_data.get('transaction_date'),
+        'account_id': account.id,
+        'transfer_account_id': transaction_data.get('transfer_account_id'),
+        'subcategory_id': transaction_data.get('subcategory_id'),
+        'envelope_id': transaction_data.get('envelope_id'),
+        'status_id': transaction_data.get('status_id', 1),
+        'is_recurring': transaction_data.get('is_recurring', False),
+        'is_planned': transaction_data.get('is_planned', False),
+        'kakebo_emotion': transaction_data.get('kakebo_emotion'),
+        'external_id': transaction_data.get('external_id'),
+        'account_name': account.name,
+        'subcategory_name': None,
+        'is_valid': True,
+        'validation_errors': [],
+        'raw_data': transaction_data.get('raw_data', {})
+    }
+    
+    # Agregar errores si existen en los datos originales
+    if 'error' in transaction_data:
+        preview_item['validation_errors'].append(transaction_data['error'])
+        preview_item['is_valid'] = False
+    
+    # Validaciones
+    errors = []
+    
+    # Validar amount
+    if preview_item['amount'] is None:
+        errors.append("Monto requerido")
+    elif preview_item['amount'] == 0:
+        errors.append("El monto no puede ser cero")
+    
+    # Validar fecha
+    if preview_item['transaction_date'] is None:
+        errors.append("Fecha de transacción requerida")
+    
+    # Validar descripción
+    if not preview_item['description']:
+        errors.append("Descripción requerida")
+    
+    # Enriquecer con nombre de subcategoría si existe
+    if preview_item['subcategory_id']:
+        try:
+            subcategory = db.query(Subcategory).filter(
+                Subcategory.id == preview_item['subcategory_id']
+            ).first()
+            if subcategory:
+                preview_item['subcategory_name'] = subcategory.name
+            else:
+                errors.append(f"Subcategoría ID {preview_item['subcategory_id']} no encontrada")
+        except Exception:
+            errors.append("Error validando subcategoría")
+    
+    # Actualizar estado de validación
+    if errors:
+        preview_item['is_valid'] = False
+        preview_item['validation_errors'].extend(errors)
+    
+    return preview_item
