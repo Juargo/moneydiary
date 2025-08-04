@@ -40,6 +40,7 @@ from .middleware import setup_middleware
 
 # Router imports
 from .routers import basic
+from .routers import categories
 from .api.router import api_router
 
 # Database imports
@@ -222,6 +223,7 @@ def create_application() -> FastAPI:
     
     # Registrar routers
     app.include_router(basic.router)
+    app.include_router(categories.router, prefix="/api/v1")
     app.include_router(create_graphql_router(), prefix="/graphql")
     app.include_router(api_router, prefix="/api/v1", tags=["api"])
     

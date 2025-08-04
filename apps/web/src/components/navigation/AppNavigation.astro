@@ -1,6 +1,6 @@
 ---
 interface Props {
-  currentPage: 'dashboard' | 'accounts' | 'transactions' | 'patterns';
+  currentPage: 'dashboard' | 'accounts' | 'transactions' | 'categories' | 'patterns';
 }
 
 const { currentPage } = Astro.props;
@@ -34,6 +34,9 @@ function getMobileNavClass(page: string) {
           </a>
           <a href="/dashboard/transactions" class={getNavClass('transactions')}>
             Transacciones
+          </a>
+          <a href="/categories" class={getNavClass('categories')}>
+            Categorías
           </a>
           <a href="/patterns" class={getNavClass('patterns')}>
             Patrones
@@ -69,6 +72,9 @@ function getMobileNavClass(page: string) {
       </a>
       <a href="/dashboard/transactions" class={getMobileNavClass('transactions')}>
         Transacciones
+      </a>
+      <a href="/categories" class={getMobileNavClass('categories')}>
+        Categorías
       </a>
       <a href="/patterns" class={getMobileNavClass('patterns')}>
         Patrones

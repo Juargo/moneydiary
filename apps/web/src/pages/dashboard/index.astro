@@ -22,6 +22,9 @@ import UserMenu from "../../components/auth/UserMenu.vue";
               <a href="/dashboard/transactions" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                 Transacciones
               </a>
+              <a href="/categories" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                Categorías
+              </a>
               <a href="/patterns" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                 Patrones
               </a>
@@ -57,6 +60,9 @@ import UserMenu from "../../components/auth/UserMenu.vue";
           <a href="/dashboard/transactions" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
             Transacciones
           </a>
+          <a href="/categories" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
+            Categorías
+          </a>
           <a href="/patterns" class="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium">
             Patrones
           </a>
@@ -74,7 +80,7 @@ import UserMenu from "../../components/auth/UserMenu.vue";
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
           <div class="px-4 py-8 sm:px-0">
             <!-- Tarjetas de acceso rápido -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <!-- Tarjeta de Cuentas -->
               <div class="bg-white overflow-hidden shadow rounded-lg">
                 <div class="p-5">
@@ -119,6 +125,30 @@ import UserMenu from "../../components/auth/UserMenu.vue";
                 <div class="bg-gray-50 px-5 py-3">
                   <div class="text-sm">
                     <a href="/dashboard/transactions" class="font-medium text-blue-600 hover:text-blue-500">Ver transacciones</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tarjeta de Categorías -->
+              <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                      <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                      </svg>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Categorías</dt>
+                        <dd class="text-lg font-medium text-gray-900">Organizar</dd>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+                <div class="bg-gray-50 px-5 py-3">
+                  <div class="text-sm">
+                    <a href="/categories" class="font-medium text-blue-600 hover:text-blue-500">Gestionar categorías</a>
                   </div>
                 </div>
               </div>

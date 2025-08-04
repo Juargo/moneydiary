@@ -129,6 +129,40 @@ except Exception as e:
     def description_pattern_statistics(info: Info) -> PatternStatistics:
         return PatternStatistics(total_patterns=0, active_patterns=0, auto_apply_patterns=0, total_matches=0)
 
+# Importar queries de categorías
+try:
+    from .queries.categories import (
+        get_my_category_groups, get_my_category_group, get_my_categories_by_group,
+        get_my_category, get_my_subcategories_by_category, get_my_subcategory
+    )
+    logger.debug("✅ Category queries importadas correctamente")
+except Exception as e:
+    logger.error(f"❌ Error importando category queries: {e}")
+    # Crear resolvers fallback
+    @strawberry.field
+    def get_my_category_groups(info: Info) -> list:
+        return []
+    
+    @strawberry.field
+    def get_my_category_group(info: Info, group_id: int) -> None:
+        return None
+    
+    @strawberry.field
+    def get_my_categories_by_group(info: Info, group_id: int) -> list:
+        return []
+    
+    @strawberry.field
+    def get_my_category(info: Info, category_id: int) -> None:
+        return None
+    
+    @strawberry.field
+    def get_my_subcategories_by_category(info: Info, category_id: int) -> list:
+        return []
+    
+    @strawberry.field
+    def get_my_subcategory(info: Info, subcategory_id: int) -> None:
+        return None
+
 # Importar mutations de patrones de descripción
 try:
     from .mutations.description_pattern import DescriptionPatternMutations
@@ -180,6 +214,14 @@ class Query:
     # Consultas de transacciones
     my_transactions = strawberry.field(resolver=get_my_transactions)
     my_transaction = strawberry.field(resolver=get_my_transaction)
+    
+    # Consultas de categorías
+    my_category_groups = strawberry.field(resolver=get_my_category_groups)
+    my_category_group = strawberry.field(resolver=get_my_category_group)
+    my_categories_by_group = strawberry.field(resolver=get_my_categories_by_group)
+    my_category = strawberry.field(resolver=get_my_category)
+    my_subcategories_by_category = strawberry.field(resolver=get_my_subcategories_by_category)
+    my_subcategory = strawberry.field(resolver=get_my_subcategory)
     
     # Consultas de patrones de descripción
     @strawberry.field

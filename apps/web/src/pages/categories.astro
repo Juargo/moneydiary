@@ -1,0 +1,36 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+import UserMenu from "../components/auth/UserMenu.vue";
+import AppNavigation from "../components/navigation/AppNavigation.astro";
+import CategoriesPage from "./categories/index.vue";
+---
+
+<MainLayout title="Gestión de Categorías - MoneyDiary">
+  <div class="min-h-screen bg-gray-50">
+    <AppNavigation currentPage="categories">
+      <UserMenu client:load slot="user-menu" />
+    </AppNavigation>
+
+    <!-- Contenido principal -->
+    <main>
+      <div data-vue-app>
+        <CategoriesPage client:load />
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Funcionalidad del menú móvil
+    document.addEventListener("DOMContentLoaded", function () {
+      const mobileMenuButton = document.getElementById("mobile-menu-button");
+      const mobileMenu = document.getElementById("mobile-menu");
+
+      if (mobileMenuButton && mobileMenu) {
+        mobileMenuButton.addEventListener("click", function () {
+          const isHidden = mobileMenu.style.display === "none";
+          mobileMenu.style.display = isHidden ? "block" : "none";
+        });
+      }
+    });
+  </script>
+</MainLayout>
