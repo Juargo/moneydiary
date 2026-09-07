@@ -65,26 +65,26 @@ D-02 states the `never`-exhaustiveness guards in `aHttpError`/`aCommitHttpError`
 
 ## Phase 5 (Slice 2): Application — port signatures (D-01)
 
-- [ ] 5.1 RED: for each of the 3 port interfaces, add/update a compile-level or behavioral test asserting a caller can pass a trailing `password?: string` with no effect on existing call sites that omit it (backward-compat check — trailing optional parameter).
-- [ ] 5.2 GREEN: widen `IPdfBankDetector.detect(buffer, originalName, password?)` (`pdf-bank-detector.port.ts:17-27`) — **also widen this port's error union** to include `PdfProtegidoError` (only `detect`'s union widens, per D-01/D-05 — bank detection runs first in the pipeline and is the only stage that can surface the password error, since D-06 guarantees a password failure never reaches stage 2/3).
-- [ ] 5.3 GREEN: widen `IPdfStructureValidator.validate(buffer, banco, password?)` (`pdf-structure-validator.port.ts:44-54`) — error union **stays byte-identical** (D-05: masked into `EstructuraPdfInvalidaError`, unreachable in practice).
-- [ ] 5.4 GREEN: widen `IPdfTransactionNormalizer.normalize(buffer, banco, password?)` (`pdf-transaction-normalizer.port.ts:18-28`) — error union **stays byte-identical**, same D-05 rationale.
-- [ ] 5.5 Add an inline code comment at both the validator and the normalizer service (D-05's "invariant to record in code comments"): if either is ever called without a preceding `detect`, the masking returns and a locked PDF reads as malformed structure.
+- [x] 5.1 RED: for each of the 3 port interfaces, add/update a compile-level or behavioral test asserting a caller can pass a trailing `password?: string` with no effect on existing call sites that omit it (backward-compat check — trailing optional parameter). Folded into the Phase 6 adapter RED tests (forwarding tests + the pre-existing "delega" tests updated to assert the new trailing `undefined` arg) — a separate port-only test file would just re-test the same TS structural contract already exercised there.
+- [x] 5.2 GREEN: widen `IPdfBankDetector.detect(buffer, originalName, password?)` (`pdf-bank-detector.port.ts:17-27`) — **also widen this port's error union** to include `PdfProtegidoError` (only `detect`'s union widens, per D-01/D-05 — bank detection runs first in the pipeline and is the only stage that can surface the password error, since D-06 guarantees a password failure never reaches stage 2/3).
+- [x] 5.3 GREEN: widen `IPdfStructureValidator.validate(buffer, banco, password?)` (`pdf-structure-validator.port.ts:44-54`) — error union **stays byte-identical** (D-05: masked into `EstructuraPdfInvalidaError`, unreachable in practice).
+- [x] 5.4 GREEN: widen `IPdfTransactionNormalizer.normalize(buffer, banco, password?)` (`pdf-transaction-normalizer.port.ts:18-28`) — error union **stays byte-identical**, same D-05 rationale.
+- [x] 5.5 Add an inline code comment at both the validator and the normalizer service (D-05's "invariant to record in code comments"): if either is ever called without a preceding `detect`, the masking returns and a locked PDF reads as malformed structure. Landed as doc-comments on the two PORT interfaces themselves (`pdf-structure-validator.port.ts`, `pdf-transaction-normalizer.port.ts`) rather than the service files — the invariant is a contract property of the interface, and both service implementations share the identical masking code inherited from before this change.
 
 ## Phase 6 (Slice 2): Infrastructure — 3 adapters forward the password
 
-- [ ] 6.1 RED: `pdfjs-bank-detector.service.spec.ts` — `detect(buffer, name, password)` forwards `password` to its internal `PdfTextExtractor.extract()` (spy/fake), and against the Phase 2 fixture returns `Result.fail(PdfProtegidoError)`/`Result.ok` per the same 3 sub-cases as Phase 3.2.
-- [ ] 6.2 GREEN: `PdfjsBankDetectorService.detect()` (`pdfjs-bank-detector.service.ts:35-44`) passes `password` through to `this.extractor.extract(buffer, originalName, password)`.
-- [ ] 6.3 RED: `pdfjs-structure-validator.service.spec.ts` — `validate(buffer, banco, password)` forwards `password`; when the extractor fails for any reason (including password), it still collapses to `EstructuraPdfInvalidaError` (D-05 — unchanged masking, verified NOT to have grown a new branch).
-- [ ] 6.4 GREEN: `PdfjsStructureValidatorService.validate()` (`pdfjs-structure-validator.service.ts:66`) passes `password` to `this.extractor.extract(buffer, ..., password)`.
-- [ ] 6.5 RED: `pdfjs-transaction-normalizer.service.spec.ts` — same forwarding assertion as 6.3 for `normalize()`.
-- [ ] 6.6 GREEN: `PdfjsTransactionNormalizerService.normalize()` (`pdfjs-transaction-normalizer.service.ts:74`) passes `password` to its own `this.extractor.extract(buffer, ..., password)`.
+- [x] 6.1 RED: `pdfjs-bank-detector.service.spec.ts` — `detect(buffer, name, password)` forwards `password` to its internal `PdfTextExtractor.extract()` (spy/fake), and against the Phase 2 fixture returns `Result.fail(PdfProtegidoError)`/`Result.ok` per the same 3 sub-cases as Phase 3.2. Confirmed RED (2 failing for the right reason — wrong-password assertion and correct-password assertion, since forwarding didn't exist yet).
+- [x] 6.2 GREEN: `PdfjsBankDetectorService.detect()` (`pdfjs-bank-detector.service.ts:35-44`) passes `password` through to `this.extractor.extract(buffer, originalName, password)`.
+- [x] 6.3 RED: `pdfjs-structure-validator.service.spec.ts` — `validate(buffer, banco, password)` forwards `password`; when the extractor fails for any reason (including password), it still collapses to `EstructuraPdfInvalidaError` (D-05 — unchanged masking, verified NOT to have grown a new branch). Confirmed RED via the `AnclaFaltante`-vs-`PdfIlegible` distinction (correct password → extraction succeeds → different problema tipo).
+- [x] 6.4 GREEN: `PdfjsStructureValidatorService.validate()` (`pdfjs-structure-validator.service.ts:66`) passes `password` to `this.extractor.extract(buffer, ..., password)`.
+- [x] 6.5 RED: `pdfjs-transaction-normalizer.service.spec.ts` — same forwarding assertion as 6.3 for `normalize()`. Confirmed RED, same technique.
+- [x] 6.6 GREEN: `PdfjsTransactionNormalizerService.normalize()` (`pdfjs-transaction-normalizer.service.ts:74`) passes `password` to its own `this.extractor.extract(buffer, ..., password)`.
 
 ## Phase 7 (Slice 2): Application — 3 wrapper use cases pass through
 
-- [ ] 7.1 RED+GREEN: `DetectPdfBankUseCase.execute(buffer, originalName, password?)` (`detect-pdf-bank.use-case.ts:26-42`) forwards to `this.pdfBankDetector.detect(buffer, originalName, password)`; widen its own return-type union to include `PdfProtegidoError` (mirrors the port change in 5.2).
-- [ ] 7.2 RED+GREEN: `ValidatePdfStructureUseCase.execute(buffer, banco, password?)` (`validate-pdf-structure.use-case.ts:27-35`) forwards `password`; return type **unchanged** (D-05).
-- [ ] 7.3 RED+GREEN: `NormalizePdfTransactionsUseCase.execute(buffer, banco, password?)` (`normalize-pdf-transactions.use-case.ts:23-31`) forwards `password`; return type **unchanged** (D-05).
+- [x] 7.1 RED+GREEN: `DetectPdfBankUseCase.execute(buffer, originalName, password?)` (`detect-pdf-bank.use-case.ts:26-42`) forwards to `this.pdfBankDetector.detect(buffer, originalName, password)`; widen its own return-type union to include `PdfProtegidoError` (mirrors the port change in 5.2). Also updated the pre-existing "delega" test's `toHaveBeenCalledWith` to expect the trailing `undefined` (now always forwarded).
+- [x] 7.2 RED+GREEN: `ValidatePdfStructureUseCase.execute(buffer, banco, password?)` (`validate-pdf-structure.use-case.ts:27-35`) forwards `password`; return type **unchanged** (D-05). Same pre-existing-test update.
+- [x] 7.3 RED+GREEN: `NormalizePdfTransactionsUseCase.execute(buffer, banco, password?)` (`normalize-pdf-transactions.use-case.ts:23-31`) forwards `password`; return type **unchanged** (D-05). Same pre-existing-test update.
 
 ## Phase 8 (Slice 2): Application — pipeline input + error union
 
