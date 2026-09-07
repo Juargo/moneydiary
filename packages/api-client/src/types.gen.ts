@@ -1977,6 +1977,59 @@ export interface paths {
         };
         readonly trace?: never;
     };
+    readonly "/api/transacciones/reevaluar": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Re-run the caller's classification patterns over all transactions
+         * @description Authenticated endpoint that re-runs CategorizarTransaccionUseCase with the caller's CURRENT pattern catalog against ALL of their persisted transactions — categorized or not, no period filter. A determined classification (a matched pattern, or the Ingreso rule) overwrites the existing categoria/bucket. A row that resolves to SinCategoria (no pattern matched) is left exactly as it is — never cleared. Rows whose determined classification already matches their current value are not re-written (transaccionesActualizadas counts real changes only). Requires x-api-key + a valid session (RNF-SEC-006, per-user isolation). Rejected for demo sessions (403 DEMO_SOLO_LECTURA).
+         */
+        readonly post: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description Reevaluation completed. */
+                readonly 200: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ReevaluarCategoriasResponse"];
+                    };
+                };
+                /** @description The calling session is a demo session. Nothing is read or written. */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Infrastructure fault — the caller's pattern catalog could not be loaded, or the batched write of reassignments failed (CategorizacionFallidaError). Retryable. */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/version": {
         readonly parameters: {
             readonly query?: never;
@@ -2288,6 +2341,13 @@ export interface components {
                 readonly totalFilas: number;
             };
             readonly tipoCuenta: string;
+        };
+        /** @description POST /api/transacciones/reevaluar 200 — reevaluation outcome counts. */
+        readonly ReevaluarCategoriasResponse: {
+            /** @description Rows whose categoria/bucket actually changed and were written. Rows that resolved to SinCategoria (no pattern matched) are left untouched and never counted here. */
+            readonly transaccionesActualizadas: number;
+            /** @description Total transactions belonging to the caller that were evaluated. */
+            readonly transaccionesEvaluadas: number;
         };
         /** @description POST /api/movimientos 201 — the persisted manual movement (US-058, D-12). Amounts are BigInt-safe strings. `origen` is always "Manual". */
         readonly RegistrarMovimientoManualResponse: {
