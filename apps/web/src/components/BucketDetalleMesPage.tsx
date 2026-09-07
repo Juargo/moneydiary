@@ -6,20 +6,25 @@ import { ErrorState } from './states/Error';
 import { Empty } from './states/Empty';
 import { PeriodoSelector } from './PeriodoSelector';
 import { GrupoMovimientos } from './GrupoMovimientos';
+import { ReevaluarPatronesControl } from './ReevaluarPatronesControl';
 import { useCategorias } from '@/api/use-categorias';
 import { aDetalleBucketMesViewModel } from '@/domain/detalle-bucket-mes-view-model';
 import { mesCompletoLabel } from '@/domain/periodo-anual';
 import { CLAVE_SIN_CATEGORIA } from '@/domain/periodo';
 import { ETIQUETA_BUCKET } from '@/lib/bucket-colors';
 import type { ApiError } from '@/api/client';
-import type { DetalleBucketMesDto } from '@/api/types';
+import type { DetalleBucketMesDto, ReevaluarCategoriasDto } from '@/api/types';
 
 /**
  * BucketDetalleMesPage — US-053 real page for a single bucket/month over the
  * GROUPED endpoint (`useDetalleBucketMes`, `/api/buckets/:bucket/detalle`,
  * MBD-09): WDM-01 header, WDM-03 grouped rows (delegated to
  * `GrupoMovimientos`), WDM-04 `destacar` highlight, WDM-05 empty month,
- * WCAT-04 per-row reclassify (via `GrupoMovimientos`).
+ * WCAT-04 per-row reclassify (via `GrupoMovimientos`). The header also
+ * mounts `ReevaluarPatronesControl` (next to `PeriodoSelector`) — a
+ * page-level, ALL-periods bulk reclassify against
+ * `POST /api/transacciones/reevaluar`, distinct from the per-row reclassify
+ * above.
  *
  * Router-agnostic (SemaforoDetallePage precedent, D-09): the route
  * (buckets.$bucket.tsx, T-10) owns the query hook + search-param parsing and
@@ -101,6 +106,20 @@ export function BucketDetalleMesPage({
     headingRef.current?.focus();
   };
 
+  // Reuses the SAME page-owned `anuncio` region (WEB-REEV-01): a
+  // reevaluation is announced the same way a reclassify/delete is —
+  // ONE page-level status line, not a second one. Unlike
+  // `alEliminarMovimiento`, focus is NOT moved here: the control that
+  // triggered this (`ReevaluarPatronesControl`) already returns focus to
+  // its own trigger button on a successful confirm, and that trigger
+  // (unlike a per-row delete trigger) never unmounts, so there is nothing
+  // this page needs to redirect focus to.
+  const alReevaluarPatrones = (resultado: ReevaluarCategoriasDto) => {
+    setAnuncio(
+      `Se reevaluaron ${resultado.transaccionesEvaluadas} movimientos: ${resultado.transaccionesActualizadas} actualizados.`,
+    );
+  };
+
   if (query.isPending) {
     return <Loading message="Cargando movimientos…" />;
   }
@@ -173,6 +192,10 @@ export function BucketDetalleMesPage({
           {etiqueta}
         </h1>
         <PeriodoSelector periodo={periodo} onChange={onPeriodoChange} />
+        <ReevaluarPatronesControl
+          esDemo={esDemo}
+          onReevaluado={alReevaluarPatrones}
+        />
         {esDemo && (
           <p role="note" className="text-sm text-muted-foreground">
             {MENSAJE_DEMO_ELIMINAR}

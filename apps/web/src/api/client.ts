@@ -11,6 +11,7 @@ import type {
   PreviewIngestaDto,
   PreviewIngestaDtoConCanonicos,
   ReclasificarCategoriaDto,
+  ReevaluarCategoriasDto,
   ResumenAnualDto,
   ResumenMesDto,
   SemaforoBucketDetalleDto,
@@ -823,6 +824,89 @@ export async function postReclasificarCategoria(
   }
 
   if (!esReclasificarCategoriaDto(body)) {
+    return {
+      ok: false,
+      error: { tag: 'parse', message: 'Respuesta inesperada del servidor.' },
+    };
+  }
+
+  return { ok: true, value: body };
+}
+
+function esReevaluarCategoriasDto(
+  value: unknown,
+): value is ReevaluarCategoriasDto {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const candidato = value as Partial<ReevaluarCategoriasDto>;
+  return (
+    typeof candidato.transaccionesEvaluadas === 'number' &&
+    typeof candidato.transaccionesActualizadas === 'number'
+  );
+}
+
+/**
+ * postReevaluarCategorias — POST /api/transacciones/reevaluar. Misma
+ * disciplina never-throw `ApiResult<T>` que `postReclasificarCategoria`:
+ * same-origin, nunca lanza. Sin body de request — el backend re-corre el
+ * catálogo de patrones DEL CALLER sobre sus propias transacciones, no hay
+ * nada que enviar (a diferencia de `postReclasificarCategoria`, que sí manda
+ * `{ categoriaId }`).
+ *
+ * 401 se distingue igual que el resto del archivo; un 403
+ * (`DEMO_SOLO_LECTURA`) y cualquier otro no-2xx (incl. 5xx) caen en la rama
+ * genérica `!res.ok` → `{tag: 'server', status}`, mismo razonamiento que
+ * `deleteMovimiento` (`movimientos.ts`): el gate de demo se aplica
+ * client-side deshabilitando el trigger ANTES de que esto se dispare
+ * (`ReevaluarPatronesControl`), así que un 403 real llegando acá es el
+ * servidor rechazando un request obsoleto/manipulado, no el happy path
+ * esperado — no necesita su propia rama con `code`.
+ */
+export async function postReevaluarCategorias(): Promise<
+  ApiResult<ReevaluarCategoriasDto>
+> {
+  let res: Response;
+  try {
+    res = await fetch('/api/transacciones/reevaluar', { method: 'POST' });
+  } catch {
+    return {
+      ok: false,
+      error: {
+        tag: 'network',
+        message: 'No se pudo conectar con el servidor.',
+      },
+    };
+  }
+
+  if (res.status === 401) {
+    return {
+      ok: false,
+      error: { tag: 'unauthorized', message: 'Sin acceso.' },
+    };
+  }
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: {
+        tag: 'server',
+        status: res.status,
+        message: 'Ocurrió un error inesperado. Intenta nuevamente.',
+      },
+    };
+  }
+
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    return {
+      ok: false,
+      error: { tag: 'parse', message: 'Respuesta inesperada del servidor.' },
+    };
+  }
+
+  if (!esReevaluarCategoriasDto(body)) {
     return {
       ok: false,
       error: { tag: 'parse', message: 'Respuesta inesperada del servidor.' },
