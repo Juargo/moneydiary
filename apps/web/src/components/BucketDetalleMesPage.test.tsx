@@ -1041,7 +1041,16 @@ describe('BucketDetalleMesPage', () => {
           name: /Eliminar movimiento Algo sin categorizar/i,
         }),
       ).toBeDisabled();
-      expect(screen.getByRole('note')).toHaveTextContent(/demostraci[oó]n/i);
+      // Two `role="note"` elements coexist in `esDemo` (this page's own
+      // MENSAJE_DEMO_ELIMINAR, plus `ReevaluarPatronesControl`'s own demo
+      // note) — `getAllByRole` + a text match scopes to THIS one, unlike
+      // the pre-`ReevaluarPatronesControl` version of this test.
+      const notas = screen.getAllByRole('note');
+      expect(
+        notas.some((nota) =>
+          /eliminar movimientos/i.test(nota.textContent ?? ''),
+        ),
+      ).toBe(true);
     });
 
     it('esDemo=false (default) renders no explanatory note', async () => {
@@ -1060,6 +1069,105 @@ describe('BucketDetalleMesPage', () => {
         name: /Eliminar movimiento Algo sin categorizar/i,
       });
       expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('ReevaluarPatronesControl integration (WEB-REEV-01)', () => {
+    function stubFetchReevaluar(
+      dto: {
+        transaccionesEvaluadas: number;
+        transaccionesActualizadas: number;
+      },
+      catalogo: CatalogoDto = CATALOGO_FIXTURE,
+    ) {
+      const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+        if (
+          init?.method === 'POST' &&
+          url.includes('/transacciones/reevaluar')
+        ) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(dto),
+          } as Response);
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(catalogo),
+        } as Response);
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    }
+
+    it('renders the trigger in the header, next to the period selector', async () => {
+      stubFetchInteraccion();
+
+      renderData(
+        <BucketDetalleMesPage
+          query={mockQuery({ data: dtoCompleto })}
+          periodo="2026-07"
+          onPeriodoChange={() => {}}
+          destacar={false}
+        />,
+      );
+
+      expect(
+        await screen.findByRole('button', { name: /Reevaluar categorías/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('a confirmed reevaluation announces the outcome via the shared page-level status region', async () => {
+      const fetchMock = stubFetchReevaluar({
+        transaccionesEvaluadas: 12,
+        transaccionesActualizadas: 5,
+      });
+      const user = userEvent.setup();
+
+      renderData(
+        <BucketDetalleMesPage
+          query={mockQuery({ data: dtoCompleto })}
+          periodo="2026-07"
+          onPeriodoChange={() => {}}
+          destacar={false}
+        />,
+      );
+
+      const trigger = await screen.findByRole('button', {
+        name: /Reevaluar categorías/i,
+      });
+      await user.click(trigger);
+      await screen.findByRole('alertdialog');
+      await user.click(screen.getByRole('button', { name: 'Reevaluar' }));
+
+      const statusRegion = screen.getByTestId('anuncio-reclasificar');
+      await waitFor(() =>
+        expect(statusRegion).toHaveTextContent(
+          'Se reevaluaron 12 movimientos: 5 actualizados.',
+        ),
+      );
+      expect(fetchMock).toHaveBeenCalledWith('/api/transacciones/reevaluar', {
+        method: 'POST',
+      });
+    });
+
+    it('esDemo disables the reevaluate trigger', async () => {
+      stubFetchInteraccion();
+
+      renderData(
+        <BucketDetalleMesPage
+          query={mockQuery({ data: dtoCompleto })}
+          periodo="2026-07"
+          onPeriodoChange={() => {}}
+          destacar={false}
+          esDemo
+        />,
+      );
+
+      expect(
+        await screen.findByRole('button', { name: /Reevaluar categorías/i }),
+      ).toBeDisabled();
     });
   });
 });

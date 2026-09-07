@@ -11,6 +11,7 @@ import {
   postCommitIngesta,
   postIngesta,
   postReclasificarCategoria,
+  postReevaluarCategorias,
   previewIngesta,
 } from './client';
 import type {
@@ -21,6 +22,7 @@ import type {
   IngresosMesDto,
   PreviewIngestaDto,
   ReclasificarCategoriaDto,
+  ReevaluarCategoriasDto,
   ResumenAnualDto,
   ResumenMesDto,
   SemaforoDetalleDto,
@@ -1137,6 +1139,121 @@ describe('postReclasificarCategoria', () => {
     });
 
     const result = await postReclasificarCategoria('tx-1', 'Transporte');
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error.tag).toBe('parse');
+  });
+});
+
+const validReevaluarDto: ReevaluarCategoriasDto = {
+  transaccionesEvaluadas: 42,
+  transaccionesActualizadas: 7,
+};
+
+describe('postReevaluarCategorias', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('llama a POST /api/transacciones/reevaluar same-origin sin body', async () => {
+    const fetchMock = mockFetchOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(validReevaluarDto),
+    });
+
+    await postReevaluarCategorias();
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/transacciones/reevaluar', {
+      method: 'POST',
+    });
+  });
+
+  it('resuelve {ok: true, value} en un body 2xx válido', async () => {
+    mockFetchOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(validReevaluarDto),
+    });
+
+    const result = await postReevaluarCategorias();
+
+    expect(result).toEqual({ ok: true, value: validReevaluarDto });
+  });
+
+  it('mapea un rechazo de fetch a {tag: "network"}', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+
+    const result = await postReevaluarCategorias();
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error.tag).toBe('network');
+  });
+
+  it('mapea un 401 a {tag: "unauthorized"}', async () => {
+    mockFetchOnce({ ok: false, status: 401 });
+
+    const result = await postReevaluarCategorias();
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toEqual({
+      tag: 'unauthorized',
+      message: 'Sin acceso.',
+    });
+  });
+
+  it('mapea un 403 (DEMO_SOLO_LECTURA) a {tag: "server", status: 403} genérico', async () => {
+    mockFetchOnce({
+      ok: false,
+      status: 403,
+      json: () => Promise.resolve({ message: 'x', code: 'DEMO_SOLO_LECTURA' }),
+    });
+
+    const result = await postReevaluarCategorias();
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toEqual({
+      tag: 'server',
+      status: 403,
+      message: 'Ocurrió un error inesperado. Intenta nuevamente.',
+    });
+  });
+
+  it('mapea un 5xx a {tag: "server"} genérico', async () => {
+    mockFetchOnce({ ok: false, status: 500 });
+
+    const result = await postReevaluarCategorias();
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toEqual({
+      tag: 'server',
+      status: 500,
+      message: 'Ocurrió un error inesperado. Intenta nuevamente.',
+    });
+  });
+
+  it('mapea un body 2xx que no cumple la forma esperada a {tag: "parse"}', async () => {
+    mockFetchOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ nonsense: true }),
+    });
+
+    const result = await postReevaluarCategorias();
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error.tag).toBe('parse');
+  });
+
+  it('mapea un 2xx cuyo json() rechaza a {tag: "parse"}', async () => {
+    mockFetchOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new Error('bad json')),
+    });
+
+    const result = await postReevaluarCategorias();
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error.tag).toBe('parse');

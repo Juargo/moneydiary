@@ -83,6 +83,17 @@ export type { MeDto } from '@moneydiary/api-client';
 export type { ReclasificarCategoriaDto } from '@moneydiary/api-client';
 
 /**
+ * `ReevaluarCategoriasDto` — respuesta de `POST /api/transacciones/reevaluar`
+ * (re-corre el catálogo de patrones del caller sobre TODAS sus
+ * transacciones, de todos los períodos). `transaccionesEvaluadas` es el
+ * total de transacciones del caller consideradas; `transaccionesActualizadas`
+ * es cuántas de esas efectivamente cambiaron de categoría/bucket y se
+ * escribieron — una fila que no matchea ningún patrón queda intacta y
+ * nunca cuenta acá.
+ */
+export type { ReevaluarCategoriasDto } from '@moneydiary/api-client';
+
+/**
  * `TransaccionResponseDto` — fila dentro de la respuesta de POST
  * /api/ingestas (`upload-cartola-ui`, design.md "Interfaces / contracts").
  *
