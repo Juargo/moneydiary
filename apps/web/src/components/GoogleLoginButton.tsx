@@ -1,5 +1,6 @@
 import { useGoogleLoginVisible } from '@/api/capabilities';
 import { Button } from '@/components/ui/button';
+import { GoogleG } from '@/components/icons/GoogleG';
 
 /**
  * GoogleLoginButton — a top-level `<a href>` navigation to
@@ -19,6 +20,14 @@ import { Button } from '@/components/ui/button';
  * button's footprint so the layout does not jump once the answer arrives (no
  * flash of a dead button); once resolved to `false`, or on any fetch failure
  * (fail-closed), nothing is rendered at all.
+ *
+ * The official Google mark (`components/icons/GoogleG`) sits before the
+ * label. It is `aria-hidden`, so the accessible name stays exactly
+ * "Continuar con Google" — one of Google's approved strings — and a screen
+ * reader does not announce the brand twice. `Button`'s base `gap-2` provides
+ * the clear space the mark requires; the button keeps the app's own
+ * `outline` variant rather than Google's stock button chrome, which their
+ * guidelines allow as long as the mark itself is unmodified.
  */
 export function GoogleLoginButton() {
   const { isPending, visible } = useGoogleLoginVisible();
@@ -33,7 +42,10 @@ export function GoogleLoginButton() {
 
   return (
     <Button asChild variant="outline" className="w-full">
-      <a href="/api/auth/google">Continuar con Google</a>
+      <a href="/api/auth/google">
+        <GoogleG />
+        Continuar con Google
+      </a>
     </Button>
   );
 }
