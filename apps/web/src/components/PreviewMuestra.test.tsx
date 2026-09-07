@@ -192,17 +192,15 @@ describe('PreviewMuestra', () => {
     const categoriaSelect = screen.getByLabelText(/Fila 1: categoría/i);
     expect((categoriaSelect as HTMLSelectElement).value).toBe('cat-des-1');
 
-    // Fix 2: bucket control should show Deseos checked (derived from edited categoriaId)
-    const bucketGroup = screen.getByLabelText(/Fila 1: bucket/i);
-    expect(
-      within(bucketGroup).getByRole('radio', { name: 'Gustos' }),
-    ).toBeChecked();
+    // Fix 2: bucket select should show Deseos selected (derived from edited categoriaId)
+    const bucketSelect = screen.getByLabelText(/Fila 1: bucket/i);
+    expect(bucketSelect).toHaveValue('Deseos');
   });
 
-  // Round-9 critique P1 fix 1: per-row bucket control shows "Gustos" as the
-  // radio name while the underlying option value stays "Deseos"
-  // (ETIQUETA_BUCKET applied inside SelectorBucket now).
-  it('round-9 P1: per-row bucket control shows "Gustos" name with "Deseos" value', () => {
+  // Round-9 critique P1 fix 1: per-row bucket select shows "Gustos" as the
+  // option text while the underlying option value stays "Deseos"
+  // (ETIQUETA_BUCKET applied by `construirOpcionesBucket`).
+  it('round-9 P1: per-row bucket select shows "Gustos" text with "Deseos" value', () => {
     render(
       <PreviewMuestra
         banco="BancoEstado"
@@ -214,12 +212,12 @@ describe('PreviewMuestra', () => {
       />,
     );
 
-    const bucketGroup = screen.getByLabelText(/Fila 1: bucket/i);
-    const gustosRadio = within(bucketGroup).getByRole('radio', {
+    const bucketSelect = screen.getByLabelText(/Fila 1: bucket/i);
+    const gustosOption = within(bucketSelect).getByRole('option', {
       name: 'Gustos',
-    }) as HTMLInputElement;
+    }) as HTMLOptionElement;
 
-    expect(gustosRadio.value).toBe('Deseos');
+    expect(gustosOption.value).toBe('Deseos');
   });
 
   // Fix 5: catalogo.tag === 'cargando' → inline hint "Cargando catálogo…" renders
@@ -1641,10 +1639,9 @@ describe('PreviewMuestra', () => {
 
       // Classify row 1 (Fila 1 / rowIndex 0) via ITS OWN per-row control —
       // not the bulk toolbar, not the (now-hidden) filter toggle.
-      await userEvent.click(
-        within(screen.getByLabelText(/Fila 1: bucket/i)).getByRole('radio', {
-          name: 'Necesidades',
-        }),
+      await userEvent.selectOptions(
+        screen.getByLabelText(/Fila 1: bucket/i),
+        'Necesidades',
       );
       await userEvent.selectOptions(
         screen.getByLabelText(/Fila 1: categoría/i),
@@ -1875,11 +1872,13 @@ describe('PreviewMuestra', () => {
       const filaB = screen.getByText('B').closest('li');
       if (!filaA || !filaB) throw new Error('rows not found');
 
-      await user.click(
-        within(filaA).getByRole('radio', { name: 'Necesidades' }),
+      await user.selectOptions(
+        within(filaA).getByLabelText(/bucket/i),
+        'Necesidades',
       );
-      await user.click(
-        within(filaB).getByRole('radio', { name: 'Necesidades' }),
+      await user.selectOptions(
+        within(filaB).getByLabelText(/bucket/i),
+        'Necesidades',
       );
 
       await user.click(
@@ -1918,8 +1917,9 @@ describe('PreviewMuestra', () => {
 
       const fila = screen.getByText('A').closest('li');
       if (!fila) throw new Error('row not found');
-      await user.click(
-        within(fila).getByRole('radio', { name: 'Necesidades' }),
+      await user.selectOptions(
+        within(fila).getByLabelText(/bucket/i),
+        'Necesidades',
       );
 
       const trigger = within(fila).getByRole('button', {

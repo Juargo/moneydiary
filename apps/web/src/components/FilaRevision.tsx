@@ -2,11 +2,14 @@ import { useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { CampoSelect } from './configuracion/categorias/CampoSelect';
-import { SelectorBucket } from './SelectorBucket';
-import { SENTINEL_OPTION } from './catalogo-select-sentinels';
+import {
+  SENTINEL_OPTION,
+  BUCKET_SENTINEL_OPTION,
+} from './catalogo-select-sentinels';
 import { NuevaCategoriaDesdeFilaForm } from './preview/NuevaCategoriaDesdeFilaForm';
 import { CLASE_BOTON_ICONO } from './configuracion/estilos';
 import { cn } from '@/lib/utils';
+import { construirOpcionesBucket } from '@/lib/bucket-colors';
 import {
   esMontoCero,
   formatearMontoCLP,
@@ -49,21 +52,26 @@ import type { CatalogoEstado } from '@/api/types';
  * fires while the user is mid-cascade on an untouched row.
  *
  * Duplicate rows (`fila.esDuplicado`): greyed container + "Duplicado" badge +
- * `SelectorBucket` `disabled` (no categoría select rendered, D-10) — no
+ * bucket `<select>` `disabled` (no categoría select rendered, D-10) — no
  * `onEditChange` is ever wired for them. They never render a selection
  * checkbox either (never selectable for bulk).
  *
- * 2026-08-30: the bucket `<select>` was replaced with `SelectorBucket`, a
- * segmented control of native radio inputs (chips, one per bucket + a
- * leading "Sin categoría"). The categoría `CampoSelect` is no longer
+ * 2026-08-30 → reverted 2026-09-06: the bucket `<select>` was briefly a
+ * segmented control of native radios (`SelectorBucket`, one chip per bucket
+ * plus a leading "Sin categoría"). It is a plain `CampoSelect` again — the
+ * same control the categoría column uses, so the two columns read as one
+ * cascade instead of two different input idioms. The chip component and its
+ * `lib/bucket-icons.ts` glyph map were deleted with it.
+ *
+ * What that revert did NOT undo: the categoría `CampoSelect` is still not
  * rendered at all while `bucketUI === ''` — it only appears once a real
- * bucket is chosen — instead of existing-but-`disabled`. The right-hand
+ * bucket is chosen, rather than existing-but-`disabled`. That behaviour is
+ * independent of how the bucket itself is picked. The right-hand
  * `sm:flex-1` wrapper stays in the tree either way so the two columns keep
  * lining up with `PreviewMuestra`'s shared `data-columnas-header` row.
  *
- * A11y: accessible per-row labels via `SelectorBucket`'s `label` prop
- * (`aria-label` on its `<fieldset>`) and `CampoSelect`'s `label` prop for
- * categoría. Label format: "Fila {rowIndex+1}: bucket" /
+ * A11y: accessible per-row labels via `CampoSelect`'s `label` prop for both
+ * selects. Label format: "Fila {rowIndex+1}: bucket" /
  * "Fila {rowIndex+1}: categoría" (1-based, stable, D-10). The selection
  * checkbox uses "Seleccionar fila {rowIndex+1}" (same numbering).
  *
@@ -76,7 +84,7 @@ import type { CatalogoEstado } from '@/api/types';
  * Design critique P2 fix 1 (column identity): the controls used to be
  * fully `srOnly` — a sighted user scanning 50+ rows saw two bare dropdowns
  * with no visible column identity once a value was chosen. Now both
- * `SelectorBucket` and `CampoSelect` take a `columnLabel` ("Bucket"/
+ * selects take `CampoSelect`'s `columnLabel` ("Bucket"/
  * "Categoría"): visible above the control on mobile (stacked layout),
  * `sm:sr-only` at `sm`+ where `PreviewMuestra` renders ONE shared sticky
  * column-header row instead. The full "Fila N: …" sentence never leaves the
@@ -106,8 +114,7 @@ import type { CatalogoEstado } from '@/api/types';
  * control still reads as a choice you could have made and are being denied,
  * and there is no choice here to deny. The rest of that paragraph did NOT
  * need moving — the plain-text-not-a-`Badge` reasoning already lives inline
- * at the marker itself (below), and `SelectorBucket`'s own docblock covers
- * the chip treatment in more detail than DESIGN.md ever did.
+ * at the marker itself (below).
  *
  * ADR-024: zero business logic here — amounts formatted via `formatearMontoCLP`
  * (display-only), no re-computation, no dedup logic, and the Ingreso RULE is
@@ -229,12 +236,20 @@ export function FilaRevision({
     cerrarCreacionYRestaurarFoco();
   }
 
-  // Buckets available for the segmented control come from the catalog groups
-  // that exist (empty buckets already filtered by agruparPorBucket — D-06,
-  // verified fact §0 design.md). `SelectorBucket` builds its own leading
-  // "Sin categoría" option and applies `ETIQUETA_BUCKET` internally.
-  const buckets =
-    catalogo.tag === 'listo' ? catalogo.grupos.map((g) => g.bucket) : [];
+  // Bucket options come from the catalog groups that exist (empty buckets
+  // already filtered by agruparPorBucket — D-06, verified fact §0 design.md).
+  // `construirOpcionesBucket` applies `ETIQUETA_BUCKET` (value stays the
+  // domain key `Deseos`, label reads "Gustos"). Leading sentinel lets the
+  // user choose "no bucket" and makes the empty-string value a valid option
+  // (prevents jsdom/browser auto-selecting the first real option when
+  // `bucketUI` is '').
+  const bucketOptions =
+    catalogo.tag === 'listo'
+      ? [
+          BUCKET_SENTINEL_OPTION,
+          ...construirOpcionesBucket(catalogo.grupos.map((g) => g.bucket)),
+        ]
+      : [BUCKET_SENTINEL_OPTION];
 
   // Categoría options: filter to the selected bucket's group; lead with sentinel.
   const categoriaOptions =
@@ -379,12 +394,12 @@ export function FilaRevision({
         {encabezado}
         <div className="flex flex-col gap-2 sm:flex-row">
           <div className="sm:flex-1">
-            <SelectorBucket
+            <CampoSelect
               label={labelBucket}
               columnLabel="Bucket"
               value=""
               onChange={() => undefined}
-              buckets={buckets}
+              options={bucketOptions}
               disabled
             />
           </div>
@@ -421,12 +436,12 @@ export function FilaRevision({
       {encabezado}
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="sm:flex-1">
-          <SelectorBucket
+          <CampoSelect
             label={labelBucket}
             columnLabel="Bucket"
             value={bucketUI}
             onChange={handleBucketChange}
-            buckets={buckets}
+            options={bucketOptions}
             disabled={catalogoDisabled}
           />
         </div>

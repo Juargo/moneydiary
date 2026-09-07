@@ -75,7 +75,7 @@ export const ETIQUETA_BUCKET: Record<string, string> = {
  * `ETIQUETA_BUCKET` doc comment already flags for the sibling
  * `ETIQUETA_BUCKET_COPY` map in the backend. One function, one place to fix
  * if the label rule ever changes. Callers still prepend their own sentinel
- * option (e.g. `SelectorBucket`'s leading "Sin categoría" radio) — this
+ * option (e.g. `FilaRevision`'s leading `BUCKET_SENTINEL_OPTION`) — this
  * helper only builds the "real" bucket entries.
  */
 export function construirOpcionesBucket(
