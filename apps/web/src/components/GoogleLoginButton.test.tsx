@@ -93,6 +93,27 @@ describe('GoogleLoginButton', () => {
     );
   });
 
+  it('renders the official Google mark, hidden from assistive tech', async () => {
+    mockFetchOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ googleLoginEnabled: true }),
+    });
+
+    renderWithQueryClient();
+
+    const link = await screen.findByRole('link', {
+      name: 'Continuar con Google',
+    });
+    const marca = link.querySelector('svg');
+    expect(marca).not.toBeNull();
+    // The label already says "Google" — announcing the logo too would make a
+    // screen reader read the brand twice.
+    expect(marca).toHaveAttribute('aria-hidden', 'true');
+    // ...and the accessible name must stay exactly the approved wording.
+    expect(link).toHaveAccessibleName('Continuar con Google');
+  });
+
   it('the visible button is keyboard-accessible (a real anchor, no tabindex removal)', async () => {
     mockFetchOnce({
       ok: true,
