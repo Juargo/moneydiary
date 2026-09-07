@@ -98,26 +98,16 @@ D-02 states the `never`-exhaustiveness guards in `aHttpError`/`aCommitHttpError`
 
 ## Phase 9 (Slice 2): Application — commit's carve-out and password threading (D-09) — MERGE-BLOCKING
 
-- [ ] 9.1 RED — **the mandatory carve-out test, must exist before the carve-out code and must not be skipped or deferred:** in `commit-ingesta.use-case.spec.ts`, wire a stub pipeline that returns `Result.fail(new PdfProtegidoError('x.pdf', 'password-incorrecta'))`, call `CommitIngestaUseCase.execute()`, and assert **`ingestaFallidaWriter.registrar` was NOT called** (spy/fake writer, assert `.mock.calls.length === 0` or fake-writer call count). Also assert the use case still returns `Result.fail(PdfProtegidoError)` (the 400 path is unaffected — only the persistence side-effect is carved out). This test is the ONLY detector for a missing carve-out per D-09 (the `never` guards prove status-mapping, not persistence) — it must land in the SAME commit as 9.2, and this task is a **merge-blocking gate**: the carve-out must not merge without it.
-- [ ] 9.2 GREEN: in `commit-ingesta.use-case.ts`'s `runCommit()` (`:207-218`), change the pipeline-failure branch to:
-  ```ts
-  if (pipelineResult.isFail()) {
-    const error = pipelineResult.getError();
-    if (!(error instanceof PdfProtegidoError)) {
-      await this.registrarFallo(input.userId, input.fileReader.getOriginalName(), error.message);
-    }
-    return Result.fail(error);
-  }
-  ```
-  per D-09's decided location (NOT inside `registrarFallo`, NOT the adapter, NOT the route, NOT the shared pipeline use case — see D-09's rejection table).
-- [ ] 9.3 RED+GREEN: widen `CommitIngestaError` (`commit-ingesta.use-case.ts:81-97`) to include `PdfProtegidoError`; add `password?: string` to `CommitIngestaInput` and forward it to `this.ejecutarPipelineUseCase.execute({ fileReader, password: input.password })` (`:207-209`).
-- [ ] 9.4 RED: repeated-attempts test — call `commit-ingesta` 3 times with the same stub pipeline failure (mirrors spec `PDF-08`'s "3 wrong-password attempts, 0 rows" scenario at the use-case level, not yet HTTP) — assert `registrar` was never called across all 3 calls.
-- [ ] 9.5 RED+GREEN: `ProcessIngestaUseCase` (one-shot) is **deliberately excluded** from the carve-out per D-09 — add a comment at its own `registrarFallo` call site (`process-ingesta.use-case.ts:124`) referencing this decision and the YAGNI trigger ("if `POST /ingestas` ever gains the password field, the carve-out moves with it"). No behavior change there; `ProcessIngestaInput` does NOT gain a `password` field (D-02) so this is a documentation-only touch, not new logic.
+- [x] 9.1 RED — **the mandatory carve-out test, must exist before the carve-out code and must not be skipped or deferred:** in `commit-ingesta.use-case.spec.ts`, wire a stub pipeline that returns `Result.fail(new PdfProtegidoError('x.pdf', 'password-incorrecta'))`, call `CommitIngestaUseCase.execute()`, and assert **`ingestaFallidaWriter.registrar` was NOT called** (spy/fake writer, assert `.mock.calls.length === 0` or fake-writer call count). Also assert the use case still returns `Result.fail(PdfProtegidoError)` (the 400 path is unaffected — only the persistence side-effect is carved out). **CONFIRMED RED before the carve-out existed** — `expected [ { userId: 'user-123', …(2) } ] to have a length of +0 but got 1` — failed for exactly the right reason (FALLIDA was being registered unconditionally). Test name/location: `commit-ingesta.use-case.spec.ts`, describe `"(d) D-09 — PdfProtegidoError does NOT register a FALLIDA row"`, test `"el pipeline falla con PdfProtegidoError → NO se llama a ingestaFallidaWriter.registrar, y el commit igual retorna Fail(PdfProtegidoError)"`. Landed in the SAME commit as 9.2 (merge-blocking gate honored).
+- [x] 9.2 GREEN: in `commit-ingesta.use-case.ts`'s `runCommit()`, changed the pipeline-failure branch to the `if (!(error instanceof PdfProtegidoError)) await this.registrarFallo(...)` shape exactly as specified, per D-09's decided location (NOT inside `registrarFallo`, NOT the adapter, NOT the route, NOT the shared pipeline use case).
+- [x] 9.3 RED+GREEN: widened `CommitIngestaError` to include `PdfProtegidoError`; added `password?: string` to `CommitIngestaInput` and forwarded it to `this.ejecutarPipelineUseCase.execute({ fileReader, password: input.password })`. Same structural-typing finding as 8.5 applies (tsc did not force this widening either) — widened anyway for the same correctness reason, and added the matching minimal 400 branch to `aCommitHttpError` (mirrors 8.6 — without it a `PdfProtegidoError` would silently fall through to the generic 500 `_exhaustive` branch at runtime since it's a distinct class from every other member checked via `instanceof`).
+- [x] 9.4 RED: repeated-attempts test added (`"3 intentos consecutivos con password incorrecta → 0 filas FALLIDA registradas (spec PDF-08)"`) — calls `commit-ingesta` 3 times with the same stub pipeline failure, asserts `registrar` was never called across all 3. Also added a 4th regression test confirming a NON-password failure (`BancoNoReconocidoError`) still registers exactly 1 FALLIDA row — proves the carve-out doesn't over-apply.
+- [x] 9.5 RED+GREEN: `ProcessIngestaUseCase` (one-shot) is **deliberately excluded** from the carve-out per D-09 — added a comment at its own `registrarFallo` call site (`process-ingesta.use-case.ts`) referencing this decision and the YAGNI trigger. No behavior change; `ProcessIngestaInput` does NOT gain a `password` field (D-02) — documentation-only touch.
 
 ## Phase 10 (Slice 2): Verification
 
-- [ ] 10.1 `pnpm api test`, `pnpm api exec tsc --noEmit` — green. Confirm the two mapper functions compile with only the minimal 400 branch from 8.6 (no `code` yet — that is intentionally deferred to Slice 3).
-- [ ] 10.2 Re-run the full existing PDF and Excel ingestion test suites — no regression (PDF-09's "absent password ⇒ byte-identical" guarantee).
+- [x] 10.1 `pnpm api test`, `pnpm api exec tsc --noEmit` — green (268 files / 2536 tests, 0 tsc errors). Confirmed both mapper functions compile with only the minimal 400 branch from 8.6/9.3 (no `code` yet — intentionally deferred to Slice 3).
+- [x] 10.2 Re-ran the full existing PDF and Excel ingestion test suites — no regression (baseline 268/2517 at the start of Slice 2 → 268/2536 at the end, +19 tests, 0 regressions). PDF-09's "absent password ⇒ byte-identical" guarantee verified by the explicit "sin password → undefined forwarded" tests added at every layer (adapters, wrapper use cases, pipeline, preview, commit).
 
 ---
 
