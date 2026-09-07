@@ -33,9 +33,10 @@ function crearWrapperQuery() {
 // bucket→categoría cascade (D-06), accessible labels (D-10), and
 // onEditChange payloads.
 //
-// 2026-08-30: the bucket `<select>` became `SelectorBucket` (a segmented
-// control of native radios) and the categoría `CampoSelect` is no longer
-// rendered at all while no bucket is chosen — tests migrated accordingly.
+// 2026-08-30 → reverted 2026-09-06: the bucket control was briefly
+// `SelectorBucket` (a segmented control of native radios); it is a plain
+// `<select>` again. The categoría `CampoSelect` is still not rendered at all
+// while no bucket is chosen — that part of the 2026-08-30 pass stands.
 //
 // NO network, NO state machine — pure presentational unit.
 
@@ -195,9 +196,7 @@ describe('FilaRevision', () => {
       screen.queryByLabelText(/Fila 5: categoría/i),
     ).not.toBeInTheDocument();
 
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Necesidades');
     expect(screen.getByLabelText(/Fila 5: categoría/i)).toBeInTheDocument();
   });
 
@@ -213,9 +212,7 @@ describe('FilaRevision', () => {
     );
 
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Gustos' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Deseos');
 
     // After selecting "Deseos", categoría select should only show Deseos categorías
     const categoriaSelect = screen.getByLabelText(/Fila 3: categoría/i);
@@ -256,7 +253,7 @@ describe('FilaRevision', () => {
   // Round-9 critique P1 fix 1: bucket options must show the UI label
   // ("Gustos") while the underlying option value stays the domain key
   // ("Deseos") — ETIQUETA_BUCKET is applied at this call site now (inside
-  // SelectorBucket).
+  // `construirOpcionesBucket`).
   it('round-9 P1: bucket options show "Gustos" as label but keep "Deseos" as the value', () => {
     render(
       <FilaRevision
@@ -268,13 +265,13 @@ describe('FilaRevision', () => {
     );
 
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    const gustosRadio = within(bucketGroup).getByRole('radio', {
+    const gustosOption = within(bucketGroup).getByRole('option', {
       name: 'Gustos',
-    }) as HTMLInputElement;
+    }) as HTMLOptionElement;
 
-    expect(gustosRadio.value).toBe('Deseos');
+    expect(gustosOption.value).toBe('Deseos');
     expect(
-      within(bucketGroup).queryByRole('radio', { name: 'Deseos' }),
+      within(bucketGroup).queryByRole('option', { name: 'Deseos' }),
     ).not.toBeInTheDocument();
   });
 
@@ -292,9 +289,7 @@ describe('FilaRevision', () => {
     );
 
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Necesidades');
 
     expect(onEditChange).toHaveBeenCalledTimes(0);
   });
@@ -314,9 +309,7 @@ describe('FilaRevision', () => {
 
     // First select a bucket to enable categoría select
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Necesidades');
 
     const categoriaSelect = screen.getByLabelText(/Fila 3: categoría/i);
     await userEvent.selectOptions(categoriaSelect, 'cat-nec-1');
@@ -341,9 +334,7 @@ describe('FilaRevision', () => {
 
     // Mount already has categoriaId — changing bucket should fire onEditChange(2, null)
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Gustos' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Deseos');
 
     expect(onEditChange).toHaveBeenCalledTimes(1);
     expect(onEditChange).toHaveBeenCalledWith(2, null);
@@ -364,9 +355,7 @@ describe('FilaRevision', () => {
 
     // First select a bucket to enable categoría select
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Necesidades');
 
     const categoriaSelect = screen.getByLabelText(/Fila 3: categoría/i);
     await userEvent.selectOptions(categoriaSelect, 'cat-nec-1');
@@ -389,9 +378,7 @@ describe('FilaRevision', () => {
 
     // Select a bucket first, then a category, then reset to "Sin categoría"
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Necesidades');
 
     const categoriaSelect = screen.getByLabelText(/Fila 3: categoría/i);
     await userEvent.selectOptions(categoriaSelect, 'cat-nec-1');
@@ -419,14 +406,10 @@ describe('FilaRevision', () => {
 
     // categoriaId prop is 'cat-nec-1' → bucketUI seeds to 'Necesidades' (fix 2)
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    expect(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    ).toBeChecked();
+    expect(bucketGroup).toHaveValue('Necesidades');
 
     // Changing bucket fires onEditChange(2, null) because categoriaId is non-null
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Gustos' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Deseos');
 
     // The categoría select should now show the sentinel value (empty)
     const categoriaSelect = screen.getByLabelText(/Fila 3: categoría/i);
@@ -452,9 +435,7 @@ describe('FilaRevision', () => {
     );
 
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    expect(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    ).toBeChecked();
+    expect(bucketGroup).toHaveValue('Necesidades');
   });
 
   // Fix 2: bucketUI seeds from edited categoriaId when it conflicts with sugerido.bucket
@@ -474,9 +455,7 @@ describe('FilaRevision', () => {
 
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
     // Should show Deseos (from edited categoriaId) not Necesidades (from sugerido)
-    expect(
-      within(bucketGroup).getByRole('radio', { name: 'Gustos' }),
-    ).toBeChecked();
+    expect(bucketGroup).toHaveValue('Deseos');
 
     const categoriaSelect = screen.getByLabelText(/Fila 3: categoría/i);
     expect((categoriaSelect as HTMLSelectElement).value).toBe('cat-des-1');
@@ -510,9 +489,7 @@ describe('FilaRevision', () => {
 
     // Step 1: select bucket — no call (categoriaId is null, fix 1a)
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Necesidades');
     expect(onEditChange).not.toHaveBeenCalled();
 
     // Step 2: select categoría X — fires (2, 'cat-nec-1'); prop becomes non-null on re-render
@@ -522,9 +499,7 @@ describe('FilaRevision', () => {
 
     // Step 3: change bucket again — categoriaId prop is now 'cat-nec-1' (non-null),
     // so the bucket change must fire onEditChange(2, null) to clear the prior choice
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Gustos' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Deseos');
     expect(onEditChange).toHaveBeenCalledWith(2, null);
   });
 
@@ -547,9 +522,7 @@ describe('FilaRevision', () => {
     );
 
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    expect(
-      within(bucketGroup).getByRole('radio', { name: 'Sin categoría' }),
-    ).toBeChecked();
+    expect(bucketGroup).toHaveValue('');
     expect(
       screen.queryByLabelText(/Fila 3: categoría/i),
     ).not.toBeInTheDocument();
@@ -590,9 +563,7 @@ describe('FilaRevision', () => {
 
     // Mount: no sugerido, no edit — bucketUI seeds empty, no categoría select.
     const bucketGroupInicial = screen.getByLabelText(/Fila 3: bucket/i);
-    expect(
-      within(bucketGroupInicial).getByRole('radio', { name: 'Sin categoría' }),
-    ).toBeChecked();
+    expect(bucketGroupInicial).toHaveValue('');
     expect(
       screen.queryByLabelText(/Fila 3: categoría/i),
     ).not.toBeInTheDocument();
@@ -612,9 +583,7 @@ describe('FilaRevision', () => {
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
     // Bucket control must now show "Gustos" checked — derived from the
     // catalog group that owns 'cat-des-1', not the stale mount-time '' value.
-    expect(
-      within(bucketGroup).getByRole('radio', { name: 'Gustos' }),
-    ).toBeChecked();
+    expect(bucketGroup).toHaveValue('Deseos');
 
     // Categoría select is now rendered (bucket derived non-empty unlocks it)
     // and shows the applied value.
@@ -641,12 +610,8 @@ describe('FilaRevision', () => {
     );
 
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Gustos' }),
-    );
-    expect(
-      within(bucketGroup).getByRole('radio', { name: 'Gustos' }),
-    ).toBeChecked();
+    await userEvent.selectOptions(bucketGroup, 'Deseos');
+    expect(bucketGroup).toHaveValue('Deseos');
     // No onEditChange yet — categoriaId prop was null (fix 1a semantics kept).
     expect(onEditChange).not.toHaveBeenCalled();
 
@@ -667,9 +632,7 @@ describe('FilaRevision', () => {
     );
 
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    expect(
-      within(bucketGroup).getByRole('radio', { name: 'Sin categoría' }),
-    ).toBeChecked();
+    expect(bucketGroup).toHaveValue('');
     expect(
       screen.queryByLabelText(/Fila 3: categoría/i),
     ).not.toBeInTheDocument();
@@ -678,7 +641,7 @@ describe('FilaRevision', () => {
   // (b) With a suggestion (and its merged display value passed as categoriaId,
   // per D-05): the suggested bucket is checked and the categoría select is
   // visible, showing the suggested categoría.
-  it('(b) with a suggestion: SelectorBucket shows the suggested bucket checked and the categoría select shows the suggested categoría', () => {
+  it('(b) with a suggestion: the bucket select shows the suggested bucket and the categoría select shows the suggested categoría', () => {
     render(
       <FilaRevision
         fila={unaFilaPreview({
@@ -692,9 +655,7 @@ describe('FilaRevision', () => {
     );
 
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-    expect(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    ).toBeChecked();
+    expect(bucketGroup).toHaveValue('Necesidades');
 
     const categoriaSelect = screen.getByLabelText(
       /Fila 3: categoría/i,
@@ -720,9 +681,7 @@ describe('FilaRevision', () => {
     const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
     expect(screen.getByLabelText(/Fila 3: categoría/i)).toBeInTheDocument();
 
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Sin categoría' }),
-    );
+    await userEvent.selectOptions(bucketGroup, '');
 
     expect(onEditChange).toHaveBeenCalledWith(2, null);
     expect(
@@ -910,9 +869,7 @@ describe('FilaRevision', () => {
       expect(bucketGroup).toHaveAccessibleName('Fila 3: bucket');
 
       // Categoría's visible label + accessible name appear once a bucket is chosen.
-      await userEvent.click(
-        within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-      );
+      await userEvent.selectOptions(bucketGroup, 'Necesidades');
       expect(screen.getByText('Categoría')).toBeInTheDocument();
       const categoriaSelect = screen.getByLabelText(/Fila 3: categoría/i);
       expect(categoriaSelect).toHaveAccessibleName('Fila 3: categoría');
@@ -1019,9 +976,7 @@ describe('FilaRevision', () => {
       );
 
       const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-      await userEvent.click(
-        within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-      );
+      await userEvent.selectOptions(bucketGroup, 'Necesidades');
 
       expect(
         screen.getByRole('button', { name: /nueva categoría/i }),
@@ -1055,9 +1010,7 @@ describe('FilaRevision', () => {
       );
 
       const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-      await userEvent.click(
-        within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-      );
+      await userEvent.selectOptions(bucketGroup, 'Necesidades');
 
       const boton = screen.getByRole('button', { name: /nueva categoría/i });
       expect(boton).toBeDisabled();
@@ -1077,9 +1030,7 @@ describe('FilaRevision', () => {
       );
 
       const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-      await userEvent.click(
-        within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-      );
+      await userEvent.selectOptions(bucketGroup, 'Necesidades');
 
       expect(
         screen.getByRole('heading', { name: 'Nueva categoría' }),
@@ -1115,9 +1066,7 @@ describe('FilaRevision', () => {
       );
 
       const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-      await userEvent.click(
-        within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-      );
+      await userEvent.selectOptions(bucketGroup, 'Necesidades');
       await userEvent.click(
         screen.getByRole('button', { name: /nueva categoría/i }),
       );
@@ -1145,9 +1094,7 @@ describe('FilaRevision', () => {
       render(<Wrapper />, { wrapper: crearWrapperQuery() });
 
       const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-      await userEvent.click(
-        within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-      );
+      await userEvent.selectOptions(bucketGroup, 'Necesidades');
       const trigger = screen.getByRole('button', { name: /nueva categoría/i });
       await userEvent.click(trigger);
 
@@ -1199,9 +1146,7 @@ describe('FilaRevision', () => {
       render(<Wrapper />, { wrapper: crearWrapperQuery() });
 
       const bucketGroup = screen.getByLabelText(/Fila 3: bucket/i);
-      await userEvent.click(
-        within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-      );
+      await userEvent.selectOptions(bucketGroup, 'Necesidades');
       await userEvent.click(
         screen.getByRole('button', { name: /nueva categoría/i }),
       );
@@ -1317,7 +1262,7 @@ describe('FilaRevision', () => {
       expect(
         screen.queryByRole('button', { name: /nueva categoría/i }),
       ).not.toBeInTheDocument();
-      expect(screen.queryAllByRole('radio')).toHaveLength(0);
+      expect(screen.queryAllByRole('combobox')).toHaveLength(0);
     });
 
     it('still renders as a recognised transaction: description, date, signed amount and a bold green "Ingreso" marker', () => {

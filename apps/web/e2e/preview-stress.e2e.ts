@@ -156,22 +156,12 @@ test.describe('preview review table — stress at realistic scale (300 rows)', (
     // --- 4. One per-row classification interaction, mid-list (~row 150) ---
     // `midRowIndex` is forced non-duplicate + unclassified by the fixture
     // generator, so this always exercises the real bucket->categoría
-    // cascade, never a no-op re-selection. The bucket control is a
-    // `SelectorBucket` radio group (`fieldset[aria-label="Fila N: bucket"]`,
-    // 2026-08-30 polish pass) and the categoría `<select>` only renders once
-    // a bucket other than "Sin categoría" is checked — so the flow is:
-    // check the "Necesidades" radio, then pick the categoría.
-    const bucketGroup = page.getByLabel(midRowLabelBucket);
-    const bucketNecesidades = bucketGroup.getByRole('radio', {
-      name: 'Necesidades',
-    });
-    // The radio itself is `sr-only` (1×1 px, clipped): its chip `<label>`
-    // intercepts the pointer, so `radio.check()` can never land a click.
-    // Click the visible chip instead — the real user path (native label
-    // toggles its radio) — and assert the radio state afterwards.
-    const chipNecesidades = bucketGroup.getByText('Necesidades', {
-      exact: true,
-    });
+    // cascade, never a no-op re-selection. The bucket control is a plain
+    // `<select>` (the 2026-08-30 `SelectorBucket` chip group was reverted on
+    // 2026-09-06) and the categoría `<select>` only renders once a bucket
+    // other than the leading sentinel is chosen — so the flow is: pick the
+    // "Necesidades" bucket option, then pick the categoría.
+    const bucketSelect = page.getByLabel(midRowLabelBucket);
     const categoriaSelect = page.getByLabel(midRowLabelCategoria);
     const progressText = page.getByText(
       new RegExp(`${meta.classifiedCount + 1} de \\d+ clasificadas?`),
@@ -179,13 +169,12 @@ test.describe('preview review table — stress at realistic scale (300 rows)', (
 
     // Guards against the catalog fetch racing the preview render — both are
     // stubbed near-instant, but this makes the precondition explicit rather
-    // than relying on timing luck. (Checked on the radio, not the fieldset:
-    // Playwright's `toBeEnabled` only inspects form controls.)
-    await expect(bucketNecesidades).toBeEnabled();
+    // than relying on timing luck.
+    await expect(bucketSelect).toBeEnabled();
 
     const t0RowSelect = performance.now();
-    await chipNecesidades.click();
-    await expect(bucketNecesidades).toBeChecked();
+    await bucketSelect.selectOption('Necesidades');
+    await expect(bucketSelect).toHaveValue('Necesidades');
     await categoriaSelect.selectOption('cat-1');
     await expect(progressText).toBeVisible();
     const rowSelectMs = performance.now() - t0RowSelect;

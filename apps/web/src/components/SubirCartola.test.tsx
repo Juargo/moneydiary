@@ -6,7 +6,6 @@ import {
   screen,
   fireEvent,
   waitFor,
-  within,
   act,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -712,9 +711,7 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
 
     // First pick a bucket (reveals the categoría select)
     const bucketGroup = screen.getByLabelText(/Fila 1: bucket/i);
-    await user.click(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    );
+    await user.selectOptions(bucketGroup, 'Necesidades');
 
     // Then select a categoría
     const categoriaSelect = screen.getByLabelText(/Fila 1: categoría/i);
@@ -802,9 +799,7 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
 
     // Edit row 3 — pick bucket then categoría (userEvent for proper state flush)
     const bucketGroup = screen.getByLabelText(/Fila 4: bucket/i);
-    await userEvent.click(
-      within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-    );
+    await userEvent.selectOptions(bucketGroup, 'Necesidades');
     const categoriaSelect = screen.getByLabelText(/Fila 4: categoría/i);
     await userEvent.selectOptions(categoriaSelect, 'cat-nec-1');
 
@@ -934,10 +929,9 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
     // Classify row 4 (rowIndex 3) via the edit overlay — must count exactly
     // like a sugerido-derived classification (D-05).
     const user = userEvent.setup();
-    await user.click(
-      within(screen.getByLabelText(/Fila 4: bucket/i)).getByRole('radio', {
-        name: 'Necesidades',
-      }),
+    await user.selectOptions(
+      screen.getByLabelText(/Fila 4: bucket/i),
+      'Necesidades',
     );
     await user.selectOptions(
       screen.getByLabelText(/Fila 4: categoría/i),
@@ -2735,9 +2729,7 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
       rerender(<SubirCartola />);
 
       const bucketGroup = screen.getByLabelText(/Fila 1: bucket/i);
-      await userEvent.click(
-        within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-      );
+      await userEvent.selectOptions(bucketGroup, 'Necesidades');
       await userEvent.click(
         screen.getByRole('button', { name: /nueva categoría/i }),
       );
@@ -2886,9 +2878,7 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
       utils.rerender(<SubirCartola />);
 
       const bucketGroup = screen.getByLabelText(/Fila 1: bucket/i);
-      await userEvent.click(
-        within(bucketGroup).getByRole('radio', { name: 'Necesidades' }),
-      );
+      await userEvent.selectOptions(bucketGroup, 'Necesidades');
       await userEvent.click(
         screen.getByRole('button', { name: /nueva categoría/i }),
       );
@@ -3014,10 +3004,9 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
       rerender(<SubirCartola />);
 
       // Manually classify row 2 (rowIndex 1) FIRST — the prior override.
-      await userEvent.click(
-        within(screen.getByLabelText(/Fila 2: bucket/i)).getByRole('radio', {
-          name: 'Necesidades',
-        }),
+      await userEvent.selectOptions(
+        screen.getByLabelText(/Fila 2: bucket/i),
+        'Necesidades',
       );
       await userEvent.selectOptions(
         screen.getByLabelText(/Fila 2: categoría/i),
@@ -3025,10 +3014,9 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
       );
 
       // Now create a categoría on row 1 (rowIndex 0).
-      await userEvent.click(
-        within(screen.getByLabelText(/Fila 1: bucket/i)).getByRole('radio', {
-          name: 'Necesidades',
-        }),
+      await userEvent.selectOptions(
+        screen.getByLabelText(/Fila 1: bucket/i),
+        'Necesidades',
       );
       await userEvent.click(
         screen.getByRole('button', { name: 'Nueva categoría para fila 1' }),
@@ -3238,10 +3226,9 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
         rerender(<SubirCartola />);
 
         // Pre-existing override on row 2 (rowIndex 2), BEFORE creating.
-        await userEvent.click(
-          within(screen.getByLabelText(/Fila 3: bucket/i)).getByRole('radio', {
-            name: 'Necesidades',
-          }),
+        await userEvent.selectOptions(
+          screen.getByLabelText(/Fila 3: bucket/i),
+          'Necesidades',
         );
         await userEvent.selectOptions(
           screen.getByLabelText(/Fila 3: categoría/i),
@@ -3249,10 +3236,9 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
         );
 
         // Create the categoría on row 0 (rowIndex 0).
-        await userEvent.click(
-          within(screen.getByLabelText(/Fila 1: bucket/i)).getByRole('radio', {
-            name: 'Necesidades',
-          }),
+        await userEvent.selectOptions(
+          screen.getByLabelText(/Fila 1: bucket/i),
+          'Necesidades',
         );
         await userEvent.click(
           screen.getByRole('button', { name: 'Nueva categoría para fila 1' }),
