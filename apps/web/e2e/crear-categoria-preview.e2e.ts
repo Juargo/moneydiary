@@ -154,15 +154,14 @@ test.describe('crear una categoría desde la vista previa', () => {
 
     // Manual override on row 2 (fila 3) BEFORE creating: it must survive the
     // re-run even though its suggestion also changes.
-    const bucketFila3 = page.getByLabel('Fila 3: bucket');
-    await bucketFila3.getByText('Gustos', { exact: true }).click();
+    // El control de bucket es un `<select>`: `selectOption` con el VALOR de
+    // dominio ('Deseos'), no un click sobre el texto de despliegue
+    // ('Gustos'). Un `<option>` nunca es clickeable en Playwright.
+    await page.getByLabel('Fila 3: bucket').selectOption('Deseos');
     await page.getByLabel('Fila 3: categoría').selectOption('cat-des-1');
 
     // Create the categoría from row 0 (fila 1).
-    await page
-      .getByLabel('Fila 1: bucket')
-      .getByText('Gustos', { exact: true })
-      .click();
+    await page.getByLabel('Fila 1: bucket').selectOption('Deseos');
     await page
       .getByRole('button', { name: 'Nueva categoría para fila 1' })
       .click();
