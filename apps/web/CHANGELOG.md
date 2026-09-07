@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/Juargo/MoneyDiary/compare/web-v0.6.0...web-v0.7.0) (2026-09-07)
+
+
+### Features
+
+* **web:** botón para reevaluar los patrones desde el detalle de bucket ([57738bc](https://github.com/Juargo/MoneyDiary/commit/57738bc0ce1a0e47bef9cb3922c26690fe7bcfed))
+* **web:** botón para reevaluar los patrones desde el detalle de bucket ([a0539c1](https://github.com/Juargo/MoneyDiary/commit/a0539c17ccc05cfd2286019b32c965e910d1979a))
+* **web:** la marca oficial de Google en el botón de ingreso ([4cd07ec](https://github.com/Juargo/MoneyDiary/commit/4cd07ec5b314fc8e610282c4d48ec2aee04ddb03))
+* **web:** la marca oficial de Google en el botón de ingreso ([c932948](https://github.com/Juargo/MoneyDiary/commit/c9329485bd2dd66ff748e6e4c0cf3014c9ff9d1f))
+
+
+### Refactors
+
+* **web:** volver el selector de bucket a un select nativo ([31d5cfa](https://github.com/Juargo/MoneyDiary/commit/31d5cfa485e652c92917b81ac7a57f7e00e9929a))
+* **web:** volver el selector de bucket a un select nativo ([bd4df08](https://github.com/Juargo/MoneyDiary/commit/bd4df08bf943272ee833091900613f6ec143e1d6))
+
 ## [0.6.0](https://github.com/Juargo/MoneyDiary/compare/web-v0.5.0...web-v0.6.0) (2026-09-04)
 
 
