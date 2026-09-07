@@ -60,6 +60,9 @@ export type MeDto = S['AuthMeResponse'];
 /** PATCH /api/transacciones/:id/categoria — manual reclassification result. */
 export type ReclasificarCategoriaDto = S['TransaccionesCategoriaResponse'];
 
+/** POST /api/transacciones/reevaluar — pattern re-evaluation outcome counts. */
+export type ReevaluarCategoriasDto = S['ReevaluarCategoriasResponse'];
+
 /** POST /api/ingestas — successful upload result. */
 export type IngestaResponseDto = S['IngestaUploadResponse'];
 
