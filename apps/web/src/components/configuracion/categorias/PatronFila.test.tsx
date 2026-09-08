@@ -362,6 +362,16 @@ describe('PatronFila — fila existente', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('una fila EXISTENTE NO renderiza el botón Confirmar patrón: ahí el blur ya commitea, un segundo disparador sería redundante (issue #600, alcance acotado a la fila sin crear)', () => {
+    render(<PatronFila categoriaId="cat-1" patron={PATRON} esDemo={false} />, {
+      wrapper: crearWrapper(),
+    });
+
+    expect(
+      screen.queryByRole('button', { name: 'Confirmar patrón' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('sesión demo: Patrón, Tipo de coincidencia y el botón eliminar quedan deshabilitados (WCTG-11)', () => {
     render(<PatronFila categoriaId="cat-1" patron={PATRON} esDemo />, {
       wrapper: crearWrapper(),
@@ -877,7 +887,7 @@ describe('PatronFila — fila nueva (sin patrón todavía creado)', () => {
     expect(onDescartar).toHaveBeenCalledTimes(1);
   });
 
-  it('escribir texto y luego Tab hacia el botón eliminar (sin clic) tampoco commitea en una fila SIN crear — blur nunca commitea una fila sin crear, independientemente de a dónde vaya el foco (contraste: en una fila EXISTENTE, Tab SÍ commitea — ver "PatronFila — fila existente")', async () => {
+  it('escribir texto y luego tabular FUERA del input (a Confirmar, y de ahí a Eliminar) tampoco commitea en una fila SIN crear — blur nunca commitea una fila sin crear, independientemente de a dónde vaya el foco (contraste: en una fila EXISTENTE, Tab SÍ commitea — ver "PatronFila — fila existente")', async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -893,8 +903,18 @@ describe('PatronFila — fila nueva (sin patrón todavía creado)', () => {
     );
 
     await user.type(screen.getByLabelText('Patrón'), 'uber');
-    await user.tab();
 
+    // El orden de tabulación de una fila SIN crear es
+    // `Patrón → Confirmar → Eliminar` (issue #600: `Confirmar patrón` se
+    // renderiza antes que la papelera). Tabular hasta CUALQUIERA de los dos
+    // dispara el `blur` del input, y ninguno de esos blur commitea.
+    await user.tab();
+    expect(
+      screen.getByRole('button', { name: 'Confirmar patrón' }),
+    ).toHaveFocus();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await user.tab();
     expect(
       screen.getByRole('button', { name: /eliminar patrón/i }),
     ).toHaveFocus();
@@ -943,5 +963,250 @@ describe('PatronFila — fila nueva (sin patrón todavía creado)', () => {
     resolverFetch({ ok: true, status: 201 });
     await waitFor(() => expect(onDescartar).toHaveBeenCalledTimes(1));
     expect(onDescartar).toHaveBeenCalledTimes(1);
+  });
+  it('renderiza un botón Confirmar patrón visible: el gesto de confirmación explícito deja de ser SOLO la tecla Enter (issue #600 — el usuario escribía el patrón, apretaba el Guardar de identidad y no pasaba nada, porque ese Guardar no toca patrones y el blur nunca crea una fila)', () => {
+    render(<PatronFila categoriaId="cat-1" esDemo={false} />, {
+      wrapper: crearWrapper(),
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Confirmar patrón' }),
+    ).toBeInTheDocument();
+  });
+
+  it('clic en Confirmar patrón dispara EXACTAMENTE un POST /api/patrones y luego onDescartar + onAnunciar — el mismo commit que Enter, por un camino visible (issue #600)', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201 });
+    vi.stubGlobal('fetch', fetchMock);
+    const onDescartar = vi.fn();
+    const onAnunciar = vi.fn();
+
+    render(
+      <PatronFila
+        categoriaId="cat-1"
+        esDemo={false}
+        onDescartar={onDescartar}
+        onAnunciar={onAnunciar}
+      />,
+      { wrapper: crearWrapper() },
+    );
+
+    await user.type(screen.getByLabelText('Patrón'), 'Alcancía');
+    await user.click(screen.getByRole('button', { name: 'Confirmar patrón' }));
+
+    await waitFor(() => expect(onDescartar).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith('/api/patrones', {
+      credentials: 'same-origin',
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        categoriaId: 'cat-1',
+        patron: 'Alcancía',
+        matchType: 'CONTAINS',
+      }),
+    });
+    expect(onAnunciar).toHaveBeenCalledWith('Patrón guardado.');
+  });
+
+  it('Confirmar patrón arranca deshabilitado con Patrón vacío y se habilita al escribir: un botón que no hace nada al tocarlo es exactamente el defecto que este arreglo cierra (issue #600)', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<PatronFila categoriaId="cat-1" esDemo={false} />, {
+      wrapper: crearWrapper(),
+    });
+
+    const confirmar = screen.getByRole('button', { name: 'Confirmar patrón' });
+    expect(confirmar).toBeDisabled();
+
+    // Solo espacios sigue siendo "no hay nada que commitear" — misma regla
+    // que la guarda de valor vacío de `commit()`.
+    await user.type(screen.getByLabelText('Patrón'), '   ');
+    expect(confirmar).toBeDisabled();
+
+    await user.type(screen.getByLabelText('Patrón'), 'Alcancía');
+    expect(confirmar).toBeEnabled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('sesión demo: Confirmar patrón queda deshabilitado aunque haya texto (WCTG-11, misma condición que el resto de la fila)', () => {
+    render(<PatronFila categoriaId="cat-1" esDemo={true} />, {
+      wrapper: crearWrapper(),
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Confirmar patrón' }),
+    ).toBeDisabled();
+  });
+
+  it('un segundo clic en Confirmar patrón mientras el PRIMER POST está en vuelo NO dispara un segundo POST (misma garantía que ya tenía el camino de Enter — accionesBloqueadas)', async () => {
+    const user = userEvent.setup();
+    let resolverFetch: (value: {
+      ok: boolean;
+      status: number;
+    }) => void = () => {};
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Promise<{ ok: boolean; status: number }>((resolve) => {
+          resolverFetch = resolve;
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const onDescartar = vi.fn();
+
+    render(
+      <PatronFila
+        categoriaId="cat-1"
+        esDemo={false}
+        onDescartar={onDescartar}
+      />,
+      { wrapper: crearWrapper() },
+    );
+
+    await user.type(screen.getByLabelText('Patrón'), 'Alcancía');
+    const confirmar = screen.getByRole('button', { name: 'Confirmar patrón' });
+    await user.click(confirmar);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(confirmar).toBeDisabled();
+
+    await user.click(confirmar);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    resolverFetch({ ok: true, status: 201 });
+    await waitFor(() => expect(onDescartar).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('un POST rechazado por el servidor (400 PATRON_INVALIDO) desde Confirmar patrón renderiza role="alert", CONSERVA el texto tipeado, re-habilita el botón para reintentar y NO descarta la fila (review de fiabilidad, issue #600: el modo de falla vecino al bug reportado — que el patrón desaparezca en silencio — no estaba cubierto para la creación, solo para el PATCH)', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: () => Promise.resolve({ code: 'PATRON_INVALIDO' }),
+      }),
+    );
+    const onDescartar = vi.fn();
+
+    render(
+      <PatronFila
+        categoriaId="cat-1"
+        esDemo={false}
+        onDescartar={onDescartar}
+      />,
+      { wrapper: crearWrapper() },
+    );
+
+    await user.type(screen.getByLabelText('Patrón'), 'Alcancía');
+    await user.click(screen.getByRole('button', { name: 'Confirmar patrón' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'El patrón debe tener entre 1 y 200 caracteres.',
+    );
+    // La fila SIGUE viva con el texto puesto: el usuario puede corregir y
+    // reintentar sin volver a escribir todo.
+    expect(onDescartar).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Patrón')).toHaveValue('Alcancía');
+    expect(
+      screen.getByRole('button', { name: 'Confirmar patrón' }),
+    ).toBeEnabled();
+  });
+
+  it('un POST fallido desde Confirmar patrón devuelve el foco al input una vez re-habilitado, igual que el camino de Enter (review de fiabilidad, issue #600: el botón se deshabilita mientras la mutación vuela, lo que en un navegador real tira el foco a <body> — dejar la ruta VISIBLE peor que el atajo invisible sería exactamente al revés de lo que arregla este cambio)', async () => {
+    const user = userEvent.setup();
+    // Promesa CONTROLADA a mano, no un mock que resuelve al instante: el
+    // `useEffect` que restaura el foco tiene deps `[filaOcupada,
+    // bloqueadoTotal]`, así que solo corre cuando `filaOcupada` CAMBIA. Con
+    // un mock inmediato React batchea `isPending` true→false en un único
+    // render, la dep nunca cambia y el efecto no se dispara — un artefacto
+    // del test, no del navegador. Mismo idioma que el test del camino de
+    // Enter ("un Enter que dispara un PATCH llama a input.focus()...").
+    let resolverFetch: (value: {
+      ok: boolean;
+      status: number;
+      json: () => Promise<{ code: string }>;
+    }) => void = () => {};
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolverFetch = resolve;
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<PatronFila categoriaId="cat-1" esDemo={false} />, {
+      wrapper: crearWrapper(),
+    });
+
+    const input = screen.getByLabelText('Patrón') as HTMLInputElement;
+    await user.type(input, 'Alcancía');
+    // Mismo criterio que el test del camino de Enter: jsdom no reproduce el
+    // auto-blur de deshabilitar un control enfocado, así que se verifica la
+    // llamada real a `.focus()` guiada por el ref, no `document.activeElement`.
+    const focoSpy = vi.spyOn(input, 'focus');
+    await user.click(screen.getByRole('button', { name: 'Confirmar patrón' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    // Mientras vuela: fila ocupada, sin foco robado todavía.
+    expect(input).toBeDisabled();
+    expect(focoSpy).not.toHaveBeenCalled();
+
+    resolverFetch({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ code: 'PATRON_INVALIDO' }),
+    });
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    await waitFor(() => expect(focoSpy).toHaveBeenCalled());
+  });
+
+  it('Confirmar patrón SIGUE disparando el POST con una REGEX inválida: la pre-validación es un hint, no un compuerta (ADR-024 — el motor RegExp del navegador no es el del servidor; guarda de regresión contra agregar `|| regexInvalida` al disabled del botón)', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<PatronFila categoriaId="cat-1" esDemo={false} />, {
+      wrapper: crearWrapper(),
+    });
+
+    await user.selectOptions(
+      screen.getByLabelText('Tipo de coincidencia'),
+      'REGEX',
+    );
+    await user.type(screen.getByLabelText('Patrón'), '(sin cerrar');
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Esa expresión regular podría no ser válida.',
+    );
+    const confirmar = screen.getByRole('button', { name: 'Confirmar patrón' });
+    expect(confirmar).toBeEnabled();
+
+    await user.click(confirmar);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledWith('/api/patrones', {
+      credentials: 'same-origin',
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        categoriaId: 'cat-1',
+        patron: '(sin cerrar',
+        matchType: 'REGEX',
+      }),
+    });
+  });
+
+  it('un bloqueo EXTERNO (bloqueado=true, p.ej. un diálogo de confirmación abierto en EditarCategoria) deshabilita Confirmar patrón igual que al resto de la fila (paridad WCTG-11)', () => {
+    render(<PatronFila categoriaId="cat-1" esDemo={false} bloqueado={true} />, {
+      wrapper: crearWrapper(),
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Confirmar patrón' }),
+    ).toBeDisabled();
   });
 });
