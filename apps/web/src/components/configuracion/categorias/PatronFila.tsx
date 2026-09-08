@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FocusEvent, KeyboardEvent } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCrearPatron } from '@/api/use-crear-patron';
 import { useActualizarPatron } from '@/api/use-actualizar-patron';
@@ -39,13 +39,29 @@ const OPCIONES_MATCH_TYPE = MATCH_TYPES.map((matchType) => ({
  *
  * - **A not-yet-created row** (`patron` prop absent, design.md §1/Q9a) does
  *   **not** commit on blur AT ALL — its first commit is an EXPLICIT confirm
- *   (Enter in `Patrón`, or picking a `matchType` once `Patrón` already has
- *   text — both are discrete, deliberate actions, unlike `blur`, which
- *   fires just as often when the user is merely leaving the field). This
- *   kills the entire "delete races an in-flight create" class structurally:
- *   a not-yet-created row can ALWAYS be discarded via `onDescartar` with
- *   **zero** network calls, because nothing ever auto-creates behind the
- *   user's back.
+ *   (the `Confirmar patrón` button, Enter in `Patrón`, or picking a
+ *   `matchType` once `Patrón` already has text — all discrete, deliberate
+ *   actions, unlike `blur`, which fires just as often when the user is
+ *   merely leaving the field). This kills the entire "delete races an
+ *   in-flight create" class structurally: a not-yet-created row can ALWAYS
+ *   be discarded via `onDescartar` with **zero** network calls, because
+ *   nothing ever auto-creates behind the user's back.
+ *
+ *   **`Confirmar patrón` (issue #600, 2026-09-08)**: the redesign above was
+ *   right to demand an explicit confirm, but it shipped only INVISIBLE ones
+ *   — a keystroke and a side effect of changing another field. A reporter
+ *   typed a pattern, pressed the `Guardar` of the identity form (which by
+ *   `PatronesSection`'s §1/Q3b DOM boundary never touches patterns), and
+ *   lost the row on the next reload with no request ever sent and no signal
+ *   given. An explicit gesture the user cannot see is not explicit. This
+ *   button gives that same commit a visible surface, next to the row's
+ *   delete icon and following its idiom (`CLASE_BOTON_ICONO` + `FOCUS_RING`
+ *   + `aria-label`); Enter and the `matchType` path stay as shortcuts. It
+ *   renders ONLY on a not-yet-created row — an existing row already commits
+ *   on blur, so a second trigger there would be redundant, not clearer.
+ *   It is `disabled` while `Patrón` is blank or whitespace-only, mirroring
+ *   `commit()`'s own blank guard: a control that silently does nothing when
+ *   pressed is precisely the defect being closed here.
  * - **An existing row** (`patron` id known) keeps commit-on-blur-or-Enter —
  *   delete is always well-defined here (there is always a server id). The
  *   remaining ambiguity — Tab-ing onto the delete button must still commit
@@ -94,9 +110,17 @@ const OPCIONES_MATCH_TYPE = MATCH_TYPES.map((matchType) => ({
  *
  * **Delete fires with no confirmation dialog** — a pattern touches no
  * persisted transaction (`CAT038-04` does not apply; a confirmation for a
- * reversible one-field edit is friction, not safety). Third and final usage
- * of `CLASE_BOTON_ICONO` (`estilos.ts`'s `dry` 3-strike rule, satisfied on
- * its first write).
+ * reversible one-field edit is friction, not safety). Both this row's icon
+ * buttons carry `CLASE_BOTON_ICONO` (`estilos.ts`, WCAG 2.2 AA SC 2.5.8).
+ *
+ * This sentence used to claim "third and final usage of `CLASE_BOTON_ICONO`".
+ * That counter had already rotted before this change — `BotonVolver`,
+ * `FilaRevision` and `NuevaCategoriaDesdeFilaForm` all adopted the constant
+ * afterwards — and the `Confirmar patrón` button below would only have moved
+ * a wrong number to a different wrong number. The `dry` 3-strike rule was
+ * satisfied when the constant was first extracted; re-pinning a running
+ * total in a file that cannot see its own call sites is what broke, so the
+ * count is gone rather than bumped (`rg CLASE_BOTON_ICONO` is the answer).
  *
  * Errors from any of the three mutations render `mensajeDeErrorCatalogo` in
  * a `role="alert"` — the same closed-table discipline as every other
@@ -397,9 +421,10 @@ export function PatronFila({
   }
 
   // Redesign (structural causes #1 and #2, see this component's docblock):
-  // a not-yet-created row's FIRST commit must be an EXPLICIT confirm
-  // (Enter, or picking `matchType` once `Patrón` already has text) — `blur`
-  // never commits it, full stop, regardless of where focus goes next. An
+  // a not-yet-created row's FIRST commit must be an EXPLICIT confirm (the
+  // `Confirmar patrón` button, Enter, or picking `matchType` once `Patrón`
+  // already has text) — `blur` never commits it, full stop, regardless of
+  // where focus goes next. An
   // EXISTING row keeps commit-on-blur, but must still distinguish a genuine
   // CLICK on the delete button (skip the commit — the row is about to be
   // discarded anyway) from a Tab landing on it (commit — Tab is not a
@@ -453,6 +478,34 @@ export function PatronFila({
 
   function alMouseDownBotonEliminar() {
     clicEliminarEnCursoRef.current = true;
+  }
+
+  function confirmarFilaNueva() {
+    // Reliability review (issue #600): this sets the focus-restoration
+    // intent to `true`, the same as `alPresionarTecla` (Enter) and the
+    // OPPOSITE of `alCambiarMatchType`. The three differ for a real reason,
+    // not by accident:
+    //
+    // - `alCambiarMatchType` resets it to `false` because focus legitimately
+    //   belongs to the `<select>` the user just operated — yanking it to
+    //   `Patrón` would steal it from a control they are still using.
+    // - This button and Enter both DESTROY the focus they were activated
+    //   from: `accionesBloqueadas` disables the button (and the input) the
+    //   instant the mutation starts, and a real browser blurs a focused
+    //   control to `<body>` synchronously when it is disabled (see this
+    //   component's docblock, "Focus restoration"). There is no focus left
+    //   to preserve — only a place to put it back.
+    //
+    // On the FAILURE path the row stays mounted and a `role="alert"` appears;
+    // `Patrón` is where the user has to go to fix the pattern, so that is
+    // where focus belongs. Resetting to `false` here (the first cut of this
+    // fix) left the VISIBLE affordance stranding focus on `<body>` while the
+    // invisible Enter shortcut restored it — backwards, given this button
+    // exists precisely to be the discoverable path. On the SUCCESS path the
+    // row unmounts via `onDescartar` and `inputPatronRef.current?.focus()`
+    // no-ops on the null ref, exactly as it already does for Enter.
+    restaurarFocoPatronRef.current = true;
+    commit();
   }
 
   function eliminarFila() {
@@ -536,6 +589,23 @@ export function PatronFila({
           ariaDescribedBy={describedBy}
         />
       </div>
+      {idCreado === undefined && (
+        <button
+          type="button"
+          disabled={accionesBloqueadas || valorParaEtiqueta === ''}
+          onClick={confirmarFilaNueva}
+          aria-label="Confirmar patrón"
+          className={cn(
+            CLASE_BOTON_ICONO,
+            FOCUS_RING,
+            'mt-1',
+            'text-muted-foreground transition-colors hover:text-primary focus-visible:text-primary',
+            'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-muted-foreground',
+          )}
+        >
+          <Check aria-hidden="true" className="size-[18px]" />
+        </button>
+      )}
       <button
         ref={botonEliminarRef}
         type="button"
