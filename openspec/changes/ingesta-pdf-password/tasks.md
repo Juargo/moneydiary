@@ -153,52 +153,52 @@ D-02 states the `never`-exhaustiveness guards in `aHttpError`/`aCommitHttpError`
 
 ## Phase 16 (Slice 4): Web — `ApiError` gains `code?` on the `'invalid'` tag
 
-- [ ] 16.1 RED: a `client.ts` unit test (or type-level test) asserting the `'invalid'` `ApiError` variant accepts an optional `code?: string`, mirroring the existing `'server'` variant's `code?: string` at `client.ts:49`.
-- [ ] 16.2 GREEN: widen the `'invalid'` member of `ApiError` (`client.ts:33-58`) to `{ tag: 'invalid'; message: string; code?: string }` — additive, no existing producer breaks.
+- [x] 16.1 RED: a `client.ts` unit test (or type-level test) asserting the `'invalid'` `ApiError` variant accepts an optional `code?: string`, mirroring the existing `'server'` variant's `code?: string` at `client.ts:49`. Landed as runtime tests (17.3) plus a `tsc --noEmit` RED confirmed via `TS2353` before the widening.
+- [x] 16.2 GREEN: widen the `'invalid'` member of `ApiError` (`client.ts:33-58`) to `{ tag: 'invalid'; message: string; code?: string }` — additive, no existing producer breaks.
 
 ## Phase 17 (Slice 4): Web — client functions gain optional `password`
 
 > Depends on Phase 12 (preview error channel) and Phase 13 (full `code` mapping) — do not start until both are merged.
 
-- [ ] 17.1 RED: `client.spec.ts` (or equivalent) — `previewIngesta(file, password)` appends `password` to the `FormData` **only when non-empty** (empty string indistinguishable from absent — backward compat); `previewIngesta(file)` (no 2nd arg) sends no `password` field at all (byte-identical to today).
-- [ ] 17.2 GREEN: `previewIngesta(file: File, password?: string)` (`client.ts:1101-1103`) — conditionally `formData.append('password', password)`.
-- [ ] 17.3 RED+GREEN: on the 400 branch of `previewIngesta` (`client.ts:1123-1147`), extract `body.code` (in addition to the existing `body.message` extraction) into the returned `ApiError`'s new `code` field.
-- [ ] 17.4 RED+GREEN: same two changes (optional `password` param + `code` extraction on 400) for `postCommitIngesta` (`client.ts:1252-1300`).
+- [x] 17.1 RED: `client.test.ts` — `previewIngesta(file, password)` appends `password` to the `FormData` **only when non-empty** (empty string indistinguishable from absent — backward compat); `previewIngesta(file)` (no 2nd arg) sends no `password` field at all (byte-identical to today). Confirmed RED (4 failures, right reason — feature didn't exist).
+- [x] 17.2 GREEN: `previewIngesta(file: File, password?: string)` (`client.ts:1101-1103`) — conditionally `formData.append('password', password)`.
+- [x] 17.3 RED+GREEN: on the 400 branch of `previewIngesta` (`client.ts:1123-1147`), extract `body.code` (in addition to the existing `body.message` extraction) into the returned `ApiError`'s new `code` field.
+- [x] 17.4 RED+GREEN: same two changes (optional `password` param + `code` extraction on 400) for `postCommitIngesta` (`client.ts:1252-1300`).
 
 ## Phase 18 (Slice 4): Web — retry policy stays fail-closed for the new error
 
-- [ ] 18.1 RED: `retry-policy.spec.ts` (or existing suite) — confirm `'invalid'` (the tag `PDF_PROTEGIDO`/`PDF_PASSWORD_INCORRECTA` responses use) remains in `TAGS_ERROR_PERMANENTE` — a protected-PDF 400 must never be auto-retried by TanStack Query; the user retries by typing a password, not by the retry machinery.
-- [ ] 18.2 No production code change expected here (this is a regression guard confirming `'invalid'`'s existing membership in `TAGS_ERROR_PERMANENTE`, `retry-policy.ts:16-19`, still holds after 16.2's widening) — if the test fails, that is itself the finding.
+- [x] 18.1 RED: `retry-policy.test.ts` (new file) — confirm `'invalid'` (the tag `PDF_PROTEGIDO`/`PDF_PASSWORD_INCORRECTA` responses use) remains in `TAGS_ERROR_PERMANENTE` — a protected-PDF 400 must never be auto-retried by TanStack Query; the user retries by typing a password, not by the retry machinery.
+- [x] 18.2 Confirmed: no production code change needed — the test passed immediately (regression guard held after 16.2's widening).
 
 ## Phase 19 (Slice 4): Web — hooks
 
-- [ ] 19.1 RED+GREEN: `usePreviewIngesta()` (`use-preview-ingesta.ts:22-32`) — change the mutation variable type from `File` to `{ file: File; password?: string }` and forward both to `previewIngesta(file, password)`.
-- [ ] 19.2 RED+GREEN: `useCommitIngesta()` (`use-commit-ingesta.ts:25-49`) — add `password?: string` to the mutation variables type and forward it to `postCommitIngesta(file, edits, password)`.
-- [ ] 19.3 Update every existing call site of `previewMutation.mutate(seleccionado)` (currently a bare `File`, `SubirCartola.tsx:484`) for the new `{ file, password }` shape — covered together with Phase 20 since the call sites live in the same component.
+- [x] 19.1 RED+GREEN: `usePreviewIngesta()` (`use-preview-ingesta.ts`) — mutation variable type changed from `File` to `{ file: File; password?: string }`, forwards both to `previewIngesta(file, password)`.
+- [x] 19.2 RED+GREEN: `useCommitIngesta()` (`use-commit-ingesta.ts`) — added `password?: string` to the mutation variables type, forwarded to `postCommitIngesta(file, edits, password)`.
+- [x] 19.3 Updated every existing call site of `previewMutation.mutate(seleccionado)` (was a bare `File`) for the new `{ file, password }` shape, including `handleCategoriaCreada`'s re-eval call and the 3 hook-level tests that called `mutate(archivoDePrueba())` directly.
 
 ## Phase 20 (Slice 4): Web — `SubirCartola` reactive state machine (D-10)
 
-- [ ] 20.1 RED: `SubirCartola.test.tsx` — no password `<input>` is rendered on initial mount (`idle` state) — PDF-10's first scenario.
-- [ ] 20.2 RED: submitting a locked PDF with no password, mocking `usePreviewIngesta` to reject with `{ tag: 'invalid', code: 'PDF_PROTEGIDO', message: '...' }`, transitions to a new `'preview-protegido'` state and reveals a password `<input type="password" autoComplete="off">`, **without** re-prompting the file picker — the previously-selected `File` object is still referenced.
-- [ ] 20.3 RED: typing a password and clicking "Reintentar" re-submits the SAME `archivo` (`File` reference) plus the typed password — assert the mock `previewMutation.mutate` was called with `{ file: <same object identity>, password: <typed value> }`.
-- [ ] 20.4 RED: a `PDF_PASSWORD_INCORRECTA` response (vs `PDF_PROTEGIDO`) is distinguishable in the rendered copy — the design keeps this as "a small separate state field, not a second machine state" (D-10), so assert on whatever field/prop carries the distinction, not on a new `EstadoSubida` member.
-- [ ] 20.5 RED: `MENSAJE_POR_ESTADO`'s `Record<EstadoSubida, string>` exhaustiveness — TypeScript itself enforces this (a missing key fails to compile), but add a test asserting the new state's message key is non-empty and distinct from `preview-error`'s.
-- [ ] 20.6 GREEN: add `'preview-protegido'` to `EstadoSubida` (`SubirCartola.tsx:62-69`) and its entry in `MENSAJE_POR_ESTADO` (`:77-88`).
-- [ ] 20.7 GREEN: add `const [password, setPassword] = useState('')` and a small state field for the requiere-vs-incorrecta distinction; clear both in the same 3 reset paths that already clear `edits`/`previewData` — `procesarArchivoSeleccionado` (`:443`), `handleDescartar` (`:668`), `handleSubirOtra` (`:711`).
-- [ ] 20.8 GREEN: wire the preview mutation's error handler to inspect `error.code` and transition to `'preview-protegido'` when it is `'PDF_PROTEGIDO'` or `'PDF_PASSWORD_INCORRECTA'` (vs the existing generic `'preview-error'` fallthrough for every other code).
-- [ ] 20.9 GREEN: render the password `<input type="password" autoComplete="off">` only in the `'preview-protegido'` state, outside any autofillable `<form>`, never with a server-echoed `defaultValue` (D-10's 3-reason rationale against browser storage/autofill).
-- [ ] 20.10 GREEN: wire "Reintentar" to call `previewMutation.mutate({ file: archivo, password })` reusing the retained `archivo` reference (no re-pick).
-- [ ] 20.11 GREEN: thread `password` through to the commit call site (`commitMutation.mutate({ file, edits, password })`) so a password typed at preview also works at commit without retyping (PDF-09's second scenario).
+- [x] 20.1 RED: `SubirCartola.test.tsx` — no password `<input>` is rendered on initial mount (`idle` state) — PDF-10's first scenario.
+- [x] 20.2 RED: submitting a locked PDF with no password, mocking `usePreviewIngesta` to reject with `{ tag: 'invalid', code: 'PDF_PROTEGIDO', message: '...' }`, transitions to a new `'preview-protegido'` state and reveals a password `<input type="password" autoComplete="off">`, **without** re-prompting the file picker — the previously-selected `File` object is still referenced (asserted via the retained selected-file readout).
+- [x] 20.3 RED: typing a password and clicking "Reintentar" re-submits the SAME `archivo` (`File` reference) plus the typed password — asserted `previewMutation.mutate` was called with `{ file: <same object identity>, password: <typed value> }`.
+- [x] 20.4 RED: a `PDF_PASSWORD_INCORRECTA` response (vs `PDF_PROTEGIDO`) is distinguishable in the rendered copy — implemented as `motivoPassword`, a value DERIVED from `previewMutation.error.code` (not a `useState`), since TanStack Query already resets `.error` on every new `mutate()` call — one less piece of state to manually clear, same "small field, not a second machine state" intent as D-10.
+- [x] 20.5 RED: `MENSAJE_POR_ESTADO`'s `Record<EstadoSubida, string>` exhaustiveness — TypeScript enforces this at compile time (confirmed by the type error before 20.6's GREEN); a runtime test also asserts the rendered status text for `preview-protegido` differs from `preview-error`'s.
+- [x] 20.6 GREEN: added `'preview-protegido'` to `EstadoSubida` and its entry in `MENSAJE_POR_ESTADO`.
+- [x] 20.7 GREEN: added `const [password, setPassword] = useState('')`; the requiere-vs-incorrecta distinction is the DERIVED `motivoPassword` from 20.4 (no second `useState` needed — see that entry). `password` is cleared in the same 3 reset paths that already clear `edits`/`previewData` — `procesarArchivoSeleccionado`, `handleDescartar`, `handleSubirOtra`.
+- [x] 20.8 GREEN: `estado`'s derivation now branches to `'preview-protegido'` when `previewMutation.isError && motivoPassword !== null` (i.e. `error.code` is `'PDF_PROTEGIDO'` or `'PDF_PASSWORD_INCORRECTA'`), falling through to the existing generic `'preview-error'` branch for every other code.
+- [x] 20.9 GREEN: rendered the password field via the existing `CampoTexto` primitive (`type="password" autoComplete="off"`, real `<label>`, `aria-describedby` pointing at the role="alert" message) only in the `'preview-protegido'` state, inside a `<section>` (not a `<form>`), never with a server-echoed value.
+- [x] 20.10 GREEN: "Reintentar" calls `handleReintentarPassword`, which calls `previewMutation.mutate({ file: archivo, password })` reusing the retained `archivo` reference (no re-pick).
+- [x] 20.11 GREEN: `password` is threaded through to the commit call site (`commitMutation.mutate({ file: archivo, edits, password }, ...)`) so a password typed at preview also works at commit without retyping (PDF-09's second scenario) — also threaded through the `handleCategoriaCreada` preview re-eval call, since a re-run of a previously-unlocked PDF must re-supply the same password (the design's slice list didn't call this out explicitly, but it follows directly from D-06's "backend re-parses every call" invariant).
 
 ## Phase 21 (Slice 4): Never-leak constraint at the browser boundary (D-07 layer 4, PDF-07/PDF-10)
 
-- [ ] 21.1 RED: a test that types a password into the revealed prompt at every reachable point in the flow (preview-protegido, retry, post-commit-success reset) and asserts `localStorage`/`sessionStorage` never contain the value — spy on `Storage.prototype.setItem` or inspect both stores directly after each transition.
-- [ ] 21.2 RED: confirm the existing `guardarBorrador`/draft-recovery mechanism (`SubirCartola.tsx:424-432`, `borrador-revision.ts`) does **not** serialize `password` into the draft object — the draft payload only carries `archivo`/`preview`/`edits`/`ahora`; add an explicit assertion (not just an omission) that a saved draft's JSON never contains the password string.
-- [ ] 21.3 No new production code expected for 21.1/21.2 if Phase 20 was implemented per D-10 (React state only) — these are regression guards; if either fails, that is the finding to fix before merging.
+- [x] 21.1 RED: a test types a password into the revealed prompt and clicks "Reintentar", then asserts `Storage.prototype.setItem` was never called with a value containing the password AND that `JSON.stringify({...sessionStorage})` never contains it. (`localStorage` itself is `undefined` in this project's jsdom test environment — the shared-prototype spy still covers it; a `localStorage`-specific assertion was dropped after confirming this via `TypeError: Cannot read properties of undefined`.)
+- [x] 21.2 RED: confirms the existing `guardarBorrador`/draft-recovery mechanism does **not** serialize `password` into the draft object — types a password, lets preview succeed (the draft-write effect only fires on a successful preview), then asserts the raw `sessionStorage.getItem('md:borrador-revision:v1')` string never contains the typed password.
+- [x] 21.3 Confirmed: no new production code was needed beyond Phase 20's React-state-only implementation — both regression guards passed once 20.7-20.11 landed correctly (D-10 held).
 
 ## Phase 22 (Slice 4): Verification
 
-- [ ] 22.1 `pnpm web test`, `pnpm web typecheck`, `pnpm web lint` — all green.
-- [ ] 22.2 `pnpm api test`, `pnpm api exec tsc --noEmit` — still green (no backend regression from the full chain).
-- [ ] 22.3 Manual smoke check against the Phase 2 fixture through the actual dev server (`pnpm web dev` + `pnpm api dev` or equivalent) — upload locked PDF → prompt appears → correct password → preview → commit succeeds, exactly once, no re-pick.
-- [ ] 22.4 Re-confirm the proposal's Success Criteria checklist item by item before calling the change done.
+- [x] 22.1 `pnpm web test` (141 files / 1791 tests, all green), `pnpm web typecheck` (clean), `pnpm --filter @moneydiary/web lint` (clean after `--fix` for prettier formatting) — all green.
+- [x] 22.2 `pnpm api test` (268 files / 2547 tests, unchanged from Slice 3's baseline — this slice touched zero `apps/api` files), `pnpm api exec tsc --noEmit` (clean) — no backend regression.
+- [ ] 22.3 **NOT performed** — manual smoke check against a running dev server requires interactive browser access this session did not have. Flagged as a risk/follow-up: a human (or a future Playwright/E2E pass) should upload the Phase 2 fixture (`apps/api/test/fixtures/pdf/protegida-test.pdf`, password `PASSWORD_FIXTURE`) through `pnpm web dev` + `pnpm api dev` before merging to `main`, confirming the prompt appears, the correct password unlocks preview → commit exactly once, and no re-pick is required.
+- [x] 22.4 Re-confirmed the proposal's Success Criteria checklist item by item — all 7 items hold: (1) locked PDF → protected error, never `PdfInvalidoError` (Slice 1/3); (2) correct password completes preview AND commit, typed once (Slice 2/4); (3) wrong password → no `Ingesta` row (Slice 2 D-09 carve-out); (4) password never in log/error/response/DB/browser storage (D-07 layers 1-4, this slice's 21.1/21.2); (5) unlocked PDF and `.xlsx` paths unchanged (baselines preserved: api 268/2547, web 141/1791, both only additive); (6) no password field until API reports protected (20.1); (7) `pnpm api test`/`pnpm web test`/`tsc --noEmit` all green (`openapi.json` drift-check unchanged since this slice touched no backend/contract files — last verified clean in Slice 3).
