@@ -72,10 +72,60 @@ describe('usePreviewIngesta', () => {
 
     expect(result.current.status).toBe('idle');
 
-    result.current.mutate(archivoDePrueba());
+    result.current.mutate({ file: archivoDePrueba() });
 
     await waitFor(() => expect(result.current.status).toBe('success'));
     expect(result.current.data).toEqual(validDto);
+  });
+
+  // ingesta-pdf-password Slice 4 (Phase 19.1, design.md D-10): mutation
+  // variables widen from a bare `File` to `{ file, password? }` — this
+  // forwards `password` to `previewIngesta` exactly like the client-level
+  // Phase 17 tests already cover, just one layer up.
+  it('ingesta-pdf-password 19.1: reenvía password a previewIngesta cuando se provee', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(validDto),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { result } = renderHook(() => usePreviewIngesta(), {
+      wrapper: crearWrapper(queryClient),
+    });
+
+    result.current.mutate({ file: archivoDePrueba(), password: 'clave' });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.body as FormData).get('password')).toBe('clave');
+  });
+
+  it('ingesta-pdf-password 19.1: no envía password cuando se omite (byte-identical a hoy, PDF-09)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(validDto),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { result } = renderHook(() => usePreviewIngesta(), {
+      wrapper: crearWrapper(queryClient),
+    });
+
+    result.current.mutate({ file: archivoDePrueba() });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.body as FormData).has('password')).toBe(false);
   });
 
   it('expone el ApiError tipado cuando falla, no un throw crudo (mismo patrón que useIngesta)', async () => {
@@ -91,7 +141,7 @@ describe('usePreviewIngesta', () => {
       wrapper: crearWrapper(queryClient),
     });
 
-    result.current.mutate(archivoDePrueba());
+    result.current.mutate({ file: archivoDePrueba() });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error).toEqual({
@@ -121,7 +171,7 @@ describe('usePreviewIngesta', () => {
       wrapper: crearWrapper(queryClient),
     });
 
-    result.current.mutate(archivoDePrueba());
+    result.current.mutate({ file: archivoDePrueba() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 

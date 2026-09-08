@@ -18,11 +18,20 @@ import type { PreviewIngestaDtoConCanonicos } from './types';
  * `useIngesta`, which invalidates 3 caches on success) — preview persists
  * nothing server-side (PREV-02), so there is nothing to invalidate. This
  * absence is the hook-level echo of CA-04 (design.md D10).
+ *
+ * ingesta-pdf-password Slice 4 (Phase 19.1, design.md D-10): mutation
+ * variables widen from a bare `File` to `{ file: File; password?: string }`
+ * — `password` forwards straight to `previewIngesta`, which only puts it on
+ * the wire when non-empty (PDF-09 byte-identical guarantee).
  */
 export function usePreviewIngesta() {
-  return useMutation<PreviewIngestaDtoConCanonicos, ApiError, File>({
-    mutationFn: async (file) => {
-      const result = await previewIngesta(file);
+  return useMutation<
+    PreviewIngestaDtoConCanonicos,
+    ApiError,
+    { file: File; password?: string }
+  >({
+    mutationFn: async ({ file, password }) => {
+      const result = await previewIngesta(file, password);
       if (!result.ok) {
         throw result.error;
       }
