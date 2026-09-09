@@ -176,19 +176,20 @@ function detalleBucketFixture(bucket: string) {
  * `GET /api/buckets/:bucket/detalle` (US-051 MBD-01..08, consumido por
  * US-053 T-20) — a literal `DetalleBucketMesDto` instance
  * (`src/api/types.ts`) for `bucket-detalle-mes.e2e.ts`: bucket `Deseos`
- * echoing the requested segment, 2 groups — Paseos with 4 transactions
- * (exercises the WDM-03 `ver 1 más…` slice) and "Sin categoría" with 2
- * (`categoriaId: null`, so the WDM-04 `destacar` highlight has a target) —
- * and non-null `porcentajeBp`/`metaBp` so the WDM-01 header renders its
- * %/meta tag and usage bar. The route handler echoes the requested
+ * echoing the requested segment, 2 groups — Paseos with 12 transactions
+ * (above `FILAS_VISIBLES_POR_DEFECTO`, so it exercises the WDM-03
+ * `ver 2 más…` slice) and "Sin categoría" with 2 (below it, so it renders
+ * no toggle at all; `categoriaId: null`, so the WDM-04 `destacar` highlight
+ * has a target) — and non-null `porcentajeBp`/`metaBp` so the WDM-01 header
+ * renders its %/meta tag and usage bar. The route handler echoes the requested
  * `bucket`/`periodo` and zeroes `porcentajeBp`/`metaBp` for
  * `/buckets/SinCategoria` (MBD-03/WDM-04).
  */
 const DETALLE_BUCKET_MES_FIXTURE = {
   periodo: '2026-07',
   bucket: 'Deseos',
-  total: '250000',
-  totalTransacciones: 6,
+  total: '650000',
+  totalTransacciones: 14,
   totalCategorias: 2,
   porcentajeBp: 2500,
   metaBp: 3000,
@@ -196,8 +197,8 @@ const DETALLE_BUCKET_MES_FIXTURE = {
     {
       categoriaId: 'cat-paseos',
       nombre: 'Paseos',
-      subtotal: '200000',
-      conteo: 4,
+      subtotal: '600000',
+      conteo: 12,
       transacciones: [
         {
           id: 'tx-p1',
@@ -221,6 +222,54 @@ const DETALLE_BUCKET_MES_FIXTURE = {
           id: 'tx-p4',
           fecha: '2026-07-15T00:00:00.000Z',
           descripcion: 'Taxi',
+          monto: '50000',
+        },
+        {
+          id: 'tx-p5',
+          fecha: '2026-07-09T00:00:00.000Z',
+          descripcion: 'Paseo 5',
+          monto: '50000',
+        },
+        {
+          id: 'tx-p6',
+          fecha: '2026-07-10T00:00:00.000Z',
+          descripcion: 'Paseo 6',
+          monto: '50000',
+        },
+        {
+          id: 'tx-p7',
+          fecha: '2026-07-11T00:00:00.000Z',
+          descripcion: 'Paseo 7',
+          monto: '50000',
+        },
+        {
+          id: 'tx-p8',
+          fecha: '2026-07-12T00:00:00.000Z',
+          descripcion: 'Paseo 8',
+          monto: '50000',
+        },
+        {
+          id: 'tx-p9',
+          fecha: '2026-07-13T00:00:00.000Z',
+          descripcion: 'Paseo 9',
+          monto: '50000',
+        },
+        {
+          id: 'tx-p10',
+          fecha: '2026-07-14T00:00:00.000Z',
+          descripcion: 'Paseo 10',
+          monto: '50000',
+        },
+        {
+          id: 'tx-p11',
+          fecha: '2026-07-15T00:00:00.000Z',
+          descripcion: 'Paseo 11',
+          monto: '50000',
+        },
+        {
+          id: 'tx-p12',
+          fecha: '2026-07-16T00:00:00.000Z',
+          descripcion: 'Paseo 12',
           monto: '50000',
         },
       ],
@@ -354,12 +403,13 @@ const INGRESOS_MES_FIXTURE = {
 // from its original group on the next refetch (T-08 row-disappearance assert).
 const DETALLE_BUCKET_MES_FIXTURE_SIN_TX_P1 = {
   ...DETALLE_BUCKET_MES_FIXTURE,
-  totalTransacciones: 5,
+  totalTransacciones: 13,
+  total: '600000',
   grupos: [
     {
       ...DETALLE_BUCKET_MES_FIXTURE.grupos[0],
-      conteo: 3,
-      subtotal: '150000',
+      conteo: 11,
+      subtotal: '550000',
       transacciones:
         DETALLE_BUCKET_MES_FIXTURE.grupos[0].transacciones.slice(1),
     },

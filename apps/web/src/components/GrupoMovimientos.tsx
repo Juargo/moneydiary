@@ -6,6 +6,16 @@ import { usePendingIds } from '@/lib/undo-manager';
 import type { GrupoDetalleMesViewModel } from '@/domain/detalle-bucket-mes-view-model';
 
 /**
+ * How many rows a group shows before the "ver N más…" toggle appears. Raised
+ * from 3 to 10 (2026-09-09): three rows made the toggle the RULE rather than
+ * the exception — almost every category in a real month has more than three
+ * movements, so the page opened as a wall of truncated groups and reading a
+ * month meant clicking every one of them open. Ten rows shows the typical
+ * category whole and keeps the toggle for the genuinely long ones.
+ */
+export const FILAS_VISIBLES_POR_DEFECTO = 10;
+
+/**
  * GrupoMovimientos — one grouped-category section of the bucket detail page
  * (US-053, T-09): the group's heading ("nombre · subtotal · conteo"), its
  * rows, and per-row reclassify controls. Pure presentational — receives the
@@ -21,7 +31,7 @@ import type { GrupoDetalleMesViewModel } from '@/domain/detalle-bucket-mes-view-
  * slice is a render-time decision, the hidden rows are NOT in the DOM at
  * all, not merely CSS-hidden). The toggle wires `aria-expanded` +
  * `aria-controls` to its own list (unique id via `useId`, since groups
- * render in a `map`). Groups with ≤3 rows render no toggle.
+ * render in a `map`). Groups with ≤10 rows render no toggle.
  *
  * Delete affordance (SDD `correccion-movimientos-manuales` PR 3, WEB-DEL-01,
  * D-03): `EliminarMovimientoControl` renders only for rows with
@@ -48,8 +58,6 @@ import type { GrupoDetalleMesViewModel } from '@/domain/detalle-bucket-mes-view-
  * are untouched — those are computed server-side and recompute only after
  * the real DELETE commits (ADR-024).
  */
-export const FILAS_VISIBLES_POR_DEFECTO = 3;
-
 export function GrupoMovimientos({
   grupo,
   destacar,
