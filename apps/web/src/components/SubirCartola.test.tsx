@@ -348,7 +348,7 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
     );
 
     expect(previewMutate).toHaveBeenCalledTimes(1);
-    expect(previewMutate).toHaveBeenCalledWith(archivo);
+    expect(previewMutate).toHaveBeenCalledWith({ file: archivo });
   });
 
   // ── Detail pass: real drop zone (drag & drop) ─────────────────────────────
@@ -373,7 +373,7 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
       fireEvent.drop(zona, { dataTransfer: { files: [archivo] } });
 
       expect(previewMutate).toHaveBeenCalledTimes(1);
-      expect(previewMutate).toHaveBeenCalledWith(archivo);
+      expect(previewMutate).toHaveBeenCalledWith({ file: archivo });
     });
 
     it('drop while the picker is gated (e.g. during committing) does nothing', () => {
@@ -1212,7 +1212,7 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
 
     expect(previewReset).toHaveBeenCalledTimes(1);
     expect(commitReset).toHaveBeenCalledTimes(1);
-    expect(previewMutate).toHaveBeenCalledWith(nuevoArchivo);
+    expect(previewMutate).toHaveBeenCalledWith({ file: nuevoArchivo });
   });
 
   it('D-11: discard from commit error state resets edits and navigates /', () => {
@@ -2383,7 +2383,7 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
         mismoArchivo,
       );
 
-      expect(previewMutate).toHaveBeenCalledWith(mismoArchivo);
+      expect(previewMutate).toHaveBeenCalledWith({ file: mismoArchivo });
 
       // Flip to preview-listo with the same rows, as the mocked preview mutation would.
       mockedUsePreviewIngesta.mockReturnValue(
@@ -2443,7 +2443,7 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
         otroArchivo,
       );
 
-      expect(previewMutate).toHaveBeenCalledWith(otroArchivo);
+      expect(previewMutate).toHaveBeenCalledWith({ file: otroArchivo });
       expect(
         screen.queryByText(/revisión sin terminar/i),
       ).not.toBeInTheDocument();
@@ -2748,7 +2748,10 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
       // called" to "called with the same File". The row-adoption assertion
       // below is what this test has always been about and is unchanged.
       expect(previewMutate).toHaveBeenCalledTimes(1);
-      expect(previewMutate.mock.calls[0][0]).toBe(archivo);
+      expect(previewMutate.mock.calls[0][0]).toEqual({
+        file: archivo,
+        password: '',
+      });
 
       fireEvent.click(
         screen.getByRole('button', { name: /agregar transacciones/i }),
@@ -2912,7 +2915,10 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
           resumenInicial: { totalFilas: 1, duplicadosDetectados: 0, nuevas: 1 },
         });
 
-      expect(previewMutate).toHaveBeenCalledWith(archivo, expect.anything());
+      expect(previewMutate).toHaveBeenCalledWith(
+        { file: archivo, password: '' },
+        expect.anything(),
+      );
 
       // The re-run is now pending — F-9: previewMutation.data clears while
       // pending, so this is the honest shape of an in-flight re-run.
@@ -3465,6 +3471,354 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
         ).toBeInTheDocument();
         // Exactly one live region on the page: the shared announcer.
         expect(screen.getAllByRole('status')).toHaveLength(1);
+      });
+    });
+  });
+
+  // ── ingesta-pdf-password Slice 4 (Phase 20/21, design.md D-10) ───────────
+  // Reactive password prompt: no field by default, revealed only after the
+  // API reports a protected PDF, retry reuses the SAME File, password never
+  // touches browser storage.
+  describe('ingesta-pdf-password Slice 4: reactive password prompt (D-10)', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('20.1: no renderiza un campo de contraseña en el estado idle inicial', () => {
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({}),
+      );
+      mockedUseCommitIngesta.mockReturnValue(unaMutacion({}));
+      mockedUseCategorias.mockReturnValue(
+        unaConsulta({ data: unCatalogoDto() }),
+      );
+
+      render(<SubirCartola />);
+
+      expect(
+        screen.queryByLabelText(/contraseña del pdf/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it('20.2: un 400 PDF_PROTEGIDO revela el campo password (type="password") sin re-pedir el archivo', async () => {
+      const previewMutate = vi.fn();
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({ mutate: previewMutate }),
+      );
+      mockedUseCommitIngesta.mockReturnValue(unaMutacion({}));
+      mockedUseCategorias.mockReturnValue(
+        unaConsulta({ data: unCatalogoDto() }),
+      );
+
+      const { rerender } = render(<SubirCartola />);
+
+      const archivo = unArchivo('cartola-protegida.pdf', 1024);
+      await userEvent.upload(
+        screen.getByLabelText(/selecciona un archivo/i),
+        archivo,
+      );
+
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({
+          isError: true,
+          status: 'error',
+          error: {
+            tag: 'invalid',
+            message: 'El archivo PDF requiere una contraseña.',
+            code: 'PDF_PROTEGIDO',
+          } as ApiError,
+          mutate: previewMutate,
+        }),
+      );
+      rerender(<SubirCartola />);
+
+      const campoPassword = screen.getByLabelText(/contraseña del pdf/i);
+      expect(campoPassword).toBeInTheDocument();
+      expect(campoPassword).toHaveAttribute('type', 'password');
+      expect(campoPassword).toHaveAttribute('autocomplete', 'off');
+      // The selected-file readout still shows the SAME file — no re-pick.
+      expect(screen.getByText('cartola-protegida.pdf')).toBeInTheDocument();
+    });
+
+    it('20.3: escribir la contraseña y presionar "Reintentar" reenvía el MISMO File más la contraseña', async () => {
+      const previewMutate = vi.fn();
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({ mutate: previewMutate }),
+      );
+      mockedUseCommitIngesta.mockReturnValue(unaMutacion({}));
+      mockedUseCategorias.mockReturnValue(
+        unaConsulta({ data: unCatalogoDto() }),
+      );
+
+      const { rerender } = render(<SubirCartola />);
+
+      const archivo = unArchivo('cartola-protegida.pdf', 1024);
+      await userEvent.upload(
+        screen.getByLabelText(/selecciona un archivo/i),
+        archivo,
+      );
+
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({
+          isError: true,
+          status: 'error',
+          error: {
+            tag: 'invalid',
+            message: 'El archivo PDF requiere una contraseña.',
+            code: 'PDF_PROTEGIDO',
+          } as ApiError,
+          mutate: previewMutate,
+        }),
+      );
+      rerender(<SubirCartola />);
+
+      await userEvent.type(
+        screen.getByLabelText(/contraseña del pdf/i),
+        'clave-correcta',
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /reintentar/i }),
+      );
+
+      // Called twice total: the original pick + the retry. The retry is the
+      // LAST call and must carry the SAME File object identity.
+      const ultimaLlamada =
+        previewMutate.mock.calls[previewMutate.mock.calls.length - 1];
+      expect(ultimaLlamada[0]).toEqual({
+        file: archivo,
+        password: 'clave-correcta',
+      });
+    });
+
+    it('20.4: distingue "requiere contraseña" de "contraseña incorrecta" en la copy renderizada', async () => {
+      const previewMutate = vi.fn();
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({
+          isError: true,
+          status: 'error',
+          error: {
+            tag: 'invalid',
+            message: 'x',
+            code: 'PDF_PASSWORD_INCORRECTA',
+          } as ApiError,
+          mutate: previewMutate,
+        }),
+      );
+      mockedUseCommitIngesta.mockReturnValue(unaMutacion({}));
+      mockedUseCategorias.mockReturnValue(
+        unaConsulta({ data: unCatalogoDto() }),
+      );
+
+      render(<SubirCartola />);
+
+      expect(screen.getByText(/incorrecta/i)).toBeInTheDocument();
+      // The specific "first prompt" copy (not the generic status-line text,
+      // which also says "requiere una contraseña" for BOTH sub-cases —
+      // targeting the exact sentence avoids that false-positive collision).
+      expect(
+        screen.queryByText(
+          'Este archivo PDF requiere una contraseña para poder leerlo.',
+        ),
+      ).not.toBeInTheDocument();
+    });
+
+    it('20.5: el mensaje de estado de preview-protegido es distinto del de preview-error', async () => {
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({
+          isError: true,
+          status: 'error',
+          error: {
+            tag: 'invalid',
+            message: 'x',
+            code: 'PDF_PROTEGIDO',
+          } as ApiError,
+        }),
+      );
+      mockedUseCommitIngesta.mockReturnValue(unaMutacion({}));
+      mockedUseCategorias.mockReturnValue(
+        unaConsulta({ data: unCatalogoDto() }),
+      );
+
+      render(<SubirCartola />);
+
+      const region = screen.getByRole('status', {
+        name: /estado de la subida/i,
+      });
+      expect(region.textContent).not.toBe(
+        'No se pudo generar la vista previa.',
+      );
+      expect(region.textContent?.length).toBeGreaterThan(0);
+    });
+
+    it('20.11: el commit reenvía la contraseña ya tipeada (PDF-09, no hay que retipearla)', async () => {
+      const previewMutate = vi.fn();
+      const commitMutate = vi.fn();
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({ mutate: previewMutate }),
+      );
+      mockedUseCommitIngesta.mockReturnValue(
+        unaMutacion({ mutate: commitMutate }),
+      );
+      mockedUseCategorias.mockReturnValue(
+        unaConsulta({ data: unCatalogoDto() }),
+      );
+
+      const { rerender } = render(<SubirCartola />);
+
+      const archivo = unArchivo('cartola-protegida.pdf', 1024);
+      await userEvent.upload(
+        screen.getByLabelText(/selecciona un archivo/i),
+        archivo,
+      );
+
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({
+          isError: true,
+          status: 'error',
+          error: {
+            tag: 'invalid',
+            message: 'x',
+            code: 'PDF_PROTEGIDO',
+          } as ApiError,
+          mutate: previewMutate,
+        }),
+      );
+      rerender(<SubirCartola />);
+
+      await userEvent.type(
+        screen.getByLabelText(/contraseña del pdf/i),
+        'clave-correcta',
+      );
+
+      // Retry succeeds — flip to preview-listo with a valid preview.
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({
+          isSuccess: true,
+          status: 'success',
+          data: validPreviewDto,
+          mutate: previewMutate,
+        }),
+      );
+      rerender(<SubirCartola />);
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /agregar transacciones/i }),
+      );
+
+      expect(commitMutate).toHaveBeenCalledTimes(1);
+      const [vars] = commitMutate.mock.calls[0] as [
+        { file: File; password?: string },
+        unknown,
+      ];
+      expect(vars.password).toBe('clave-correcta');
+    });
+
+    // ── Phase 21: never-leak at the browser boundary ────────────────────
+    it('21.1: la contraseña tipeada nunca llega a localStorage ni sessionStorage', async () => {
+      const setItemLocal = vi.spyOn(Storage.prototype, 'setItem');
+      const previewMutate = vi.fn();
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({ mutate: previewMutate }),
+      );
+      mockedUseCommitIngesta.mockReturnValue(unaMutacion({}));
+      mockedUseCategorias.mockReturnValue(
+        unaConsulta({ data: unCatalogoDto() }),
+      );
+
+      const { rerender } = render(<SubirCartola />);
+
+      const archivo = unArchivo('cartola-protegida.pdf', 1024);
+      await userEvent.upload(
+        screen.getByLabelText(/selecciona un archivo/i),
+        archivo,
+      );
+
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({
+          isError: true,
+          status: 'error',
+          error: {
+            tag: 'invalid',
+            message: 'x',
+            code: 'PDF_PROTEGIDO',
+          } as ApiError,
+          mutate: previewMutate,
+        }),
+      );
+      rerender(<SubirCartola />);
+
+      await userEvent.type(
+        screen.getByLabelText(/contraseña del pdf/i),
+        'clave-nunca-debe-persistir',
+      );
+      await userEvent.click(
+        screen.getByRole('button', { name: /reintentar/i }),
+      );
+
+      // `Storage.prototype.setItem` is shared by BOTH `localStorage` and
+      // `sessionStorage` — spying on the prototype catches a leak to
+      // either store in one assertion, regardless of which one jsdom
+      // actually exposes in this environment.
+      for (const llamada of setItemLocal.mock.calls) {
+        expect(String(llamada[1])).not.toContain('clave-nunca-debe-persistir');
+      }
+      const todoElSessionStorage = JSON.stringify({ ...sessionStorage });
+      expect(todoElSessionStorage).not.toContain('clave-nunca-debe-persistir');
+
+      setItemLocal.mockRestore();
+    });
+
+    it('21.2: el borrador de sessionStorage nunca serializa la contraseña, incluso con una preview exitosa después de desbloquear', async () => {
+      const previewMutate = vi.fn();
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({ mutate: previewMutate }),
+      );
+      mockedUseCommitIngesta.mockReturnValue(unaMutacion({}));
+      mockedUseCategorias.mockReturnValue(
+        unaConsulta({ data: unCatalogoDto() }),
+      );
+
+      const { rerender } = render(<SubirCartola />);
+
+      const archivo = unArchivo('cartola-protegida.pdf', 1024);
+      await userEvent.upload(
+        screen.getByLabelText(/selecciona un archivo/i),
+        archivo,
+      );
+
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({
+          isError: true,
+          status: 'error',
+          error: {
+            tag: 'invalid',
+            message: 'x',
+            code: 'PDF_PROTEGIDO',
+          } as ApiError,
+          mutate: previewMutate,
+        }),
+      );
+      rerender(<SubirCartola />);
+
+      await userEvent.type(
+        screen.getByLabelText(/contraseña del pdf/i),
+        'clave-secreta-del-borrador',
+      );
+
+      mockedUsePreviewIngesta.mockReturnValue(
+        unaMutacion<PreviewIngestaDto>({
+          isSuccess: true,
+          status: 'success',
+          data: validPreviewDto,
+          mutate: previewMutate,
+        }),
+      );
+      rerender(<SubirCartola />);
+
+      await waitFor(() => {
+        const crudo = sessionStorage.getItem('md:borrador-revision:v1');
+        expect(crudo).not.toBeNull();
+        expect(crudo).not.toContain('clave-secreta-del-borrador');
       });
     });
   });

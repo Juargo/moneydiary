@@ -939,6 +939,8 @@ export interface paths {
                          * @description Bank statement file (.xlsx or .pdf). Extension/bank-format validation is a domain rule (ExtensionNoPermitidaError / BancoNoReconocidoError), not this schema.
                          */
                         readonly file: string;
+                        /** @description Optional password to unlock an encrypted PDF statement (design.md D-08). Absent or empty ⇒ file is treated as unprotected (byte-identical to pre-change behavior). */
+                        readonly password?: string;
                     };
                 };
             };
@@ -1009,6 +1011,8 @@ export interface paths {
                          * @description Bank statement file (.xlsx or .pdf). Extension/bank-format validation is a domain rule (ExtensionNoPermitidaError / BancoNoReconocidoError), not this schema.
                          */
                         readonly file: string;
+                        /** @description Optional password to unlock an encrypted PDF statement (design.md D-08). Absent or empty ⇒ file is treated as unprotected (byte-identical to pre-change behavior). */
+                        readonly password?: string;
                     };
                 };
             };

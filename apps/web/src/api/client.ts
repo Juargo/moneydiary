@@ -32,7 +32,17 @@ import { esFechaValida } from '../domain/fecha';
  * `Result<T,E>` que el backend (design.md B.3).
  */
 export type ApiError =
-  | { tag: 'invalid'; message: string } // 400 — período inválido
+  | {
+      tag: 'invalid';
+      message: string;
+      // `code` (ingesta-pdf-password Slice 4, design.md D-10): mirrors the
+      // `'server'` variant's `code?` below — the preview/commit 400 body
+      // carries `code: 'PDF_PROTEGIDO' | 'PDF_PASSWORD_INCORRECTA'`
+      // (D-03) so the reactive UI can branch on it instead of parsing
+      // `message`. Optional and unused by every other `'invalid'` producer
+      // in this file, so this is additive, not a breaking widen.
+      code?: string;
+    } // 400 — período inválido
   | { tag: 'unauthorized'; message: string } // 401 — sin acceso
   | { tag: 'network'; message: string } // fetch rechazado (offline, DNS…)
   | { tag: 'parse'; message: string } // 2xx pero el body no tiene la forma esperada
@@ -1184,9 +1194,17 @@ function esPreviewIngestaDto(
  */
 export async function previewIngesta(
   file: File,
+  password?: string,
 ): Promise<ApiResult<PreviewIngestaDtoConCanonicos>> {
   const formData = new FormData();
   formData.append('file', file);
+  // ingesta-pdf-password Slice 4 (D-08/D-10): appended ONLY when non-empty —
+  // an empty string is indistinguishable from "absent" on the wire, so an
+  // unprotected-file upload (the 90% case, no password typed) stays
+  // byte-identical to pre-change behavior (PDF-09).
+  if (password) {
+    formData.append('password', password);
+  }
 
   let res: Response;
   try {
@@ -1218,6 +1236,11 @@ export async function previewIngesta(
       };
     }
     const mensaje = (body as { message?: unknown } | null)?.message;
+    // ingesta-pdf-password Slice 4 (D-03/D-10): `code` rides the same
+    // channel the perfil endpoints already established for 'server' above
+    // — `PDF_PROTEGIDO`/`PDF_PASSWORD_INCORRECTA` when the backend sends
+    // them, `undefined` for every other 400 (existing consumers untouched).
+    const code = (body as { code?: unknown } | null)?.code;
     return {
       ok: false,
       error: {
@@ -1226,6 +1249,7 @@ export async function previewIngesta(
           typeof mensaje === 'string'
             ? mensaje
             : 'El archivo no se pudo procesar. Intenta nuevamente.',
+        code: typeof code === 'string' ? code : undefined,
       },
     };
   }
@@ -1336,10 +1360,17 @@ function esCommitIngestaDto(value: unknown): value is CommitIngestaDto {
 export async function postCommitIngesta(
   file: File,
   edits: ReadonlyArray<{ rowIndex: number; categoriaId: string | null }>,
+  password?: string,
 ): Promise<ApiResult<CommitIngestaDto>> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('edits', JSON.stringify(edits));
+  // ingesta-pdf-password Slice 4 (D-08/D-10): same non-empty-only rule as
+  // previewIngesta — commit re-parses the PDF server-side, so the same
+  // password typed at preview must be forwarded again here (PDF-09).
+  if (password) {
+    formData.append('password', password);
+  }
 
   let res: Response;
   try {
@@ -1371,6 +1402,9 @@ export async function postCommitIngesta(
       };
     }
     const mensaje = (body as { message?: unknown } | null)?.message;
+    // ingesta-pdf-password Slice 4 (D-03/D-10) — same code extraction as
+    // previewIngesta's 400 branch.
+    const code = (body as { code?: unknown } | null)?.code;
     return {
       ok: false,
       error: {
@@ -1379,6 +1413,7 @@ export async function postCommitIngesta(
           typeof mensaje === 'string'
             ? mensaje
             : 'El archivo no se pudo procesar. Intenta nuevamente.',
+        code: typeof code === 'string' ? code : undefined,
       },
     };
   }
