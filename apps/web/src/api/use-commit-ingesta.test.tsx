@@ -168,4 +168,58 @@ describe('useCommitIngesta', () => {
     expect(body.get('file')).toBeInstanceOf(File);
     expect(body.get('edits')).toBe(JSON.stringify(edits));
   });
+
+  // ingesta-pdf-password Slice 4 (Phase 19.2, design.md D-10): mutation
+  // variables gain an optional `password`, forwarded to `postCommitIngesta`
+  // exactly like `edits` already is — commit re-parses the PDF server-side,
+  // so a password typed at preview must be re-sent here (PDF-09).
+  it('ingesta-pdf-password 19.2: reenvía password a postCommitIngesta cuando se provee', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve(validCommitDto),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { result } = renderHook(() => useCommitIngesta(), {
+      wrapper: crearWrapper(queryClient),
+    });
+
+    result.current.mutate({
+      file: archivoDePrueba(),
+      edits: [],
+      password: 'clave',
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.body as FormData).get('password')).toBe('clave');
+  });
+
+  it('ingesta-pdf-password 19.2: no envía password cuando se omite (byte-identical a hoy, PDF-09)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve(validCommitDto),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { result } = renderHook(() => useCommitIngesta(), {
+      wrapper: crearWrapper(queryClient),
+    });
+
+    result.current.mutate({ file: archivoDePrueba(), edits: [] });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.body as FormData).has('password')).toBe(false);
+  });
 });

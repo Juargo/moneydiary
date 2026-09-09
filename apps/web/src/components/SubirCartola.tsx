@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { InlineConfirm } from './ui/inline-confirm';
+import { CampoTexto } from './configuracion/CampoTexto';
 import { DemoUploadNudge } from './DemoUploadNudge';
 import { PreviewMuestra } from './PreviewMuestra';
 import { SemaforoBadge } from './SemaforoBadge';
@@ -64,6 +65,12 @@ type EstadoSubida =
   | 'previsualizando'
   | 'preview-listo'
   | 'preview-error'
+  // ingesta-pdf-password Slice 4 (design.md D-10): a distinct member, not a
+  // sub-branch of `preview-error` — `MENSAJE_POR_ESTADO` below is
+  // deliberately type-exhaustive, so adding this member FORCES its own
+  // copy. The requiere-vs-incorrecta distinction stays a small derived
+  // value (`motivoPassword` below), not a second machine state.
+  | 'preview-protegido'
   | 'committing'
   | 'exito'
   | 'error';
@@ -82,6 +89,7 @@ const MENSAJE_POR_ESTADO: Record<EstadoSubida, string> = {
   // filas y confirma para importar"), so the status stays a status.
   'preview-listo': 'Vista previa lista.',
   'preview-error': 'No se pudo generar la vista previa.',
+  'preview-protegido': 'Se requiere una contraseña para continuar.',
   committing: 'Subiendo transacciones…',
   exito: 'Importación completada.',
   error: 'No se pudo completar la importación.',
@@ -189,6 +197,15 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
 
   const [archivo, setArchivo] = useState<File | null>(null);
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null);
+  // ingesta-pdf-password Slice 4 (design.md D-10): ephemeral React state
+  // ONLY — never localStorage/sessionStorage (a leaked password is a
+  // credential for a third party, the bank, and blast radius exceeds this
+  // app). Cleared in the SAME three reset paths that already clear
+  // `edits`/`previewData` below. Defaults to `''`, which the client (D-08)
+  // treats as "absent" on the wire — so every call site can pass it
+  // unconditionally without an unprotected upload ever behaving differently.
+  const [password, setPassword] = useState('');
+  const passwordInputRef = useRef<HTMLInputElement>(null);
   // D-03: edits overlay — Map keyed by rowIndex; value is categoriaId|null.
   // Presence = "user touched this row"; absence = auto-classify server-side.
   const [edits, setEdits] = useState<Map<number, string | null>>(new Map());
@@ -293,6 +310,23 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
   // while a genuine first-time preview-listo transition still focuses it.
   const reevaluandoRef = useRef(false);
 
+  // ingesta-pdf-password Slice 4 (design.md D-10): derived from
+  // `previewMutation.error.code` — the D-03 wire channel — rather than a
+  // second `useState`. TanStack Query resets `.error` to `null` the moment
+  // a new `mutate()` call starts, so this stays in sync with `estado` below
+  // for free (no manual reset path needed, unlike `password` itself, which
+  // must survive across the retry).
+  const codigoErrorPreview =
+    previewMutation.error?.tag === 'invalid'
+      ? previewMutation.error.code
+      : undefined;
+  const motivoPassword: 'requiere-password' | 'password-incorrecta' | null =
+    codigoErrorPreview === 'PDF_PROTEGIDO'
+      ? 'requiere-password'
+      : codigoErrorPreview === 'PDF_PASSWORD_INCORRECTA'
+        ? 'password-incorrecta'
+        : null;
+
   // Derived estado — mirrors the original pattern; `committing` replaces `subiendo`.
   const estado: EstadoSubida = commitMutation.isSuccess
     ? 'exito'
@@ -304,9 +338,11 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
           ? 'preview-listo'
           : previewMutation.isPending
             ? 'previsualizando'
-            : previewMutation.isError || errorValidacion
-              ? 'preview-error'
-              : 'idle';
+            : previewMutation.isError && motivoPassword !== null
+              ? 'preview-protegido'
+              : previewMutation.isError || errorValidacion
+                ? 'preview-error'
+                : 'idle';
 
   // D-11: `error` REMOVED from pickerGateado so the picker re-enables after a
   // commit error; `subiendo` renamed to `committing` (two simultaneous changes).
@@ -333,7 +369,8 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
   const pasoActivo =
     estado === 'idle' ||
     estado === 'previsualizando' ||
-    estado === 'preview-error'
+    estado === 'preview-error' ||
+    estado === 'preview-protegido'
       ? 0
       : estado === 'committing' || estado === 'exito'
         ? 2
@@ -399,6 +436,11 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
       }
     } else if (estado === 'exito') {
       exitoRef.current?.focus();
+    } else if (estado === 'preview-protegido') {
+      // ingesta-pdf-password Slice 4 (D-10): focus goes straight to the
+      // password input — the same "foco IN → the field the user must fill"
+      // idiom as `ConfirmarPasswordDialog`, not the heading.
+      passwordInputRef.current?.focus();
     }
   }, [estado]);
 
@@ -452,6 +494,12 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
     // announcement must not linger past it.
     setMensajeOverride(null);
     reevaluandoRef.current = false;
+    // ingesta-pdf-password Slice 4 (D-10): a fresh pick is a brand new
+    // attempt — any password typed for a PREVIOUS file must not leak into
+    // this one's first preview call (below, `mutate({ file: seleccionado })`
+    // never reads this state — it's cleared here precisely so there's
+    // nothing stale to accidentally read).
+    setPassword('');
 
     if (!seleccionado) {
       setArchivo(null);
@@ -481,7 +529,18 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
 
     setArchivo(seleccionado);
     setErrorValidacion(null);
-    previewMutation.mutate(seleccionado);
+    // ingesta-pdf-password Slice 4 (D-10): a fresh pick never carries a
+    // password — the reactive flow only learns one is needed AFTER this
+    // call fails with `PDF_PROTEGIDO`.
+    previewMutation.mutate({ file: seleccionado });
+  }
+
+  // ingesta-pdf-password Slice 4 (D-10): "Reintentar" reuses the SAME
+  // retained `archivo` — the whole point of the reactive design is that the
+  // user never re-picks the file, just types the password and retries.
+  function handleReintentarPassword() {
+    if (!archivo) return;
+    previewMutation.mutate({ file: archivo, password });
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -552,45 +611,52 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
     reevaluandoRef.current = true;
     setMensajeOverride('Actualizando la vista previa con la nueva categoría…');
 
-    previewMutation.mutate(archivo, {
-      onSuccess: (nuevo) => {
-        if (!previewDataAnterior) return;
-        // D-12: `anterior` maps rowIndex -> the PREVIOUS sugerido categoría
-        // (or null) — a Map keyed by rowIndex, never array position (rows
-        // can be filtered/reordered by neither preview run, D-07, but the
-        // rule is enforced here regardless of that guarantee).
-        const anterior = new Map(
-          previewDataAnterior.filas.map((f) => [
-            f.rowIndex,
-            f.sugerido?.categoriaId ?? null,
-          ]),
-        );
-        let filasCambiadas = 0;
-        for (const filaNueva of nuevo.filas) {
-          if (filaNueva.esDuplicado) continue;
-          // Rows with an edit (the originating row OR any prior manual
-          // override) never surface a `sugerido` change to the user — their
-          // displayed value already comes from `edits`, not `sugerido`.
-          if (editsDespues.has(filaNueva.rowIndex)) continue;
-          const categoriaAnterior = anterior.get(filaNueva.rowIndex) ?? null;
-          const categoriaNueva = filaNueva.sugerido?.categoriaId ?? null;
-          if (categoriaAnterior !== categoriaNueva) filasCambiadas++;
-        }
-        setMensajeOverride(
-          filasCambiadas > 1
-            ? `«${categoria.nombre}» se aplicó a ${filasCambiadas} filas más.`
-            : filasCambiadas === 1
-              ? `«${categoria.nombre}» se aplicó a 1 fila más.`
-              : `«${categoria.nombre}» se creó. Ninguna otra fila coincide con sus patrones.`,
-        );
+    // ingesta-pdf-password Slice 4 (D-10, PDF-09): this re-run only reaches
+    // `preview-listo` (a successful preview), so if the file ever needed a
+    // password, `password` state already holds the one that worked — must
+    // be re-sent, the backend re-parses the PDF from scratch every call.
+    previewMutation.mutate(
+      { file: archivo, password },
+      {
+        onSuccess: (nuevo) => {
+          if (!previewDataAnterior) return;
+          // D-12: `anterior` maps rowIndex -> the PREVIOUS sugerido categoría
+          // (or null) — a Map keyed by rowIndex, never array position (rows
+          // can be filtered/reordered by neither preview run, D-07, but the
+          // rule is enforced here regardless of that guarantee).
+          const anterior = new Map(
+            previewDataAnterior.filas.map((f) => [
+              f.rowIndex,
+              f.sugerido?.categoriaId ?? null,
+            ]),
+          );
+          let filasCambiadas = 0;
+          for (const filaNueva of nuevo.filas) {
+            if (filaNueva.esDuplicado) continue;
+            // Rows with an edit (the originating row OR any prior manual
+            // override) never surface a `sugerido` change to the user — their
+            // displayed value already comes from `edits`, not `sugerido`.
+            if (editsDespues.has(filaNueva.rowIndex)) continue;
+            const categoriaAnterior = anterior.get(filaNueva.rowIndex) ?? null;
+            const categoriaNueva = filaNueva.sugerido?.categoriaId ?? null;
+            if (categoriaAnterior !== categoriaNueva) filasCambiadas++;
+          }
+          setMensajeOverride(
+            filasCambiadas > 1
+              ? `«${categoria.nombre}» se aplicó a ${filasCambiadas} filas más.`
+              : filasCambiadas === 1
+                ? `«${categoria.nombre}» se aplicó a 1 fila más.`
+                : `«${categoria.nombre}» se creó. Ninguna otra fila coincide con sus patrones.`,
+          );
+        },
+        onError: () => {
+          // D-13: falls back to the plain `MENSAJE_POR_ESTADO['preview-error']`
+          // line — the honest, specific explanation lives in the separate
+          // inline notice below (rendered only while `previewData !== null`).
+          setMensajeOverride(null);
+        },
       },
-      onError: () => {
-        // D-13: falls back to the plain `MENSAJE_POR_ESTADO['preview-error']`
-        // line — the honest, specific explanation lives in the separate
-        // inline notice below (rendered only while `previewData !== null`).
-        setMensajeOverride(null);
-      },
-    });
+    );
   }
 
   // Peak-end landing: commit success no longer auto-navigates (supersedes
@@ -622,6 +688,11 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
           rowIndex,
           categoriaId,
         })),
+        // ingesta-pdf-password Slice 4 (D-10, PDF-09): commit re-parses the
+        // PDF server-side — if a password was ever needed and typed, it
+        // must be re-sent here too. `''` when never needed (client omits
+        // it), so this is a no-op for every unprotected upload.
+        password,
       },
       {
         onSuccess: () => {
@@ -674,6 +745,7 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
     setMensajeOverride(null);
     reevaluandoRef.current = false;
     isSubmittingRef.current = false;
+    setPassword('');
     previewMutation.reset();
     commitMutation.reset();
     borrarBorrador();
@@ -716,6 +788,7 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
     setMensajeOverride(null);
     reevaluandoRef.current = false;
     isSubmittingRef.current = false;
+    setPassword('');
     previewMutation.reset();
     commitMutation.reset();
     borrarBorrador();
@@ -985,7 +1058,9 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
             className="size-4 shrink-0 text-semaforo-verde-foreground"
           />
         )}
-        {(estado === 'preview-error' || estado === 'error') && (
+        {(estado === 'preview-error' ||
+          estado === 'error' ||
+          estado === 'preview-protegido') && (
           <CircleAlert
             aria-hidden="true"
             className="size-4 shrink-0 text-destructive"
@@ -1002,7 +1077,9 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
           `error` (commit failure) branch is UNCHANGED — D-11 already
           guarantees `previewData` is non-null whenever a commit is even
           possible, so this always renders for a commit error exactly as
-          before. */}
+          before. `preview-protegido` NEVER reaches this block — it's a
+          disjoint branch of `estado`'s own derivation above, so it gets its
+          own dedicated block below instead. */}
       {((estado === 'preview-error' && previewData === null) ||
         estado === 'error') &&
         mensajeError && (
@@ -1015,6 +1092,61 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
             {mensajeError}
           </p>
         )}
+
+      {/* ingesta-pdf-password Slice 4 (design.md D-10): the reactive
+          password prompt. NO field is rendered by default — this whole
+          block only mounts once `estado` is `preview-protegido`, which only
+          happens after a 400 with `code: 'PDF_PROTEGIDO' |
+          'PDF_PASSWORD_INCORRECTA'` (the 90% of unprotected uploads never
+          see this). `motivoPassword` (derived above) carries the
+          requiere-vs-incorrecta distinction as plain copy, not a second
+          machine state (D-10). Saturated left rail (`border-l-destructive`,
+          `ConfirmarPasswordDialog`'s `border-l-primary` idiom) — this
+          project's pale palette can't separate surfaces with a fill tint
+          alone. The `<input>` (via `CampoTexto`, `type="password"
+          autoComplete="off"`) is NOT wrapped in a `<form>` and never reads a
+          server-echoed value — `password` only ever came from what the user
+          just typed. */}
+      {estado === 'preview-protegido' && (
+        <section
+          aria-labelledby="password-pdf-heading"
+          className="flex flex-col gap-3 rounded-lg border border-border border-l-4 border-l-destructive bg-card p-4"
+        >
+          <h2
+            id="password-pdf-heading"
+            className="text-sm font-semibold text-foreground"
+          >
+            Contraseña requerida
+          </h2>
+          <p
+            id="password-pdf-error"
+            role="alert"
+            className="text-sm text-destructive"
+          >
+            {motivoPassword === 'password-incorrecta'
+              ? 'La contraseña ingresada es incorrecta. Intenta de nuevo.'
+              : 'Este archivo PDF requiere una contraseña para poder leerlo.'}
+          </p>
+          <CampoTexto
+            ref={passwordInputRef}
+            label="Contraseña del PDF"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="off"
+            ariaDescribedBy="password-pdf-error"
+          />
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              onClick={handleReintentarPassword}
+              disabled={!password}
+            >
+              Reintentar
+            </Button>
+          </div>
+        </section>
+      )}
 
       {/* Detail pass: preview skeleton — purely visual, aria-hidden; the
           `role="status"` line above already announces "Generando vista

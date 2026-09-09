@@ -1691,6 +1691,87 @@ describe('previewIngesta', () => {
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error.tag).toBe('parse');
   });
+
+  // Slice 4 (Phase 17, design.md D-10/D-08): password threading + code
+  // extraction. `previewIngesta(file)` with no 2nd arg must stay
+  // byte-identical to today (PDF-09) — no `password` field on the wire.
+  it('ingesta-pdf-password 17.1: no envía el campo password en el FormData cuando se omite el argumento', async () => {
+    const fetchMock = mockFetchOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(validPreviewDto),
+    });
+
+    await previewIngesta(archivoDePrueba());
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.body as FormData).has('password')).toBe(false);
+  });
+
+  it('ingesta-pdf-password 17.1: no envía el campo password cuando el string está vacío (backward-compat)', async () => {
+    const fetchMock = mockFetchOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(validPreviewDto),
+    });
+
+    await previewIngesta(archivoDePrueba(), '');
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.body as FormData).has('password')).toBe(false);
+  });
+
+  it('ingesta-pdf-password 17.2: agrega el campo password al FormData cuando se provee un valor no vacío', async () => {
+    const fetchMock = mockFetchOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(validPreviewDto),
+    });
+
+    await previewIngesta(archivoDePrueba(), 'clave-secreta');
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.body as FormData).get('password')).toBe('clave-secreta');
+  });
+
+  it('ingesta-pdf-password 17.3: un 400 con code PDF_PROTEGIDO expone code en el ApiError', async () => {
+    mockFetchOnce({
+      ok: false,
+      status: 400,
+      json: () =>
+        Promise.resolve({
+          message: 'El archivo PDF requiere una contraseña.',
+          code: 'PDF_PROTEGIDO',
+        }),
+    });
+
+    const result = await previewIngesta(archivoDePrueba(), undefined);
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toEqual({
+      tag: 'invalid',
+      message: 'El archivo PDF requiere una contraseña.',
+      code: 'PDF_PROTEGIDO',
+    });
+  });
+
+  it('ingesta-pdf-password 17.3: un 400 sin code deja code undefined en el ApiError (no rompe consumidores existentes)', async () => {
+    mockFetchOnce({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ message: 'Banco no reconocido.' }),
+    });
+
+    const result = await previewIngesta(archivoDePrueba());
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error.tag).toBe('invalid');
+    expect(
+      !result.ok && result.error.tag === 'invalid'
+        ? result.error.code
+        : 'wrong-tag',
+    ).toBeUndefined();
+  });
 });
 
 const validCommitIngestaDto = {
@@ -1833,6 +1914,55 @@ describe('postCommitIngesta', () => {
 
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error.tag).toBe('parse');
+  });
+
+  // Slice 4 (Phase 17, design.md D-10/D-08) — same password/code threading
+  // as previewIngesta above, mirrored for the commit endpoint.
+  it('ingesta-pdf-password 17.4: no envía el campo password cuando se omite o está vacío', async () => {
+    const fetchMock = mockFetchOnce({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve(validCommitIngestaDto),
+    });
+
+    await postCommitIngesta(archivoDePrueba(), [], '');
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.body as FormData).has('password')).toBe(false);
+  });
+
+  it('ingesta-pdf-password 17.4: agrega el campo password cuando se provee un valor no vacío', async () => {
+    const fetchMock = mockFetchOnce({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve(validCommitIngestaDto),
+    });
+
+    await postCommitIngesta(archivoDePrueba(), [], 'clave-secreta');
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.body as FormData).get('password')).toBe('clave-secreta');
+  });
+
+  it('ingesta-pdf-password 17.4: un 400 con code PDF_PASSWORD_INCORRECTA expone code en el ApiError', async () => {
+    mockFetchOnce({
+      ok: false,
+      status: 400,
+      json: () =>
+        Promise.resolve({
+          message: 'La contraseña ingresada es incorrecta.',
+          code: 'PDF_PASSWORD_INCORRECTA',
+        }),
+    });
+
+    const result = await postCommitIngesta(archivoDePrueba(), [], 'clave-mala');
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toEqual({
+      tag: 'invalid',
+      message: 'La contraseña ingresada es incorrecta.',
+      code: 'PDF_PASSWORD_INCORRECTA',
+    });
   });
 });
 
