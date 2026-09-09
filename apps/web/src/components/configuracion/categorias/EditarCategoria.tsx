@@ -406,16 +406,13 @@ function EditarCategoriaCargada({
       // `commit()` silently no-opped — the confirm would be dropped in
       // exactly the one path this test suite (`EditarCategoria.test.tsx`,
       // "camino del diálogo de cambio de bucket") exists to pin. The bump
-      // is deferred to whenever THIS dialog actually CLOSES instead — either
-      // path, confirm or cancel/Escape (`confirmarCambioBucket`/
-      // `cerrarDialogo` below) — because closing always moves `dialogo`
-      // back to `null` in the SAME render where the bump can be batched
-      // alongside it, so `bloqueado` is already lifting by the time
-      // `PatronFila`'s effect runs. Cancelling this dialog only cancels the
-      // identity's bucket change — a pattern the user typed and already
-      // clicked `Guardar` for is not undone by it (WCTG-04's independence,
-      // the same reasoning that already keeps the footer's `Cancelar` from
-      // touching patterns).
+      // is deferred to the dialog's CONFIRM path instead
+      // (`confirmarCambioBucket`'s `onSuccess`), because closing moves
+      // `dialogo` back to `null` in the SAME render where the bump can be
+      // batched alongside it, so `bloqueado` is already lifting by the time
+      // `PatronFila`'s effect runs. Cancelling/Escaping does NOT confirm the
+      // pattern (amended 2026-09-09) — see `cerrarDialogo` below for why
+      // dismissing must abort everything, not just the bucket change.
       setDialogo('cambiar-bucket');
       return;
     }
@@ -453,8 +450,9 @@ function EditarCategoriaCargada({
           // failed identity `PATCH` does NOT reach this `onSuccess`, so a
           // failed bucket-change confirm leaves the pattern unconfirmed —
           // the dialog stays open with its own `error`, `dialogo` never
-          // returns to `null`, and the user can retry or Escape; Escape
-          // then confirms the pattern via `cerrarDialogo` below.
+          // returns to `null`, and the user can retry or dismiss. Dismissing
+          // confirms nothing (amended 2026-09-09, see `cerrarDialogo`); the
+          // typed pattern survives in the row for another commit surface.
           setIntentoGuardarPatrones((n) => n + 1);
         },
       },
@@ -471,18 +469,21 @@ function EditarCategoriaCargada({
 
   function cerrarDialogo() {
     const abriaEliminar = dialogo === 'eliminar';
-    const abriaCambiarBucket = dialogo === 'cambiar-bucket';
+    // Issue #600 follow-up, amended 2026-09-09: cancelling ABORTS EVERYTHING.
+    // An earlier cut of this fix bumped `intentoGuardarPatrones` here too, so
+    // dismissing the bucket-change dialog still confirmed the pending
+    // pattern — defensible under WCTG-04's independence (the footer's own
+    // `Cancelar` scopes to the identity draft and leaves patterns alone),
+    // but it contradicts what the user just SAID by dismissing: they pressed
+    // `Guardar`, the screen asked, and they answered no. A `Cancelar` that
+    // writes to the server anyway is the same class of surprise this fix
+    // exists to close, with the sign flipped. Only the CONFIRM path
+    // (`confirmarCambioBucket`'s `onSuccess`) bumps the counter now.
+    //
+    // The typed text is NOT lost — it stays in the row's local state, and
+    // the user can still confirm it with Enter, `Confirmar patrón`, or
+    // another `Guardar`. Cancelling discards the COMMIT, not the draft.
     setDialogo(null);
-    if (abriaCambiarBucket) {
-      // Issue #600 follow-up — see `guardarIdentidad`'s comment on
-      // `setDialogo('cambiar-bucket')` above. Only THIS dialog owes a
-      // deferred confirm: the `eliminar` dialog is never reached through
-      // `guardarIdentidad` (it opens from the footer's own `Eliminar
-      // categoría` button), so it never bumped this counter in the first
-      // place and closing it must not invent a confirm that was never
-      // promised.
-      setIntentoGuardarPatrones((n) => n + 1);
-    }
     (abriaEliminar ? eliminarRef : guardarRef).current?.focus();
   }
 

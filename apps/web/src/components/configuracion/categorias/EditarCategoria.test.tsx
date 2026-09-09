@@ -1945,7 +1945,20 @@ describe('EditarCategoria — Guardar confirma patrones nuevos pendientes (issue
     );
   });
 
-  it('camino del diálogo de cambio de bucket — Escape cancela la identidad pero IGUAL confirma el patrón pendiente (independencia WCTG-04: cancelar el cambio de bucket no deshace un patrón que el usuario ya confirmó con Guardar)', async () => {
+  /**
+   * Decisión del usuario (2026-09-09): cancelar ABORTA TODO. El criterio
+   * anterior — cancelar el diálogo cancela solo el cambio de bucket, y el
+   * patrón queda confirmado igual — era defendible por la independencia de
+   * WCTG-04, pero contradice lo que el usuario acaba de expresar al
+   * cancelar: apretó `Guardar`, la pantalla le preguntó, y dijo que no. Un
+   * `Cancelar` que igual escribe algo en el servidor es la misma clase de
+   * sorpresa que este fix existe para cerrar, con el signo invertido.
+   *
+   * `Cancelar`/`Escape` del diálogo de bucket NO confirma el patrón: el
+   * texto queda en la fila, sin request, y el usuario puede confirmarlo
+   * después con Enter, con `Confirmar patrón`, o con otro `Guardar`.
+   */
+  it('camino del diálogo de cambio de bucket — Escape cancela la identidad Y TAMBIÉN el patrón pendiente: ningún request sale', async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn((url: string, opciones?: RequestInit) =>
       opciones?.method === 'POST' && url === '/api/patrones'
@@ -1972,17 +1985,23 @@ describe('EditarCategoria — Guardar confirma patrones nuevos pendientes (issue
 
     await user.keyboard('{Escape}');
 
+    // El diálogo se cerró: si algún request iba a salir, ya salió.
     await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/patrones',
-        expect.objectContaining({ method: 'POST' }),
-      ),
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
     );
-    const patches = fetchMock.mock.calls.filter(
-      ([, opciones]) =>
-        (opciones as RequestInit | undefined)?.method === 'PATCH',
-    );
-    expect(patches).toHaveLength(0);
+
+    // Ni el patrón (POST) ni la identidad (PATCH): cancelar aborta todo.
+    const escrituras = fetchMock.mock.calls.filter(([, opciones]) => {
+      const metodo = (opciones as RequestInit | undefined)?.method;
+      return metodo === 'POST' || metodo === 'PATCH';
+    });
+    expect(escrituras).toHaveLength(0);
+
+    // El texto NO se pierde: sigue en la fila, listo para confirmarse por
+    // otra vía. Cancelar descarta el COMMIT, no lo que el usuario escribió.
+    expect(
+      (screen.getAllByLabelText('Patrón').at(-1) as HTMLInputElement).value,
+    ).toBe('uber');
   });
 
   it('sesión demo: Guardar sigue sin poder tocar patrones — "Agregar patrón" está deshabilitado (WCTG-11), así que nunca existe una fila nueva que Guardar pueda confirmar', async () => {
