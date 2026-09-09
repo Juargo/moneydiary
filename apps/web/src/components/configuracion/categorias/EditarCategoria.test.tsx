@@ -360,7 +360,7 @@ describe('EditarCategoria — identity form (Q3b mechanism 1)', () => {
     expect(form).toHaveClass('grid', 'grid-cols-1', 'md:grid-cols-[1fr_220px]');
   });
 
-  it('un envío limpio (solo Nombre cambia, Bucket intacto) emite EXACTAMENTE una mutación — PATCH a /api/categorias/cat-1, nunca a /api/patrones', async () => {
+  it('un envío limpio SIN patrones pendientes (solo Nombre cambia, Bucket intacto) emite EXACTAMENTE una mutación — PATCH a /api/categorias/cat-1, y no toca /api/patrones porque no hay ninguna fila nueva que confirmar', async () => {
     // El refetch de fondo de ['categorias'] que dispara la invalidación del
     // perfil B tras el éxito también pasa por `fetch` (un GET, sin `method`
     // en las opciones) — se filtra por presencia de `method` para aislar
@@ -369,6 +369,19 @@ describe('EditarCategoria — identity form (Q3b mechanism 1)', () => {
     // /api/patrones se filtra, no que la red entera sea un único request.
     // El GET de ese refetch recibe un body válido (no solo `{ok:true}`) para
     // que no degrade a `tag: 'parse'` y dispare un update fuera de `act`.
+    //
+    // Título/comentario reescritos (issue #600 follow-up, 2026-09-09): esta
+    // misma aserción usaba la frase "nunca a /api/patrones" como si fuera
+    // una propiedad de `Guardar` en general — dejó de serlo A PROPÓSITO.
+    // `Guardar` ahora TAMBIÉN confirma cualquier fila de patrón nueva con
+    // texto pendiente (`EditarCategoria`'s `intentoGuardarPatrones`), así
+    // que "no toca /api/patrones" ya no es universal: es específico de ESTE
+    // escenario, que no tiene ninguna fila nueva (`categoria.patrones` está
+    // vacío y este test nunca hace clic en "Agregar patrón"). El contrato
+    // nuevo — Guardar SÍ dispara un POST a /api/patrones cuando SÍ hay una
+    // fila pendiente — vive en su propia suite,
+    // "EditarCategoria — Guardar confirma patrones nuevos pendientes
+    // (issue #600 follow-up)", más abajo.
     const fetchMock = vi.fn((_url: string, opciones?: RequestInit) =>
       opciones?.method === 'PATCH'
         ? Promise.resolve({ ok: true, status: 200 })
@@ -1760,5 +1773,224 @@ describe('EditarCategoria — PatronesSection wiring (task 42, Q3b DOM boundary)
     await waitFor(() =>
       expect(screen.getByLabelText('Patrón')).toHaveValue('uber'),
     );
+  });
+});
+
+/**
+ * Issue #600 follow-up (2026-09-09) — `Confirmar patrón` (PR #601) gave the
+ * not-yet-created row's explicit confirm a VISIBLE surface, but the reporter
+ * came back having pressed `Guardar`, which is what "save this screen"
+ * promises. `Guardar` now bumps `intentoGuardarPatrones` (this component's
+ * doc comment) UNCONDITIONALLY on every reachable click, which
+ * `PatronesSection` relays to each not-yet-created row as
+ * `confirmarAlGuardar` — see `PatronFila.test.tsx`'s own
+ * `confirmarAlGuardar` describe block for the unit-level guarantees (blank
+ * guard, demo, focus). This suite only pins the INTEGRATION-level contract:
+ * what actually goes out over the wire from a real `Guardar` click.
+ */
+describe('EditarCategoria — Guardar confirma patrones nuevos pendientes (issue #600 follow-up)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('escribir un patrón nuevo y apretar Guardar dispara EXACTAMENTE un POST /api/patrones Y el PATCH de identidad — el patrón deja de perderse en silencio', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn((url: string, opciones?: RequestInit) => {
+      if (opciones?.method === 'POST' && url === '/api/patrones') {
+        return Promise.resolve({ ok: true, status: 201 });
+      }
+      if (opciones?.method === 'PATCH') {
+        return Promise.resolve({ ok: true, status: 200 });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ categorias: [CATEGORIA_SUPERMERCADO] }),
+      });
+    });
+    renderEditar({ me: ME_NO_DEMO, categorias: CATALOGO });
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Agregar patrón' }),
+    );
+    const nuevoInput = screen.getAllByLabelText('Patrón').at(-1) as HTMLElement;
+    // El patrón se deja PENDIENTE a propósito — ni Enter ni "Confirmar
+    // patrón": el punto de este escenario es que `Guardar`, por sí solo, sea
+    // la superficie que lo confirma.
+    await user.type(nuevoInput, 'uber');
+    vi.stubGlobal('fetch', fetchMock);
+
+    fireEvent.submit(
+      document.getElementById('form-identidad') as HTMLFormElement,
+    );
+
+    await waitFor(() => {
+      const mutaciones = fetchMock.mock.calls
+        .filter(([, opciones]) => (opciones as RequestInit | undefined)?.method)
+        .map(
+          ([url, opciones]) =>
+            `${(opciones as RequestInit | undefined)?.method} ${url}`,
+        );
+      expect(mutaciones.sort()).toEqual(
+        ['PATCH /api/categorias/cat-1', 'POST /api/patrones'].sort(),
+      );
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/api/patrones', {
+      credentials: 'same-origin',
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        categoriaId: 'cat-1',
+        patron: 'uber',
+        matchType: 'CONTAINS',
+      }),
+    });
+  });
+
+  it('agregar una fila de patrón y dejarla EN BLANCO: Guardar emite el PATCH de identidad, pero CERO POST a /api/patrones — el guard de valor vacío de PatronFila se mantiene aunque el disparador sea Guardar', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    renderEditar({ me: ME_NO_DEMO, categorias: CATALOGO });
+
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Agregar patrón' }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    fireEvent.submit(
+      document.getElementById('form-identidad') as HTMLFormElement,
+    );
+
+    await waitFor(() => {
+      const patches = fetchMock.mock.calls.filter(
+        ([, opciones]) =>
+          (opciones as RequestInit | undefined)?.method === 'PATCH',
+      );
+      expect(patches).toHaveLength(1);
+    });
+    const posts = fetchMock.mock.calls.filter(
+      ([, opciones]) =>
+        (opciones as RequestInit | undefined)?.method === 'POST',
+    );
+    expect(posts).toHaveLength(0);
+  });
+
+  /**
+   * Camino del diálogo de cambio de bucket — decisión de diseño explícita
+   * (issue #600 follow-up, ver el comentario de `setDialogo('cambiar-bucket')`
+   * en `EditarCategoria.tsx`): el patrón pendiente NO se confirma en el
+   * click original a `Guardar` cuando ESE click abre el diálogo — se
+   * confirma cuando el diálogo se CIERRA (por cualquiera de las dos vías,
+   * ver el test siguiente para Escape). Confirmarlo en el click original
+   * chocaría con `bloqueado={dialogo !== null}`: React agrupa el
+   * `setDialogo('cambiar-bucket')` y el bump del contador en el MISMO
+   * render, así que `PatronFila` vería el cambio de `confirmarAlGuardar` Y
+   * `bloqueado` pasando a `true` a la vez, y `accionesBloqueadas` seguiría
+   * leyendo `true` cuando corre el efecto — el POST se perdería en
+   * silencio, exactamente la clase de bug que este fix existe para cerrar.
+   * Mientras el diálogo sigue abierto, la fila de patrón se mantiene
+   * protegida como el resto de la pantalla (paridad con Nombre/Bucket).
+   */
+  it('camino del diálogo de cambio de bucket — CONFIRMAR el diálogo dispara el PATCH de identidad y, al resolver, confirma el patrón pendiente (POST /api/patrones)', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn((url: string, opciones?: RequestInit) => {
+      if (opciones?.method === 'POST' && url === '/api/patrones') {
+        return Promise.resolve({ ok: true, status: 201 });
+      }
+      return Promise.resolve({ ok: true, status: 200 });
+    });
+    renderEditar({ me: ME_NO_DEMO, categorias: CATALOGO });
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Agregar patrón' }),
+    );
+    const nuevoInput = screen.getAllByLabelText('Patrón').at(-1) as HTMLElement;
+    await user.type(nuevoInput, 'uber');
+    await user.selectOptions(
+      await screen.findByLabelText('Bucket (obligatorio)'),
+      'Gustos',
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    fireEvent.submit(
+      document.getElementById('form-identidad') as HTMLFormElement,
+    );
+    const dialogo = await screen.findByRole('alertdialog');
+
+    // Mientras el diálogo sigue abierto, ningún POST a /api/patrones salió
+    // todavía — `bloqueado` sigue protegiendo la fila.
+    expect(
+      fetchMock.mock.calls.filter(
+        ([, opciones]) =>
+          (opciones as RequestInit | undefined)?.method === 'POST',
+      ),
+    ).toHaveLength(0);
+
+    await user.click(
+      within(dialogo).getByRole('button', { name: 'Cambiar bucket' }),
+    );
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('/api/patrones', {
+        credentials: 'same-origin',
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          categoriaId: 'cat-1',
+          patron: 'uber',
+          matchType: 'CONTAINS',
+        }),
+      }),
+    );
+  });
+
+  it('camino del diálogo de cambio de bucket — Escape cancela la identidad pero IGUAL confirma el patrón pendiente (independencia WCTG-04: cancelar el cambio de bucket no deshace un patrón que el usuario ya confirmó con Guardar)', async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn((url: string, opciones?: RequestInit) =>
+      opciones?.method === 'POST' && url === '/api/patrones'
+        ? Promise.resolve({ ok: true, status: 201 })
+        : Promise.resolve({ ok: true, status: 200 }),
+    );
+    renderEditar({ me: ME_NO_DEMO, categorias: CATALOGO });
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Agregar patrón' }),
+    );
+    const nuevoInput = screen.getAllByLabelText('Patrón').at(-1) as HTMLElement;
+    await user.type(nuevoInput, 'uber');
+    await user.selectOptions(
+      await screen.findByLabelText('Bucket (obligatorio)'),
+      'Gustos',
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    fireEvent.submit(
+      document.getElementById('form-identidad') as HTMLFormElement,
+    );
+    await screen.findByRole('alertdialog');
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/patrones',
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+    const patches = fetchMock.mock.calls.filter(
+      ([, opciones]) =>
+        (opciones as RequestInit | undefined)?.method === 'PATCH',
+    );
+    expect(patches).toHaveLength(0);
+  });
+
+  it('sesión demo: Guardar sigue sin poder tocar patrones — "Agregar patrón" está deshabilitado (WCTG-11), así que nunca existe una fila nueva que Guardar pueda confirmar', async () => {
+    renderEditar({ me: ME_DEMO, categorias: CATALOGO });
+
+    expect(
+      await screen.findByRole('button', { name: 'Agregar patrón' }),
+    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
   });
 });

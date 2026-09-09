@@ -318,6 +318,20 @@ function EditarCategoriaCargada({
   } | null>(null);
   const guardarRef = useRef<HTMLButtonElement>(null);
   const eliminarRef = useRef<HTMLButtonElement>(null);
+  // Issue #600 follow-up (2026-09-09): `Confirmar patrón` (PR #601) gave the
+  // not-yet-created row's explicit confirm a VISIBLE surface, but a reporter
+  // came back having pressed `Guardar` — the button whose name literally
+  // promises to save everything on screen — and lost the pattern again,
+  // silently. `PatronesSection` staying OUTSIDE `#form-identidad` (§1/Q3b)
+  // is NOT being reopened: `Guardar` still never calls into `PatronesSection`
+  // directly, it only bumps this counter, which `PatronesSection` relays
+  // (unchanged itself) down to each not-yet-created row as
+  // `confirmarAlGuardar`. A plain number, not a ref/imperative handle, keeps
+  // this declarative and keeps `EditarCategoria` ignorant of how many
+  // pattern rows exist or what state they are in — the actual commit
+  // decision (blank guard, demo, in-flight) stays where it already lived,
+  // inside `PatronFila`'s own `commit()`.
+  const [intentoGuardarPatrones, setIntentoGuardarPatrones] = useState(0);
   // Judgment-day round 3: a successful bucket-change confirm used to call
   // `guardarRef.current?.focus()` SYNCHRONOUSLY inside the mutation's
   // mutate-level `onSuccess` — but `MutationObserver#notify` (query-core)
@@ -365,6 +379,14 @@ function EditarCategoriaCargada({
     if (dialogo !== null || actualizacion.isPending || eliminacion.isPending) {
       return;
     }
+    // WCTG-04 amendment (issue #600 follow-up): "Guardar" now ALSO confirms
+    // any not-yet-created pattern row with pending text — see this
+    // component's `intentoGuardarPatrones` doc comment for the mechanism.
+    // Bucket-CLEAN path only, here: the bucket-DIRTY path below defers this
+    // same bump to `confirmarCambioBucket`/`cerrarDialogo` instead of firing
+    // it right here — see the comment on `setDialogo('cambiar-bucket')`
+    // below for why firing it in THIS spot for that branch would be a race,
+    // not a redundancy.
     if (bucketSucio) {
       actualizacion.reset();
       setSnapshotAlAbrirDialogo({
@@ -373,9 +395,31 @@ function EditarCategoriaCargada({
         bucketAnterior: categoria.bucket,
         transaccionesCount: categoria.transaccionesCount,
       });
+      // Judgment-day-style finding of THIS fix's own design (issue #600
+      // follow-up): bumping `intentoGuardarPatrones` here, in the SAME
+      // handler call as `setDialogo('cambiar-bucket')`, looked like the
+      // obvious spot — but React batches every `setState` call made inside
+      // one synchronous event handler into a SINGLE re-render. `PatronFila`
+      // would then see `confirmarAlGuardar` change AND `bloqueado` flip
+      // `true` (from `dialogo !== null`) in that SAME render, so by the time
+      // its effect ran, `accionesBloqueadas` already read `true` and
+      // `commit()` silently no-opped — the confirm would be dropped in
+      // exactly the one path this test suite (`EditarCategoria.test.tsx`,
+      // "camino del diálogo de cambio de bucket") exists to pin. The bump
+      // is deferred to whenever THIS dialog actually CLOSES instead — either
+      // path, confirm or cancel/Escape (`confirmarCambioBucket`/
+      // `cerrarDialogo` below) — because closing always moves `dialogo`
+      // back to `null` in the SAME render where the bump can be batched
+      // alongside it, so `bloqueado` is already lifting by the time
+      // `PatronFila`'s effect runs. Cancelling this dialog only cancels the
+      // identity's bucket change — a pattern the user typed and already
+      // clicked `Guardar` for is not undone by it (WCTG-04's independence,
+      // the same reasoning that already keeps the footer's `Cancelar` from
+      // touching patterns).
       setDialogo('cambiar-bucket');
       return;
     }
+    setIntentoGuardarPatrones((n) => n + 1);
     actualizacion.mutate({
       id: categoria.id,
       patch: { nombre, bucket: bucket as BucketAsignable },
@@ -402,6 +446,16 @@ function EditarCategoriaCargada({
         onSuccess: () => {
           restaurarFocoGuardarRef.current = true;
           setDialogo(null);
+          // Issue #600 follow-up — see `guardarIdentidad`'s comment on
+          // `setDialogo('cambiar-bucket')` for why this bump lives HERE
+          // (batched with the SAME `setDialogo(null)` that lifts
+          // `bloqueado`) instead of at the original `Guardar` click. A
+          // failed identity `PATCH` does NOT reach this `onSuccess`, so a
+          // failed bucket-change confirm leaves the pattern unconfirmed —
+          // the dialog stays open with its own `error`, `dialogo` never
+          // returns to `null`, and the user can retry or Escape; Escape
+          // then confirms the pattern via `cerrarDialogo` below.
+          setIntentoGuardarPatrones((n) => n + 1);
         },
       },
     );
@@ -417,7 +471,18 @@ function EditarCategoriaCargada({
 
   function cerrarDialogo() {
     const abriaEliminar = dialogo === 'eliminar';
+    const abriaCambiarBucket = dialogo === 'cambiar-bucket';
     setDialogo(null);
+    if (abriaCambiarBucket) {
+      // Issue #600 follow-up — see `guardarIdentidad`'s comment on
+      // `setDialogo('cambiar-bucket')` above. Only THIS dialog owes a
+      // deferred confirm: the `eliminar` dialog is never reached through
+      // `guardarIdentidad` (it opens from the footer's own `Eliminar
+      // categoría` button), so it never bumped this counter in the first
+      // place and closing it must not invent a confirm that was never
+      // promised.
+      setIntentoGuardarPatrones((n) => n + 1);
+    }
     (abriaEliminar ? eliminarRef : guardarRef).current?.focus();
   }
 
@@ -580,10 +645,18 @@ function EditarCategoriaCargada({
 
       {/*
         PatronesSection lives OUTSIDE `#form-identidad` (§1/Q3b's DOM
-        boundary, mechanism 1) — pattern rows commit immediately, per row,
-        fully independent of `Guardar`/`Cancelar` (WCTG-04). `Cancelar`
+        boundary, mechanism 1) — pattern rows still commit immediately, per
+        row, independent of the identity `PATCH` (WCTG-04). `Cancelar`
         scopes to the identity draft ONLY; a pattern added earlier in the
         visit survives it (task 42's cross-cutting integration test).
+
+        Amendment (issue #600 follow-up): "independent" no longer means
+        "Guardar never touches patterns" — it means the identity PATCH and a
+        pending pattern's POST/PATCH are two commits that can each succeed or
+        fail WITHOUT the other one's outcome changing (see
+        `intentoGuardarPatrones`'s doc comment above for the mechanism, and
+        `mensajes-catalogo`/each `PatronFila`'s own `role="alert"` for why a
+        failed pattern never corrupts the identity save or vice versa).
       */}
       <PatronesSection
         categoriaId={categoria.id}
@@ -595,6 +668,7 @@ function EditarCategoriaCargada({
         // read a frozen `snapshotAlAbrirDialogo` — the SAME `dialogo !==
         // null` condition already gates `Nombre`/`Bucket`/`Cancelar` above.
         bloqueado={dialogo !== null}
+        intentoGuardar={intentoGuardarPatrones}
       />
 
       {/*

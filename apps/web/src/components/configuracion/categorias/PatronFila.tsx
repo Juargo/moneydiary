@@ -44,8 +44,13 @@ const OPCIONES_MATCH_TYPE = MATCH_TYPES.map((matchType) => ({
  *   actions, unlike `blur`, which fires just as often when the user is
  *   merely leaving the field). This kills the entire "delete races an
  *   in-flight create" class structurally: a not-yet-created row can ALWAYS
- *   be discarded via `onDescartar` with **zero** network calls, because
- *   nothing ever auto-creates behind the user's back.
+ *   be discarded via `onDescartar` with **zero** network calls from a gesture
+ *   that ever touched THIS row — nothing auto-creates behind the user's back
+ *   from a `blur`, a stray keystroke, or an unrelated field on this same row.
+ *   (`confirmarAlGuardar` below is the one deliberate exception: `Guardar`,
+ *   a gesture elsewhere on the screen, CAN create this row — see that
+ *   section's docblock for why that is still safe, since the delete button
+ *   is already `disabled` the instant that create starts.)
  *
  *   **`Confirmar patrón` (issue #600, 2026-09-08)**: the redesign above was
  *   right to demand an explicit confirm, but it shipped only INVISIBLE ones
@@ -62,6 +67,24 @@ const OPCIONES_MATCH_TYPE = MATCH_TYPES.map((matchType) => ({
  *   It is `disabled` while `Patrón` is blank or whitespace-only, mirroring
  *   `commit()`'s own blank guard: a control that silently does nothing when
  *   pressed is precisely the defect being closed here.
+ *
+ *   **`confirmarAlGuardar` (issue #600 follow-up, 2026-09-09)**: `Confirmar
+ *   patrón` gave the explicit confirm a VISIBLE surface, but the reporter
+ *   came back having pressed `Guardar` again — the control that promises,
+ *   by its own name, to save everything on screen. `PatronesSection`'s
+ *   §1/Q3b DOM boundary is not being revisited (a not-yet-created row still
+ *   never commits on blur), but `Guardar` gains a THIRD way to reach the
+ *   SAME `commit()` the button and Enter already use. `EditarCategoria`
+ *   bumps a plain counter on every `Guardar` click and threads it down to
+ *   not-yet-created rows only; a CHANGE in that number (not a specific
+ *   value) is the signal a `useEffect` below reacts to — the declarative
+ *   sibling of a ref-based imperative handle, but without exposing this
+ *   row's internals to its parent (`solid`'s ISP: `PatronesSection` only
+ *   ever passes a number down, never calls a method on this row). The
+ *   effect defers to the SAME `commit()` used by every other trigger, so
+ *   every one of its guards — blank value, demo, an external dialog open,
+ *   this row's own mutation already in flight — applies here for free, with
+ *   zero new conditionals.
  * - **An existing row** (`patron` id known) keeps commit-on-blur-or-Enter —
  *   delete is always well-defined here (there is always a server id). The
  *   remaining ambiguity — Tab-ing onto the delete button must still commit
@@ -140,6 +163,7 @@ export function PatronFila({
   bloqueado = false,
   onDescartar,
   onAnunciar,
+  confirmarAlGuardar,
 }: {
   readonly categoriaId: string;
   readonly patron?: PatronDto;
@@ -155,6 +179,12 @@ export function PatronFila({
   readonly onDescartar?: () => void;
   /** See this component's docblock, "`onAnunciar`". */
   readonly onAnunciar?: (mensaje: string) => void;
+  /**
+   * See this component's docblock, "`confirmarAlGuardar`". `undefined` on
+   * an existing row (`PatronesSection` never passes it there) — the effect
+   * below no-ops whenever this is `undefined`.
+   */
+  readonly confirmarAlGuardar?: number;
 }) {
   const crear = useCrearPatron();
   const actualizar = useActualizarPatron();
@@ -292,6 +322,58 @@ export function PatronFila({
       restaurarFocoPatronRef.current = false;
     }
   }, [filaOcupada, bloqueadoTotal]);
+
+  // `confirmarAlGuardar` (issue #600 follow-up, see this component's
+  // docblock): a ref, not a second `useState`, holds the last value this row
+  // has already reacted to — comparing against a ref inside the effect
+  // detects a CHANGE without re-running on every unrelated re-render (e.g.
+  // `filaOcupada` flipping mid-mutation must NOT replay this; it has to fire
+  // once per `Guardar` click, not once per commit-lifecycle tick). Seeding
+  // the ref from the FIRST received value (rather than `0`/`undefined`)
+  // means a row that mounts mid-visit, after `Guardar` has already been
+  // clicked N times, does not immediately fire on mount — only a click AFTER
+  // this row exists should confirm it.
+  const confirmarAlGuardarPrevioRef = useRef(confirmarAlGuardar);
+  useEffect(() => {
+    if (
+      confirmarAlGuardar === undefined ||
+      confirmarAlGuardar === confirmarAlGuardarPrevioRef.current
+    ) {
+      return;
+    }
+    confirmarAlGuardarPrevioRef.current = confirmarAlGuardar;
+    // Judgment-day fix (2026-09-09): this reset used to run unconditionally,
+    // but `commit()` below no-ops via its OWN early return when
+    // `accionesBloqueadas` is true — WITHOUT touching the ref (see
+    // `commit()`'s guard). Reachable sequence: Enter on this SAME row starts
+    // a mutation and sets the ref `true` (`alPresionarTecla`), the mutation
+    // is still in flight, and THIS effect fires in between (e.g. a `Guardar`
+    // click elsewhere, or a deferred bucket-change bump landing mid-flight).
+    // Resetting unconditionally here would strand that Enter's intent: the
+    // in-flight mutation is the ONLY thing left that will ever clear it (via
+    // the `filaOcupada`-keyed focus-restoration effect above), so if this
+    // effect already zeroed it out, focus never returns to `Patrón` on
+    // failure. Only reset when this commit can actually proceed — same
+    // reasoning as `alCambiarMatchType`, not `alPresionarTecla`/
+    // `confirmarFilaNueva`: the gesture that produced this signal (a click
+    // on `Guardar`, in a completely different section of the screen) never
+    // touched THIS row's `Patrón` input, so there is no focus here worth
+    // restoring — `EditarCategoria` already owns and moves focus for its own
+    // `Guardar` click.
+    if (!accionesBloqueadas) {
+      restaurarFocoPatronRef.current = false;
+    }
+    // Delegates to the SAME `commit()` every other trigger uses — the blank
+    // guard, the demo/external-dialog/in-flight guard (`accionesBloqueadas`),
+    // and the dirty check all apply here unchanged, by construction.
+    commit();
+    // `commit`/`filaOcupada`/`bloqueadoTotal`/`accionesBloqueadas`
+    // intentionally excluded: `commit` closes over `valor`/`matchType`, both
+    // already current as of THIS render, and including any of them would
+    // refire the effect on every unrelated re-render instead of only on an
+    // actual `confirmarAlGuardar` change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmarAlGuardar]);
 
   // Pointer-intent flag for the delete button (redesign structural cause
   // #2, replaces round 2's `relatedTarget` check — see `alPerderFocoPatron`

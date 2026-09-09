@@ -297,4 +297,39 @@ describe('PatronesSection', () => {
 
     expect(await screen.findByText('Patrón eliminado.')).toBeInTheDocument();
   });
+
+  it('intentoGuardar se reenvía SOLO a las filas nuevas (filasNuevas), nunca a una fila ya existente: una edición SIN commitear en una fila existente no se dispara por un cambio de intentoGuardar (issue #600 follow-up — si `PatronesSection` reenviara la prop también al bloque `patrones.map`, esta edición pendiente saldría como un PATCH fantasma)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { rerender } = render(
+      <PatronesSection
+        categoriaId="cat-1"
+        patrones={[PATRON_1]}
+        esDemo={false}
+        intentoGuardar={0}
+      />,
+      { wrapper: crearWrapper() },
+    );
+
+    // Edición local sin commitear — ni blur ni Enter, solo el cambio de
+    // valor. Una fila EXISTENTE solo commitea vía blur/Enter/matchType, así
+    // que esto se queda pendiente hasta que uno de esos triggers ocurra.
+    fireEvent.change(screen.getByLabelText('Patrón'), {
+      target: { value: 'hulu' },
+    });
+
+    rerender(
+      <PatronesSection
+        categoriaId="cat-1"
+        patrones={[PATRON_1]}
+        esDemo={false}
+        intentoGuardar={1}
+      />,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Patrón')).toHaveValue('hulu');
+  });
 });
