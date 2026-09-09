@@ -2,7 +2,7 @@
  * GrupoMovimientosMobile — accordion group component (US-056, D-04/D-19/MDET-03).
  *
  * Renders one categoria group from the M1 bucket detail screen:
- * - First 3 rows always visible; "Ver N más" / "Ver menos" toggle for larger groups.
+ * - First 10 rows always visible; "Ver N más" / "Ver menos" toggle for larger groups.
  * - `accessibilityState={{ expanded }}` on the toggle Pressable (MDET-03).
  * - testID families: `grupo-movimientos-${id}`, `grupo-toggle-${id}`, `movimiento-${tx.id}`.
  * - SinCategoria dual destacado mechanics (D-19/MDET-03):
@@ -24,8 +24,17 @@ import { formatearMontoCLP } from '../../domain/formatear-monto';
 import type { GrupoDetalleBucketMesDto } from '../../domain/detalle.types';
 import { ReclasificarMobileControl } from './ReclasificarMobileControl';
 
-/** Number of rows visible before the accordion collapses the rest (web parity D-04). */
-const FILAS_VISIBLES = 3;
+/**
+ * Number of rows visible before the accordion collapses the rest (web parity
+ * D-04 — kept in lockstep with the web `FILAS_VISIBLES_POR_DEFECTO`). Raised
+ * from 3 to 10 (2026-09-09) for the same reason as web: at three rows the
+ * toggle was the RULE rather than the exception, since almost every category
+ * in a real month has more than three movements, so the screen opened as a
+ * stack of truncated groups. The two apps are NOT wired to one constant (no
+ * shared package — ADR-008/ADR-024): this is a deliberate duplicate, so a
+ * change on one side has to be mirrored on the other.
+ */
+const FILAS_VISIBLES = 10;
 
 interface TxVM {
   readonly id: string;
@@ -73,7 +82,7 @@ interface GrupoMovimientosMobileProps {
 
 /**
  * GrupoMovimientosMobile renders one categoría group with an expandable
- * accordion when the group has more than 3 rows. Each row includes a
+ * accordion when the group has more than 10 rows. Each row includes a
  * ReclasificarMobileControl for cross-bucket reclassification (T-15/D-17).
  */
 export function GrupoMovimientosMobile({

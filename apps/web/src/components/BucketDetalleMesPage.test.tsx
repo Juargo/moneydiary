@@ -151,6 +151,33 @@ const dtoCompleto: DetalleBucketMesDto = {
   ],
 };
 
+/**
+ * A group longer than `FILAS_VISIBLES_POR_DEFECTO` (12 rows > 10), so the
+ * WDM-03 slice has something to hide: the collapse/expand assertions below
+ * need a group ABOVE the threshold, while `dtoCompleto` (max 5 rows/group)
+ * deliberately stays BELOW it and is what pins "no toggle for short groups".
+ * 12 rows keeps the hidden count at 2, so the control still reads
+ * "ver 2 más…" exactly as the spec scenario spells it.
+ */
+const dtoGrupoLargo: DetalleBucketMesDto = {
+  ...dtoCompleto,
+  grupos: [
+    {
+      categoriaId: 'categoria-larga',
+      nombre: 'Zapatería',
+      subtotal: '360000',
+      conteo: 12,
+      transacciones: Array.from({ length: 12 }, (_, i) => ({
+        id: `tx-larga-${i + 1}`,
+        fecha: `2026-07-${String(i + 1).padStart(2, '0')}`,
+        descripcion: `Zapatos ${i + 1}`,
+        origen: 'BCI',
+        monto: '30000',
+      })),
+    },
+  ],
+};
+
 const dtoSinMeta: DetalleBucketMesDto = {
   ...dtoCompleto,
   porcentajeBp: null,
@@ -492,7 +519,7 @@ describe('BucketDetalleMesPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('collapses groups to 3 rows and expands via "ver N más…" / "Ver menos" (WDM-03/1)', async () => {
+  it('collapses groups to 10 rows and expands via "ver N más…" / "Ver menos" (WDM-03/1)', async () => {
     stubFetch({
       ok: true,
       status: 200,
@@ -501,26 +528,26 @@ describe('BucketDetalleMesPage', () => {
 
     renderData(
       <BucketDetalleMesPage
-        query={mockQuery({ data: dtoCompleto })}
+        query={mockQuery({ data: dtoGrupoLargo })}
         periodo="2026-07"
         onPeriodoChange={() => {}}
         destacar={false}
       />,
     );
 
-    await screen.findByText('Zapatos de cuero');
-    // Collapsed: 5th Zapatería row is NOT rendered at all (slice, not CSS).
-    expect(screen.queryByText('Zapatos café')).not.toBeInTheDocument();
+    await screen.findByText('Zapatos 10');
+    // Collapsed: the 11th row is NOT rendered at all (slice, not CSS).
+    expect(screen.queryByText('Zapatos 11')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /ver 2 más/ }));
 
-    expect(await screen.findByText('Zapatos café')).toBeInTheDocument();
+    expect(await screen.findByText('Zapatos 12')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Ver menos' }),
     ).toBeInTheDocument();
   });
 
-  it('renders no expand control for groups with ≤3 rows', async () => {
+  it('renders no expand control for groups with ≤10 rows', async () => {
     stubFetch({
       ok: true,
       status: 200,
@@ -537,11 +564,11 @@ describe('BucketDetalleMesPage', () => {
     );
 
     await verPrimerGrupo();
-    // Only Zapatería (5 rows) gets the control; Ñoquis (3) and Sin categoría
-    // (1) do not — exactly one control in the whole document.
+    // Every `dtoCompleto` group sits under the threshold — Ñoquis (3),
+    // Zapatería (5) and Sin categoría (1) — so no control renders anywhere.
     expect(
-      screen.getAllByRole('button', { name: /más|Ver menos/ }),
-    ).toHaveLength(1);
+      screen.queryAllByRole('button', { name: /más|Ver menos/ }),
+    ).toHaveLength(0);
   });
 
   it('wires aria-expanded and aria-controls on the expand toggle', async () => {
@@ -553,7 +580,7 @@ describe('BucketDetalleMesPage', () => {
 
     renderData(
       <BucketDetalleMesPage
-        query={mockQuery({ data: dtoCompleto })}
+        query={mockQuery({ data: dtoGrupoLargo })}
         periodo="2026-07"
         onPeriodoChange={() => {}}
         destacar={false}
@@ -562,7 +589,7 @@ describe('BucketDetalleMesPage', () => {
 
     const grupoZapateria = (
       await screen.findAllByTestId('grupo-movimientos')
-    )[1];
+    )[0];
     const toggle = within(grupoZapateria).getByRole('button', {
       name: /ver 2 más/,
     });
@@ -653,9 +680,10 @@ describe('BucketDetalleMesPage', () => {
       />,
     );
 
-    // Collapsed: Ñoquis 3 + Zapatería 3 + Sin categoría 1 = 7 visible rows.
+    // Nothing is collapsed here: every group is under the 10-row threshold,
+    // so Ñoquis 3 + Zapatería 5 + Sin categoría 1 = 9 visible rows.
     await waitFor(() =>
-      expect(screen.getAllByRole('combobox')).toHaveLength(7),
+      expect(screen.getAllByRole('combobox')).toHaveLength(9),
     );
   });
 

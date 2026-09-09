@@ -47,8 +47,8 @@ function makeGrupo(
 }
 
 describe('GrupoMovimientosMobile', () => {
-  it('group with 5 rows shows exactly 3 rows and "Ver 2 más" collapsed (accessibilityState.expanded false)', async () => {
-    const grupo = makeGrupo('cat-1', 'Entretenimiento', 5);
+  it('group with 12 rows shows exactly 10 rows and "Ver 2 más" collapsed (accessibilityState.expanded false)', async () => {
+    const grupo = makeGrupo('cat-1', 'Entretenimiento', 12);
 
     await render(
       <GrupoMovimientosMobile
@@ -60,13 +60,13 @@ describe('GrupoMovimientosMobile', () => {
       />,
     );
 
-    // Exactly 3 rows visible (first 3)
-    expect(screen.getByTestId('movimiento-cat-1-tx-1')).toBeTruthy();
-    expect(screen.getByTestId('movimiento-cat-1-tx-2')).toBeTruthy();
-    expect(screen.getByTestId('movimiento-cat-1-tx-3')).toBeTruthy();
-    // 4th and 5th not visible
-    expect(screen.queryByTestId('movimiento-cat-1-tx-4')).toBeNull();
-    expect(screen.queryByTestId('movimiento-cat-1-tx-5')).toBeNull();
+    // Exactly 10 rows visible (the first 10)
+    for (let i = 1; i <= 10; i++) {
+      expect(screen.getByTestId(`movimiento-cat-1-tx-${i}`)).toBeTruthy();
+    }
+    // 11th and 12th not visible
+    expect(screen.queryByTestId('movimiento-cat-1-tx-11')).toBeNull();
+    expect(screen.queryByTestId('movimiento-cat-1-tx-12')).toBeNull();
 
     // Toggle shows 'Ver 2 más'
     const toggle = screen.getByTestId('grupo-toggle-cat-1');
@@ -76,8 +76,8 @@ describe('GrupoMovimientosMobile', () => {
     expect(toggle.props.accessibilityState?.expanded).toBe(false);
   });
 
-  it('pressing "Ver N más" reveals all 5 rows and changes text to "Ver menos" (accessibilityState.expanded true)', async () => {
-    const grupo = makeGrupo('cat-1', 'Entretenimiento', 5);
+  it('pressing "Ver N más" reveals all 12 rows and changes text to "Ver menos" (accessibilityState.expanded true)', async () => {
+    const grupo = makeGrupo('cat-1', 'Entretenimiento', 12);
 
     await render(
       <GrupoMovimientosMobile
@@ -94,12 +94,10 @@ describe('GrupoMovimientosMobile', () => {
       fireEvent.press(screen.getByTestId('grupo-toggle-cat-1'));
     });
 
-    // All 5 rows now visible
-    expect(screen.getByTestId('movimiento-cat-1-tx-1')).toBeTruthy();
-    expect(screen.getByTestId('movimiento-cat-1-tx-2')).toBeTruthy();
-    expect(screen.getByTestId('movimiento-cat-1-tx-3')).toBeTruthy();
-    expect(screen.getByTestId('movimiento-cat-1-tx-4')).toBeTruthy();
-    expect(screen.getByTestId('movimiento-cat-1-tx-5')).toBeTruthy();
+    // All 12 rows now visible
+    for (let i = 1; i <= 12; i++) {
+      expect(screen.getByTestId(`movimiento-cat-1-tx-${i}`)).toBeTruthy();
+    }
 
     // Text changes to 'Ver menos' and accessibilityState.expanded becomes true
     expect(screen.getByText('Ver menos')).toBeTruthy();
@@ -107,8 +105,9 @@ describe('GrupoMovimientosMobile', () => {
     expect(toggle.props.accessibilityState?.expanded).toBe(true);
   });
 
-  it('group with ≤3 rows shows no "Ver N más" toggle', async () => {
-    const grupo = makeGrupo('cat-2', 'Comida', 3);
+  it('group with ≤10 rows shows no "Ver N más" toggle', async () => {
+    // Exactly at the threshold: the boundary case that pins `>` and not `>=`.
+    const grupo = makeGrupo('cat-2', 'Comida', 10);
 
     await render(
       <GrupoMovimientosMobile
@@ -120,10 +119,10 @@ describe('GrupoMovimientosMobile', () => {
       />,
     );
 
-    // All 3 rows visible
-    expect(screen.getByTestId('movimiento-cat-2-tx-1')).toBeTruthy();
-    expect(screen.getByTestId('movimiento-cat-2-tx-2')).toBeTruthy();
-    expect(screen.getByTestId('movimiento-cat-2-tx-3')).toBeTruthy();
+    // All 10 rows visible
+    for (let i = 1; i <= 10; i++) {
+      expect(screen.getByTestId(`movimiento-cat-2-tx-${i}`)).toBeTruthy();
+    }
 
     // No toggle at all
     expect(screen.queryByTestId('grupo-toggle-cat-2')).toBeNull();

@@ -10,7 +10,7 @@ import { stubApi } from './fixtures/api-stubs';
  * Five cases, each scoped to the project that owns its claim:
  * 1. deep link `?periodo=2026-07` — the WDM-01 header (breadcrumb, back
  *    link, %/meta tag, usage bar, totals line) + the WDM-03 groups verbatim
- *    (Paseos 4 rows → the `ver 1 más…` slice; "Sin categoría" 2 rows → no
+ *    (Paseos 12 rows → the `ver 2 más…` slice; "Sin categoría" 2 rows → no
  *    toggle). Escritorio.
  * 2. tablet T1 header geometry (WDM-01 Playwright scenario) — breadcrumb
  *    and back control share one row at ≥768px (the "back control below md"
@@ -59,15 +59,15 @@ test.describe('/buckets/:bucket — Detalle MES-BUCKET (US-053, WDM-01..04)', ()
     await expect(barra).toBeVisible();
     await expect(barra).toHaveAttribute('aria-hidden', 'true');
     await expect(
-      page.getByText('Total $250.000 · 6 movimientos'),
+      page.getByText('Total $650.000 · 14 movimientos'),
     ).toBeVisible();
 
     // WDM-03 — groups render the fixture verbatim (server order), with the
-    // 4-row group collapsed behind its slice toggle and the 2-row group
+    // 12-row group collapsed behind its slice toggle and the 2-row group
     // rendering no toggle at all.
     await expect(
       page.getByRole('heading', {
-        name: 'Paseos · $200.000 · 4 movimientos',
+        name: 'Paseos · $600.000 · 12 movimientos',
       }),
     ).toBeVisible();
     await expect(
@@ -76,7 +76,7 @@ test.describe('/buckets/:bucket — Detalle MES-BUCKET (US-053, WDM-01..04)', ()
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole('button', { name: 'ver 1 más…' }),
+      page.getByRole('button', { name: 'ver 2 más…' }),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: /ver .* más…/ })).toHaveCount(
       1,
@@ -181,7 +181,7 @@ test.describe('/buckets/:bucket — Detalle MES-BUCKET (US-053, WDM-01..04)', ()
       'Reclassify interaction case, scoped to the escritorio project (1280px).',
     );
 
-    // Load Necesidades page — Paseos group (4 transactions) is visible.
+    // Load Necesidades page — Paseos group (12 transactions) is visible.
     // CATALOGO_FIXTURE has Streaming (Deseos), so picking it for a Paseos
     // row is a cross-bucket move (Necesidades → Deseos), which announces
     // ETIQUETA_BUCKET['Deseos'] = 'Gustos'.
