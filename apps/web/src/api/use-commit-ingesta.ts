@@ -21,6 +21,11 @@ import type { CommitIngestaDto } from './types';
  * the historial list must refresh. Navigation to `/` is wired at the call site
  * in `SubirCartola` (`mutate(vars, { onSuccess: () => navigate({to:'/'}) })`)
  * so this hook stays router-agnostic and testable without a router mock (D-05).
+ *
+ * ingesta-pdf-password Slice 4 (Phase 19.2, design.md D-10): mutation
+ * variables gain an optional `password`, forwarded to `postCommitIngesta`
+ * exactly like `edits` already is (only put on the wire when non-empty,
+ * PDF-09 byte-identical guarantee).
  */
 export function useCommitIngesta() {
   const queryClient = useQueryClient();
@@ -31,10 +36,11 @@ export function useCommitIngesta() {
     {
       file: File;
       edits: ReadonlyArray<{ rowIndex: number; categoriaId: string | null }>;
+      password?: string;
     }
   >({
-    mutationFn: async ({ file, edits }) => {
-      const result = await postCommitIngesta(file, edits);
+    mutationFn: async ({ file, edits, password }) => {
+      const result = await postCommitIngesta(file, edits, password);
       if (!result.ok) {
         throw result.error;
       }
