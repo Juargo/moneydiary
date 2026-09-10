@@ -66,6 +66,16 @@ let contadorFilasNuevas = 0;
  * not a zero-state" semantic (decision 9, above) is untouched — only the
  * STRING shortens (Q-05).
  *
+ * **`intentoGuardar` (issue #600 follow-up, 2026-09-09)**: an optional counter
+ * `EditarCategoria` bumps on every `Guardar` click, forwarded ONLY to the
+ * `filasNuevas` block below as each row's `confirmarAlGuardar` prop (never to
+ * the `patrones` block — an existing row already commits on blur, per
+ * `PatronFila`'s own "renders ONLY on a not-yet-created row" reasoning for
+ * `Confirmar patrón`). This component does not know or care WHY the number
+ * changed, or what each row does with it — it is a dumb relay, keeping the
+ * actual commit decision (blank guard, demo, `accionesBloqueadas`) where it
+ * already lived, inside `PatronFila`.
+ *
  * The `<h2 id="titulo-patrones">` gains `aria-label={escritorio string}`
  * despite not being interactive — `PatronesSection`'s `<section>` is named
  * via `aria-labelledby="titulo-patrones"`, so an unstable heading name would
@@ -85,6 +95,7 @@ export function PatronesSection({
   patrones,
   esDemo,
   bloqueado = false,
+  intentoGuardar,
 }: {
   readonly categoriaId: string;
   readonly patrones: ReadonlyArray<PatronDto>;
@@ -98,6 +109,8 @@ export function PatronesSection({
    * screen, not a new mechanism.
    */
   readonly bloqueado?: boolean;
+  /** See this component's docblock, "`intentoGuardar`". */
+  readonly intentoGuardar?: number;
 }) {
   const [filasNuevas, setFilasNuevas] = useState<ReadonlyArray<number>>([]);
   const [anuncio, setAnuncio] = useState({ mensaje: '', id: 0 });
@@ -156,6 +169,7 @@ export function PatronesSection({
             bloqueado={bloqueado}
             onDescartar={() => quitarFilaNueva(clave)}
             onAnunciar={anunciar}
+            confirmarAlGuardar={intentoGuardar}
           />
         ))}
       </ul>

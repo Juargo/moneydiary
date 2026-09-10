@@ -1210,3 +1210,269 @@ describe('PatronFila — fila nueva (sin patrón todavía creado)', () => {
     ).toBeDisabled();
   });
 });
+
+/**
+ * `confirmarAlGuardar` (issue #600 follow-up, 2026-09-09) — `Confirmar
+ * patrón` (PR #601) gave the explicit confirm a VISIBLE surface, but the
+ * user reported back that they pressed `Guardar` again, which is what
+ * anyone reaches for when they want to save. `EditarCategoria` bumps a
+ * counter on every `Guardar` click and threads it down to not-yet-created
+ * rows ONLY (`PatronesSection`'s docblock) — a CHANGE in the number is the
+ * signal, not a specific value, mirroring `alCambiarMatchType`/
+ * `confirmarFilaNueva`'s own calls into the SAME `commit()`.
+ */
+describe('PatronFila — confirmarAlGuardar (issue #600 follow-up: Guardar confirma patrones nuevos pendientes)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('un cambio en confirmarAlGuardar con Patrón no vacío dispara EXACTAMENTE un POST /api/patrones y luego onDescartar — el mismo commit que Enter/Confirmar patrón, ahora también alcanzable desde Guardar', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201 });
+    vi.stubGlobal('fetch', fetchMock);
+    const onDescartar = vi.fn();
+
+    const { rerender } = render(
+      <PatronFila
+        categoriaId="cat-1"
+        esDemo={false}
+        onDescartar={onDescartar}
+        confirmarAlGuardar={0}
+      />,
+      { wrapper: crearWrapper() },
+    );
+    fireEvent.change(screen.getByLabelText('Patrón'), {
+      target: { value: 'Alcancía' },
+    });
+
+    rerender(
+      <PatronFila
+        categoriaId="cat-1"
+        esDemo={false}
+        onDescartar={onDescartar}
+        confirmarAlGuardar={1}
+      />,
+    );
+
+    await waitFor(() => expect(onDescartar).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledWith('/api/patrones', {
+      credentials: 'same-origin',
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        categoriaId: 'cat-1',
+        patron: 'Alcancía',
+        matchType: 'CONTAINS',
+      }),
+    });
+  });
+
+  it('confirmarAlGuardar con Patrón vacío NO dispara ningún POST — el guard de valor vacío de commit() se mantiene intacto aunque el disparador sea Guardar', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const onDescartar = vi.fn();
+
+    const { rerender } = render(
+      <PatronFila
+        categoriaId="cat-1"
+        esDemo={false}
+        onDescartar={onDescartar}
+        confirmarAlGuardar={0}
+      />,
+      { wrapper: crearWrapper() },
+    );
+
+    rerender(
+      <PatronFila
+        categoriaId="cat-1"
+        esDemo={false}
+        onDescartar={onDescartar}
+        confirmarAlGuardar={1}
+      />,
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(onDescartar).not.toHaveBeenCalled();
+  });
+
+  it('confirmarAlGuardar en sesión demo NO dispara ningún POST aunque haya texto — accionesBloqueadas (esDemo) cubre también esta superficie nueva (WCTG-11)', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    // `fireEvent.change` en vez de `userEvent.type`: el campo YA está
+    // deshabilitado en esDemo (paridad con el resto de la fila, `PatronesSection.
+    // test.tsx` ya fija que "Agregar patrón" queda deshabilitado en demo, así
+    // que ninguna fila nueva llega a existir en la UI real). Este test aísla
+    // el guard de `accionesBloqueadas` en sí mismo — la segunda línea de
+    // defensa — no el camino de UI.
+    const { rerender } = render(
+      <PatronFila categoriaId="cat-1" esDemo={true} confirmarAlGuardar={0} />,
+      { wrapper: crearWrapper() },
+    );
+    fireEvent.change(screen.getByLabelText('Patrón'), {
+      target: { value: 'Alcancía' },
+    });
+
+    rerender(
+      <PatronFila categoriaId="cat-1" esDemo={true} confirmarAlGuardar={1} />,
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('confirmarAlGuardar no roba el foco — a diferencia de Enter/Confirmar patrón, este gesto no ocurrió en el input Patrón, sino en el botón Guardar de otra sección', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { rerender } = render(
+      <PatronFila categoriaId="cat-1" esDemo={false} confirmarAlGuardar={0} />,
+      { wrapper: crearWrapper() },
+    );
+    const input = screen.getByLabelText('Patrón') as HTMLInputElement;
+    const focoSpy = vi.spyOn(input, 'focus');
+    fireEvent.change(input, { target: { value: 'Alcancía' } });
+
+    rerender(
+      <PatronFila categoriaId="cat-1" esDemo={false} confirmarAlGuardar={1} />,
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(focoSpy).not.toHaveBeenCalled();
+  });
+
+  it('un confirmarAlGuardar que llega MIENTRAS el POST disparado por Enter sigue en vuelo no pisa la intención de restaurar foco de ese Enter: si el POST termina en error, el foco SIGUE volviendo a Patrón (regresión judgment-day, 2026-09-09: el efecto pisaba `restaurarFocoPatronRef` a `false` incondicionalmente, incluso cuando `commit()` iba a no-opear por `accionesBloqueadas` — la mutación en vuelo, que SÍ es dueña de esa intención, nunca llegaba a limpiarla porque ya la encontraba en `false`)', async () => {
+    let resolverFetch: (value: {
+      ok: boolean;
+      status: number;
+      json: () => Promise<{ code: string }>;
+    }) => void = () => {};
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolverFetch = resolve;
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const onDescartar = vi.fn();
+
+    const { rerender } = render(
+      <PatronFila
+        categoriaId="cat-1"
+        esDemo={false}
+        onDescartar={onDescartar}
+        confirmarAlGuardar={0}
+      />,
+      { wrapper: crearWrapper() },
+    );
+
+    const input = screen.getByLabelText('Patrón') as HTMLInputElement;
+    const focoSpy = vi.spyOn(input, 'focus');
+
+    // Enter confirma la fila nueva — el POST queda en vuelo (promesa
+    // controlada, no resuelta todavía) y `restaurarFocoPatronRef` queda en
+    // `true`.
+    fireEvent.change(input, { target: { value: 'uber' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(input).toBeDisabled();
+
+    // Con el POST original TODAVÍA sin resolver, el usuario hace clic en el
+    // Guardar de otra sección — `confirmarAlGuardar` cambia y dispara el
+    // efecto nuevo. `commit()` no-opea aquí (`accionesBloqueadas` por el
+    // POST en vuelo), así que la intención de restaurar foco de ese Enter
+    // no debe perderse.
+    rerender(
+      <PatronFila
+        categoriaId="cat-1"
+        esDemo={false}
+        onDescartar={onDescartar}
+        confirmarAlGuardar={1}
+      />,
+    );
+
+    // El POST original falla — la fila sigue viva con su error.
+    resolverFetch({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ code: 'PATRON_INVALIDO' }),
+    });
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(onDescartar).not.toHaveBeenCalled();
+    // El foco vuelve al input Patrón una vez que la fila se rehabilita — si
+    // el efecto de `confirmarAlGuardar` hubiera pisado la intención, esta
+    // llamada nunca ocurriría.
+    await waitFor(() => expect(focoSpy).toHaveBeenCalled());
+  });
+
+  it('DOS filas nuevas con texto pendiente, confirmadas por UN solo cambio de confirmarAlGuardar, disparan UN POST por fila — cada fila tiene su propio ref/efecto, sin interferencia entre ellas', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201 });
+    vi.stubGlobal('fetch', fetchMock);
+    const onDescartarUno = vi.fn();
+    const onDescartarDos = vi.fn();
+
+    const { rerender } = render(
+      <>
+        <PatronFila
+          categoriaId="cat-1"
+          esDemo={false}
+          onDescartar={onDescartarUno}
+          confirmarAlGuardar={0}
+        />
+        <PatronFila
+          categoriaId="cat-1"
+          esDemo={false}
+          onDescartar={onDescartarDos}
+          confirmarAlGuardar={0}
+        />
+      </>,
+      { wrapper: crearWrapper() },
+    );
+
+    const [inputUno, inputDos] = screen.getAllByLabelText('Patrón');
+    fireEvent.change(inputUno, { target: { value: 'uber' } });
+    fireEvent.change(inputDos, { target: { value: 'lyft' } });
+
+    rerender(
+      <>
+        <PatronFila
+          categoriaId="cat-1"
+          esDemo={false}
+          onDescartar={onDescartarUno}
+          confirmarAlGuardar={1}
+        />
+        <PatronFila
+          categoriaId="cat-1"
+          esDemo={false}
+          onDescartar={onDescartarDos}
+          confirmarAlGuardar={1}
+        />
+      </>,
+    );
+
+    await waitFor(() => expect(onDescartarUno).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onDescartarDos).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledWith('/api/patrones', {
+      credentials: 'same-origin',
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        categoriaId: 'cat-1',
+        patron: 'uber',
+        matchType: 'CONTAINS',
+      }),
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/api/patrones', {
+      credentials: 'same-origin',
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        categoriaId: 'cat-1',
+        patron: 'lyft',
+        matchType: 'CONTAINS',
+      }),
+    });
+  });
+});
