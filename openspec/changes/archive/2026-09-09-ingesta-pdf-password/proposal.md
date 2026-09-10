@@ -1,3 +1,19 @@
+# Closure Note — ingesta-pdf-password
+
+**Status**: ARCHIVED & CLOSED — shipped to production via PR #611 on 2026-09-09
+
+**Verify Result**: PASS WITH WARNINGS
+- Merged to `main` on 2026-09-09 (PR #611, merge commit `b3f8749c`), as a Feature Branch Chain of four reviewed slices (#606 → #607 → #608 → #609)
+- `sdd-verify` returned PASS WITH WARNINGS (one CRITICAL finding: F1 — the harmless-password-on-unprotected-PDF scenario had no test)
+- F1 was fixed on branch `chore/pdf-password-close-out` with a new test in `apps/api/src/infrastructure/pdf/pdf-text-extractor.spec.ts`
+- Final state: `pnpm api test` → 273 files / 2595 tests, all green
+
+**Open Gaps Carried Forward** (not blocking, documented for future work):
+- **22.5 OPEN**: The full happy path with a real password-protected cartola has never been exercised. The fixture carries only marker text, so preview never reaches transaction extraction. Requires an encrypted fixture built from a genuine bank statement.
+- **22.6 OPEN**: The React UI has never run in a live browser. Coverage is jsdom-only via tests; a Playwright or manual browser pass is still recommended.
+
+---
+
 # Proposal: ingesta-pdf-password — unlock password-protected PDF statements
 
 > SDD propose artifact. Hybrid store — mirror of Engram topic `sdd/ingesta-pdf-password/proposal`.
@@ -224,13 +240,13 @@ orchestrator's and the user's call, not this proposal's.
 
 ## Success criteria
 
-- [ ] A locked PDF uploaded to preview returns a *protected* error — never `PdfInvalidoError`.
-- [ ] The correct password completes preview **and** commit, all three PDF stages unlocked, typed once.
-- [ ] A wrong password is reported as such and produces **no** `Ingesta` row.
-- [ ] The password appears in no log, no error message, no response body, no DB column, no browser storage.
-- [ ] An unlocked PDF and every `.xlsx` path behave exactly as before (existing suites green, unchanged).
-- [ ] The web upload form renders no password field until the API says the file is protected.
-- [ ] `pnpm api test`, `pnpm web test`, `tsc --noEmit`, and the `openapi.json` drift-check are green.
+- [x] A locked PDF uploaded to preview returns a *protected* error — never `PdfInvalidoError`.
+- [x] The correct password completes preview **and** commit, all three PDF stages unlocked, typed once.
+- [x] A wrong password is reported as such and produces **no** `Ingesta` row.
+- [x] The password appears in no log, no error message, no response body, no DB column, no browser storage.
+- [x] An unlocked PDF and every `.xlsx` path behave exactly as before (existing suites green, unchanged).
+- [x] The web upload form renders no password field until the API says the file is protected.
+- [x] `pnpm api test`, `pnpm web test`, `tsc --noEmit`, and the `openapi.json` drift-check are green.
 
 ## Next
 
