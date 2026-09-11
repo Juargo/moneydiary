@@ -490,6 +490,206 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 ---
 
+# AMENDMENT — Slice 3b: right-edge rescue for BCI's `cargo` column (design.md AMENDMENT A-01, AD-01..AD-04)
+
+> Added 2026-09-10, after Slices 1-3 shipped green (273 files / 2622 tests) and the real statement was still
+> found to fail `EstructuraPdfInvalidaError` on 7 rows (sub-1000 `cargo` amounts, right-aligned, landing in the
+> `[440, 450)` dead zone — **zero reached `abono`, no sign inversion**). AD-01..AD-04 in design.md are BINDING
+> for everything below; not re-litigated here. Traces spec PDF-11 (correct column attribution for both
+> layouts) and, indirectly, PDF-03's variant-B fixture row (the fixture gap that let a broken parser ship
+> green). Phases 1-30 above are UNCHANGED — do not renumber or uncheck them. Strict TDD applies throughout:
+> every implementation task is RED (failing test named first) → GREEN (minimal code) → REFACTOR. Every line
+> number below was re-verified against the working tree
+> (`/Users/jorge/dev/MoneyDiary.wt/debug-bci`, branch `feat/api-bci-s3-geometria`) on 2026-09-10, after Slices
+> 1-3 landed. Verified green baseline before this amendment's work: **273 files / 2622 tests**.
+>
+> **PII boundary (inherited, binding, repeat once more).** No amount, name, account number, merchant or date
+> from the real statement appears in any fixture, test name, comment or commit message. Only non-identifying
+> page geometry and font metrics cross over (design.md AD-02's measured/corroborated glyph advances).
+
+## Trap 5 — the field has to survive a manual field-by-field mapping, or the rescue is silently inert (task-author finding, not in the design)
+
+`normalizarTransaccionesPdf` does not pass `estructura.rangosX` straight through to `agruparTokens` — it
+rebuilds each entry by hand:
+
+```ts
+const rangosX: RangoColumna[] = estructura.rangosX.map((r) => ({
+  col: r.col,
+  xMin: r.xMin,
+  xMax: r.xMax,
+}));
+```
+
+(`pdf-normalization.ts:185-189`, verified). This picks exactly three fields. Adding `rescateBordeDerecho` to
+`RangoX` (`estructura-pdf-banco.ts:6-11`) and to `RangoColumna` (`token-grouping.ts:4-8`) does **not** make it
+cross this boundary — the object literal above drops any field it does not name, silently, with a clean
+`tsc --noEmit` (the field is optional, so omitting it is not a type error). If Phase 43's fixture-level RED
+test (short amounts still rejected) stays red after Phase 39-42 land, **this mapping is the first place to
+check**, not the estimator or the strategy declaration. Phase 39.5 below names this explicitly as its own GREEN
+step, not folded silently into a bigger one.
+
+## Phase 39 (Slice 3a — estimator, zero strategy opts in): Infrastructure — the two-pass rescue mechanism (AD-01, AD-02)
+
+**Traces PDF-11.** No production behavior changes in this phase for any of the 4 banks — see 39.6.
+
+- [ ] 39.1 RED: `token-grouping.spec.ts` (new file, or a new describe block if one already covers this module) —
+      `anchoEstimado('123', 6)` returns a number matching `3 × 0.556 × 6 = 10.008` (3 digit advances at 6pt,
+      no separators); `anchoEstimado('1.234', 6)` includes one period advance (`0.278 × 6 = 1.668`);
+      `anchoEstimado('12a', 6)` returns `null` (letter `a` is not in the table — the eligibility gate, AD-02).
+- [ ] 39.2 GREEN: add `ANCHOS_GLIFO_1000EM` (the table in design.md AD-02, verbatim) and
+      `anchoEstimado(str: string, tamanoPt: number): number | null` to `token-grouping.ts`. Do **not** reuse
+      `REGEX_POSIBLE_MONTO` (`pdf-normalization.ts:48`) as the gate — it requires a `$` or a thousands
+      separator and would reject the very sub-1000 amounts this amendment exists to rescue (design.md AD-02,
+      explicit).
+- [ ] 39.3 RED: `token-grouping.spec.ts` — `repartirEnColumnas`/`agruparTokens` with a synthetic column that
+      declares `rescateBordeDerecho: { xMin, xMax, tamanoFuentePt }` rescues a token whose left-edge `x` falls
+      in a gap between columns but whose *estimated right edge* falls inside `rescateBordeDerecho`'s
+      `[xMin, xMax)`. A token whose estimated right edge falls outside that window, or whose `anchoEstimado`
+      is `null` (contains an unmeasurable character), stays unassigned — same as today.
+- [ ] 39.4 GREEN: add the optional `rescateBordeDerecho?: { xMin, xMax, tamanoFuentePt }` field to `RangoX`
+      (`estructura-pdf-banco.ts:6-11`, verified) and to `RangoColumna` (`token-grouping.ts:4-8`, verified).
+      Implement the two-pass shape design.md AD-01 specifies exactly: pass 1 collects per-column **token
+      lists** instead of joining immediately (`token-grouping.ts:111-118`, verified — today's single pass);
+      pass 2 iterates only columns that declare `rescateBordeDerecho` and only tokens still in
+      `tokensSinAsignar` after pass 1, appending a rescued token to its column's list; the sort
+      (`.sort((a,b) => a.x - b.x)`) and join (`.join(' ').trim()`) happen once, at the end, over the merged
+      list. If pass 2 rescues a token into a column pass 1 already filled (should not happen given the
+      catchment/window design, but must not silently corrupt data if it ever does), the column text ends up
+      with two space-joined tokens and `parsearMontoPdf` fails downstream — loud, not silent (design.md AD-01,
+      "Implementation shape").
+- [ ] 39.5 GREEN — **do not fold this into 39.4.** Update the field-by-field mapping in
+      `normalizarTransaccionesPdf` (`pdf-normalization.ts:185-189`, verified) to also copy
+      `rescateBordeDerecho` from `estructura.rangosX` into the `RangoColumna[]` passed to `agruparTokens`. See
+      "Trap 5" above — omitting this step compiles clean and leaves the rescue silently inert end to end.
+- [ ] 39.6 RED-must-already-be-GREEN: a regression test asserting that for all 4 existing bank strategies
+      (none declares `rescateBordeDerecho` at this point in the sequence — that only happens in Phase 40), the
+      `columnas` and `tokensSinAsignar` produced by `agruparTokens` are byte-identical to before this phase.
+      Zero behavior change is structural (no column has opted in, so pass 2 iterates nothing), not
+      tested-into-existence — this test is the proof, not the mechanism.
+- [ ] 39.7 Run `pnpm api test` (full) — confirm all 2622+ pre-existing tests stay green, plus the new
+      `token-grouping.spec.ts` cases. Run `pnpm api exec tsc --noEmit` — clean. Confirm the diff touches only
+      `token-grouping.ts`, `token-grouping.spec.ts`, `estructura-pdf-banco.ts` (field addition, no behavior),
+      `pdf-normalization.ts` (the one-line mapping addition from 39.5).
+
+## Phase 40 (Slice 3b — BCI opts in): Infrastructure — `cargo` declares the rescue window (AD-01, AD-03)
+
+**Traces PDF-11.**
+
+- [ ] 40.1 RED: `bci.strategy.spec.ts` — `strategy.getEstructura().rangosX` includes, for `cargo`,
+      `rescateBordeDerecho: { xMin: 446, xMax: 452, tamanoFuentePt: 6 }` (design.md AD-02's window, centred on
+      the measured 449.08 convergence). This means rewriting the `rangosX` `toEqual` pin
+      (`bci.strategy.spec.ts:171-`, verified — the block Phase 12 already rewrote once) to carry the new
+      field. Per design.md AD-04's D-01 row: this is the **second** rewrite of that one pre-existing pin, and
+      this amendment is its written justification — the change's allowance rises from three pre-existing
+      rewrites (Phases 12/20.1/20.2) to **four, and no more than four**.
+- [ ] 40.2 GREEN: add `rescateBordeDerecho: { xMin: 446, xMax: 452, tamanoFuentePt: 6 }` to BCI's `cargo` entry
+      in `bci.strategy.ts` (`:161-166`, verified). Extend the `rangosX` docblock comment (`:143-160`) with the
+      AD-01/AD-02/AD-03 numbers and a one-line pointer to design.md's AMENDMENT A-01 — same terse style as the
+      existing D-02/D-03 block, do not duplicate the essay.
+- [ ] 40.3 Explicitly do **not** add `rescateBordeDerecho` to `abono`. Add a test asserting
+      `estructura.rangosX.find(r => r.col === 'abono').rescateBordeDerecho` is `undefined` — AD-03's "no rescue
+      window for `abono`" is a decision, not an oversight, and it is what makes "a wrong metric can reject a
+      statement, it cannot move a peso from `cargo` to `abono`" true. Pin it.
+
+## Phase 41 (Slice 3b): Infrastructure — extend the D-02 invariant test, do not rewrite it (AD-04)
+
+- [ ] 41.1 GREEN (arithmetic, no fixture needed): extend the existing invariant describe block
+      (`bci.strategy.spec.ts:233-297`, verified — every existing assertion in this block stays as written) with:
+      (a) each measured V2 `cargo` left-edge sample, plus a synthetic 1-, 2- and 3-digit sample, yields
+      `anchoEstimado`-estimated right edge inside `[446, 452)`; (b) every V1 and V2 **saldo** sample's estimated
+      right edge is **outside** `[446, 452)` (the right-edge restatement of "no phantom deposit equal to the
+      running balance"); (c) `cargo.xMax < abono.xMin` still holds (the catchment exists — re-assert, do not
+      assume Phase 9's assertion covers this once the field changes its meaning); (d) `abono` declares no
+      `rescateBordeDerecho` (may already be covered by Phase 40.3 — do not duplicate, cross-reference).
+- [ ] 41.2 GREEN: the narrowest-amount invariant (explicit, per design.md AD-03's "provably wide enough, not
+      just empirically empty"): a synthetic 1-digit amount's estimated right edge (449.08, the window centre)
+      minus one digit advance (`3.336`) gives a left edge of **445.74**, still `4.26` pt below `abono.xMin =
+      450`. Assert this as arithmetic — `rightEdgeEstimate - anchoEstimado('9', 6) < abono.xMin` shape, or the
+      literal numbers with a comment citing AD-03 — so no BCI `cargo` amount of any measurable width can ever
+      reach `abono` via the rescue path, and the assertion breaks (not silently drifts) if the window or the
+      metric ever changes.
+
+## Phase 42 (Slice 3b): Fixture obligation — sub-1000 amounts, right-aligned by construction (amends D-12)
+
+**This is the gap that let Slices 1-3 ship green while the real statement was broken — reopening a committed
+fixture, per the amendment's own framing.**
+
+- [ ] 42.1 Edit `generar-bci-cartola-variante-test.ts` (`:107-217`, verified — the `movimientosPlan` array and
+      its hand-picked `cargo`/`abono` `x` values): add at least one **1-digit**, one **2-digit** and one
+      **3-digit** `cargo` amount. Compute each amount's `x` as `bordeDerecho − anchoEstimado(str, 6)` using the
+      **same** advance table Phase 39.2 put in `token-grouping.ts` (import it, do not hand-copy the numbers) —
+      the fixture must *prove* the estimator, not merely coexist with it (design.md, "Fixture obligation").
+      Target `bordeDerecho ≈ 449.08` so the generated `x` lands where the real statement's short amounts were
+      measured.
+- [ ] 42.2 At least one of the new short charges must land in the **catchment** `[440, 450)` by left edge —
+      reproducing the exact production failure this amendment fixes — and at least one must land inside
+      `[437.6, 440)`, reproducing the 11 short amounts that happened to already work under Slice 3's shipped
+      bands.
+- [ ] 42.3 Run `pnpm exec tsx test/fixtures/pdf/generar-bci-cartola-variante-test.ts` (from `apps/api`);
+      regenerate `bci-cartola-variante-test.pdf`. Re-run and extend the self-assertion block
+      (`bci.strategy.spec.ts:66-`, verified — the D-12 fixture-geometry describe block) with assertions pinning
+      the new short amounts' left-edge `x` values and the 449.08 right-edge convergence across all three new
+      token lengths (2-char vs 3-char vs 6-char groups agreeing to within the measured 0.01 pt spread, mirrored
+      as an assertion on the *generated* fixture, not the real statement).
+- [ ] 42.4 Confirm the existing 18/8 movement assertions for the two V1 fixtures
+      (`pdfjs-transaction-normalizer.service.spec.ts:212-339`, `:342-435`) are untouched by this regeneration —
+      they read a different file.
+
+## Phase 43 (Slice 3b): Close the loop — RED before the opt-in, GREEN after
+
+- [ ] 43.1 RED, observed in sequence: after Phase 42's regenerated fixture lands but **before** Phase 40's
+      `cargo` opts in, re-run Phase 7's fixture-level test (`pdfjs-transaction-normalizer.service.spec.ts`, the
+      `bci-cartola-variante-test.pdf` describe block) — confirm it now fails with `EstructuraPdfInvalidaError`
+      / `TokenSinAsignarSospechoso` on the new short-amount rows. This reproduces the exact production failure
+      mode before the fix lands, so the fix is proven necessary, not speculative (same discipline as Phase
+      5.1's checkpoint).
+- [ ] 43.2 GREEN: with Phases 39-42 all landed, re-run the same test — full expected movement set (now
+      including the sub-1000 amounts), correct `cargo` attribution, `Σcargo`/`Σabono` against the regenerated
+      `TOTAL_CARGOS`/`TOTAL_ABONOS`, and the reconciliation identity
+      `SALDO_ANTERIOR − Σcargo + Σabono === SALDO_FINAL`, all green.
+- [ ] 43.3 Run the full `pnpm api test` suite — confirm both V1 BCI fixtures (18/8, unchanged), all 3 other
+      bank suites, and Slice 3's own fixture-level tests are byte-identical to before this amendment's work.
+
+## Phase 44 (Slice 3b): Extend the Slice-5 cross-bank guard (amends D-14, depends on Phase 28)
+
+- [ ] 44.1 If Phase 28 (Slice 5's cross-bank overlap spec) has already landed: extend it with one assertion —
+      no strategy other than BCI declares `rescateBordeDerecho` on any column, and BCI declares it on `cargo`
+      only. If Phase 28 has **not** landed yet when this phase is applied: add the assertion as part of writing
+      Phase 28 itself, and cross-reference this task from there — do not create a second, parallel cross-bank
+      spec file (DRY). Either order is acceptable; the assertion must exist once both phases have landed.
+- [ ] 44.2 Confirm the assertion passes for all 4 strategies today.
+
+## Phase 45 (Slice 3b): Re-verification of the real statement — raised bar (amends D-13, never committed)
+
+- [ ] 45.1 Run the pipeline locally against the real statement (never committed, no exception — the repo is
+      PUBLIC). Record only the following four booleans plus the row count in the PR description — never
+      amounts, names, account numbers, descriptions or dates:
+      1. `saldoAnterior − Σcargo + Σabono === saldoFinal` (catches a dropped row at 1×, a sign inversion at 2×).
+      2. **All 106 movement rows parse** — no `EstructuraPdfInvalidaError`, movement count equals 106.
+      3. **No row is attributed to the wrong column**, checked mechanically: for every row, the sign of the
+         running-balance delta `saldoₙ − saldoₙ₋₁` agrees with the side the amount landed on (`+` ⇒ `abono`,
+         `−` ⇒ `cargo`).
+      4. The statement's own printed totals reconcile with `Σcargo` / `Σabono`.
+      This supersedes Phase 15 as the change's real acceptance gate for the real statement — Phase 15 stays in
+      the tasks above as the record of the first (incomplete) run that surfaced this amendment's root cause.
+
+## Phase 46: Amendment verification
+
+- [ ] 46.1 `pnpm api test` — all green, net additions only, baseline ≥2622 (the number recorded at the top of
+      this amendment section), no pre-existing expected value removed except the one named rewrite in Phase
+      40.1 (the fourth and final allowed rewrite of the `rangosX` `toEqual` pin).
+- [ ] 46.2 `pnpm api exec tsc --noEmit`, `pnpm api lint`, `pnpm api openapi:check` — all green (no HTTP-surface
+      change in this amendment, so `openapi.json` diff should be empty — confirm, do not assume).
+- [ ] 46.3 Confirm via `git diff` that the diff for Phases 39-45 touches only: `token-grouping.ts`,
+      `token-grouping.spec.ts` (new or extended), `estructura-pdf-banco.ts`, `pdf-normalization.ts` (the one
+      mapping line from Phase 39.5), `bci.strategy.ts`, `bci.strategy.spec.ts`,
+      `pdfjs-transaction-normalizer.service.spec.ts`, `generar-bci-cartola-variante-test.ts`,
+      `bci-cartola-variante-test.pdf`, and, if not already present, Phase 28's cross-bank spec file.
+- [ ] 46.4 PII sweep, repeated: confirm no amount, name, account number, merchant string or literal date from
+      the real statement appears in any diff, test name, comment or commit message across Phases 39-45.
+
+---
+
 ## Review Workload Forecast
 
 Honest per-slice estimate, re-derived from the actual working tree rather than the proposal's pre-design
@@ -506,7 +706,7 @@ estimate predates that discovery.
 | 3 | `rangosX`/`fecha` band change + PERIODO colon fix + mandatory invariant test + full fixture multiset/reconciliation test + SUCURSAL 3-case test + header-leak guard + `rangosX` toEqual rewrite | ~520 | **Riskiest and largest slice.** The invariant test (Phase 9) and the fixture-level test (Phase 7) are each 80-200 lines; the production edit itself is ~15 lines total |
 | 4 | Domain error + pipeline guard + 4 union widenings + 2 mapper branches + 3 merge-blocking route tests + 2 rewritten specs + D-10 commit test + web regression test | ~380 | Roughly matches the proposal's own ~380 — this slice's shape didn't change under design |
 | 5 | 3 docblock comment blocks + `CLAUDE.md` + cross-bank invariant spec + issue drafts (prose, not counted in repo diff) | ~200 | Doc-only for the strategies, but the new cross-bank spec (Phase 28) is real test code, ~60-90 lines |
-| **Total** | | **~1740** | Within the proposal's stated ceiling (~1900), above its point estimate (~1450) — driven entirely by Slice 3's mandatory invariant + reconciliation tests, which the proposal's open design questions had not yet resolved when that estimate was written |
+| **Total (pre-amendment)** | | **~1740** | Within the proposal's stated ceiling (~1900), above its point estimate (~1450) — driven entirely by Slice 3's mandatory invariant + reconciliation tests, which the proposal's open design questions had not yet resolved when that estimate was written |
 
 ```
 Decision needed before apply: Yes
@@ -514,22 +714,53 @@ Chained PRs recommended: Yes
 400-line budget risk: High — Slices 1 and 3 individually exceed 400 changed lines
 ```
 
+### Forecast delta — AMENDMENT A-01 (Phases 39-46, Slice 3b)
+
+Added 2026-09-10, after Slices 1-3 shipped. Per design.md's "Review Workload impact" (AMENDMENT A-01 section):
+two-pass `repartirEnColumnas` + advance table + `anchoEstimado` (~70 production lines), its unit spec (~120),
+the `RangoX` field + the one mapping line in `pdf-normalization.ts` + BCI docblock (~30), the extended
+invariant test (~70), generator changes + regeneration + new self-assertions (~100), and the second `rangosX`
+`toEqual` rewrite. **≈ +390 lines.**
+
+Unlike Slices 1 and 3, this delta is **not** taken as one lump — design.md's own recommended split gives it a
+provably inert half, so the two new PRs land inside budget individually and neither needs `size:exception`:
+
+| Sub-slice | Scope | Est. changed lines | Notes |
+|---|---|---|---|
+| 3a — estimator (Phase 39) | Two-pass `repartirEnColumnas`, `ANCHOS_GLIFO_1000EM`, `anchoEstimado`, the optional `RangoX`/`RangoColumna` field, the `pdf-normalization.ts` mapping fix (Trap 5), `token-grouping.spec.ts` | ~250 | Behavior change is **zero by construction** — no strategy opts in yet. The full 2622-test suite staying green (Phase 39.6/39.7) *is* the proof, not a claim. |
+| 3b — BCI opts in (Phases 40-45) | `cargo`'s `rescateBordeDerecho`, extended invariant test, fixture regeneration with sub-1000 amounts + extended self-assertions, the second `toEqual` rewrite, cross-bank guard extension, docblock, re-verification | ~300 | Highest-value revert target for this amendment — restores Slice 3's shipped bands verbatim (rescue is additive-only per AD-03's asymmetry argument). |
+| **Amendment total** | | **~550** (vs. ~390 estimated in design.md — the design estimate did not itemize the split's own per-PR overhead; both halves individually clear the 400-line budget) | |
+
+```
+Decision needed before apply: No — both 3a and 3b clear the 400-line budget on their own; no size:exception
+needed for this amendment (contrast with Slices 1 and 3 above, which do need it)
+Chained PRs recommended: Yes (3a before 3b — 3b's opt-in has no effect without 3a's mechanism)
+400-line budget risk: Low for this amendment specifically
+```
+
 Chain strategy for this session is already cached as `feature-branch-chain` (per the launch brief). Slices map
-1:1 onto 5 chained PRs against the tracker branch `feat/api-bci-cartola-variante`:
+1:1 onto chained PRs against the tracker branch `feat/api-bci-cartola-variante`, with the amendment inserting
+two additional PRs between the original PR 3 and PR 4/5:
 
 | PR | Ships | Verifies | Rollback boundary | Depends on |
 |---|---|---|---|---|
 | 1 — fixture | Generator + committed PDF + self-assertions | `pnpm api test -- bci.strategy` | Revert removes a test fixture only — zero production impact | tracker branch |
 | 2 — dash dates | `parsearFechaFila` regex + totals-row anchor | `pnpm api test` (full, both existing BCI fixtures unchanged) | Revert restores `/`-only parsing; dash statements go back to yielding zero rows (Phase 17's error), not a worse state | PR 1's branch |
-| 3 — geometry | `rangosX`/`fecha` band + PERIODO colon fix + invariant test | `pnpm api test` (full, all 4 banks' suites) + Phase 15 manual reconciliation | **Highest-value revert target** — restores the 2026-08-30 bands verbatim; existing fixture assertions prove the old layout still parses. Must stay its own commit/PR per design.md, never folded into PR 2 | PR 2's branch |
-| 4 — zero-rows error | Domain error + pipeline guard + 4 unions + 2 mappers + contract + web regression test | `pnpm api test` + `pnpm web test` + `pnpm api openapi:check` | Independently revertible; restores silent-success behavior. **First to revert** if production surprises us (e.g. a legitimately empty month) — it is the only user-visible change to *existing working* uploads | PR 3's branch |
-| 5 — audit | 3 docblock comments + `CLAUDE.md` + cross-bank spec + issues | `pnpm api test` (cross-bank spec + 3 untouched strategy specs) | Revert removes documentation and one guard spec — zero production impact | PR 3's branch (independent of PR 4) |
+| 3 — geometry | `rangosX`/`fecha` band + PERIODO colon fix + invariant test | `pnpm api test` (full, all 4 banks' suites) + Phase 15 manual reconciliation | **Highest-value revert target among 1-3** — restores the 2026-08-30 bands verbatim; existing fixture assertions prove the old layout still parses. Must stay its own commit/PR per design.md, never folded into PR 2 | PR 2's branch |
+| **3a — rescue estimator** *(amendment)* | Two-pass `repartirEnColumnas` + glyph table + `anchoEstimado`, no strategy opts in (Phase 39) | `pnpm api test` (full — zero behavior change is what's being verified) | Revert removes an unused mechanism only — zero production impact, since nothing opts in yet | PR 3's branch |
+| **3b — BCI opts in** *(amendment)* | `cargo`'s `rescateBordeDerecho`, regenerated fixture with sub-1000 amounts, extended invariant test, re-verification against the real statement (Phases 40-45) | `pnpm api test` (full) + Phase 45's raised-bar manual reconciliation (4 booleans) | **Highest-value revert target in the whole change** — restores Slice 3's shipped bands verbatim; the rescue is additive-only (AD-03), so reverting it only re-narrows coverage, it cannot newly misattribute anything | PR 3a's branch |
+| 4 — zero-rows error | Domain error + pipeline guard + 4 unions + 2 mappers + contract + web regression test | `pnpm api test` + `pnpm web test` + `pnpm api openapi:check` | Independently revertible; restores silent-success behavior. **First to revert** if production surprises us (e.g. a legitimately empty month) — it is the only user-visible change to *existing working* uploads | PR 3b's branch |
+| 5 — audit | 3 docblock comments + `CLAUDE.md` + cross-bank spec + issues; **plus Phase 44's one-line extension** (no strategy but BCI declares `rescateBordeDerecho`, and only on `cargo`) if PR 3b has landed by the time PR 5 is authored — otherwise Phase 44's assertion ships as a small follow-up commit on PR 5 once PR 3b merges | `pnpm api test` (cross-bank spec + 3 untouched strategy specs) | Revert removes documentation and one guard spec — zero production impact | PR 3b's branch |
 
 Slices 2 → 3 are strictly ordered (Trap 2's anchor lives in 2 but only 3 makes the new fixture parse end to
-end). Slices 4 and 5 are independent of the BCI fixes and of each other — both may be built off PR 3's branch
-in parallel once it merges into the tracker, per `feature-branch-chain`'s "later children target the immediate
-parent branch" rule (interpreted here as: PR 4 and PR 5 both target PR 3's branch, since PR 3 is where the two
-diverge; whichever merges to the tracker first, the other retargets).
+end). PR 3a → 3b are strictly ordered (3b's opt-in has no effect without 3a's mechanism — Trap 5 is exactly
+this failure mode if the two are merged out of order or partially). Slice 4 is independent of the amendment
+(design.md AD-04: D-07…D-11 untouched) and may be built off PR 3b's branch in parallel with PR 5, per
+`feature-branch-chain`'s "later children target the immediate parent branch" rule (interpreted here as: PR 4
+and PR 5 both target PR 3b's branch, since PR 3b is now where the tracker's geometry work is fully settled;
+whichever merges to the tracker first, the other retargets). Slice 5 additionally has a soft content
+dependency on PR 3b via Phase 44 (see the PR 5 row above) — this does not block PR 5 from being *authored* in
+parallel, only from being *complete* before PR 3b exists.
 
 **Decision needed before apply:** Slices 1 and 3 both exceed the 400-line budget on their own and neither
 splits cleanly — Slice 1 is almost entirely mechanical generated fixture data (splitting the generator from
@@ -537,4 +768,5 @@ its self-assertions would leave an un-provable intermediate state), and Slice 3 
 commit/PR by design.md itself ("smallest diff possible, own commit, own revert" — splitting the band change
 from its mandatory invariant test would mean merging an unverified band change). Recommend `size:exception`
 for both PR 1 and PR 3, following the same pattern the previous change (`ingesta-pdf-password`) used for its
-own oversized Slice 1.
+own oversized Slice 1. **The amendment's own PR 3a/3b split needs no such exception** — see the "Forecast
+delta" above.
