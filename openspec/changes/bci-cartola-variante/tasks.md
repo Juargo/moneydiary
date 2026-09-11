@@ -177,7 +177,7 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 **Traces PDF-11** (correct `cargo`/`abono` column assignment per layout) **and PDF-03**'s new fixture row.
 
-- [ ] 7.1 RED: add a new describe block to `pdfjs-transaction-normalizer.service.spec.ts` for
+- [x] 7.1 RED: add a new describe block to `pdfjs-transaction-normalizer.service.spec.ts` for
       `bci-cartola-variante-test.pdf` asserting: (i) the exact movement count Phase 1's generator produces,
       (ii) the exact `{fecha, descripcion, cargo, abono}` multiset, (iii) `Σcargo` and `Σabono` as `BigInt`
       against the generator's exported `TOTAL_CARGOS`/`TOTAL_ABONOS` constants, (iv) the reconciliation
@@ -188,7 +188,7 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 ## Phase 8 (Slice 3): Infrastructure — the band change itself (D-02/D-03)
 
-- [ ] 8.1 GREEN: update `rangosX` in `bci.strategy.ts` (`:124-134`, verified) to the D-02/D-03 decided values:
+- [x] 8.1 GREEN: update `rangosX` in `bci.strategy.ts` (`:124-134`, verified) to the D-02/D-03 decided values:
       ```ts
       rangosX: [
         { col: 'fecha',       xMin:  30, xMax:  85 },   // 35 → 30 (D-03)
@@ -198,12 +198,12 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
       ],
       ```
       `cargo.xMin` stays **360** unchanged — no measurement asks for a change there (D-02, KISS).
-- [ ] 8.2 GREEN: Phase 7.1's test should now pass or come close — do not force it green by touching the test;
+- [x] 8.2 GREEN: Phase 7.1's test should now pass or come close — do not force it green by touching the test;
       if it is still red, the geometry table above is transcribed wrong, not the test.
 
 ## Phase 9 (Slice 3): Infrastructure — the mandatory invariant test (D-02)
 
-- [ ] 9.1 RED+GREEN: add a new strategy-level spec (new describe block in `bci.strategy.spec.ts`, or a
+- [x] 9.1 RED+GREEN: add a new strategy-level spec (new describe block in `bci.strategy.spec.ts`, or a
       dedicated `bci-rangos-invariante.spec.ts` sibling if the file grows unwieldy — implementer's call,
       document the choice) asserting, as arithmetic, for the 6 measured clusters in D-02's table (V1 cargo
       381.1–409.7, V1 abono 455.3–476.6, V2 cargo 420.9–434.1, V2 abono 484.4–486.6, V1 saldo 542.2–561.9, V2
@@ -218,47 +218,47 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 ## Phase 10 (Slice 3): Infrastructure — fecha band + SUCURSAL hazard (D-03)
 
-- [ ] 10.1 RED+GREEN: a row whose `fecha` column text reads `"22-07-2026  SUCURSAL-NAME"` (date + SUCURSAL
+- [x] 10.1 RED+GREEN: a row whose `fecha` column text reads `"22-07-2026  SUCURSAL-NAME"` (date + SUCURSAL
       token both landing in the widened `fecha` band) still parses the date correctly (the unanchored regex
       from Phase 3 handles this — same pattern Santander already relies on, `santander.strategy.ts:82`,
       verified precedent cited in design D-03).
-- [ ] 10.2 RED+GREEN: a row containing only a SUCURSAL-shaped token (no date, no amounts) never produces a
+- [x] 10.2 RED+GREEN: a row containing only a SUCURSAL-shaped token (no date, no amounts) never produces a
       movement on its own.
-- [ ] 10.3 RED+GREEN: V1's SUCURSAL token (x ≈ 99) remains unassigned after the band change — it must fall in
+- [x] 10.3 RED+GREEN: V1's SUCURSAL token (x ≈ 99) remains unassigned after the band change — it must fall in
       the `[85, 130)` gap between the new `fecha.xMax=85` and `descripcion.xMin=130`, not inside either
       column.
-- [ ] 10.4 Explicitly do **not** add a 5th `ColumnaPdf` member for `sucursal` (YAGNI, D-03 "Rejected: a fifth
+- [x] 10.4 Explicitly do **not** add a 5th `ColumnaPdf` member for `sucursal` (YAGNI, D-03 "Rejected: a fifth
       `ColumnaPdf` member") and do **not** narrow `fecha.xMax` below 85 to try to exclude SUCURSAL (D-03
       "Rejected: narrowing `fecha.xMax`").
 
 ## Phase 11 (Slice 3): Infrastructure — PERIODO anchor colon tolerance (D-06)
 
-- [ ] 11.1 RED: `bci.strategy.spec.ts` — a new scenario matching `PERIODO : 01-04-2026 al 30-04-2026` (colon
+- [x] 11.1 RED: `bci.strategy.spec.ts` — a new scenario matching `PERIODO : 01-04-2026 al 30-04-2026` (colon
       variant, the fixture's own shape from Phase 1) against `anclasPeriodo.desde`/`.hasta` returns
       `undefined` today (the existing no-colon-only pattern does not tolerate a colon).
-- [ ] 11.2 GREEN: widen both anchors (`bci.strategy.ts:120-123`, verified) with the colon-tolerant shape,
+- [x] 11.2 GREEN: widen both anchors (`bci.strategy.ts:120-123`, verified) with the colon-tolerant shape,
       copied verbatim from the in-repo Banco de Chile precedent (`banco-chile.strategy.ts:91-92`):
       ```ts
       desde: /PERIODO\s*:?\s*(\d{2}-\d{2}-\d{4})/,
       hasta: /PERIODO\s*:?\s*\d{2}-\d{2}-\d{4}\s+al\s+(\d{2}-\d{2}-\d{4})/,
       ```
-- [ ] 11.3 Confirm the existing no-colon pin (`bci.strategy.spec.ts:103-111`, verified — `'PERIODO
+- [x] 11.3 Confirm the existing no-colon pin (`bci.strategy.spec.ts:103-111`, verified — `'PERIODO
       01-04-2026 al 30-04-2026'`) is still green, unmodified.
-- [ ] 11.4 Explicitly do **not** touch BCI's `fuenteAnio.kind === 'explicito'` exemption from
+- [x] 11.4 Explicitly do **not** touch BCI's `fuenteAnio.kind === 'explicito'` exemption from
       `RangoFechasInvalidoError` (`bci.strategy.ts:137`; exemption logic in
       `pdf-structure-extraction.ts:117-129`, verified) — a missing period anchor stays non-fatal for BCI
       (D-06 part 2, deliberate).
 
 ## Phase 12 (Slice 3): Infrastructure — rewrite the ONE allowed pre-existing pin (D-01 tripwire 1)
 
-- [ ] 12.1 GREEN: update `bci.strategy.spec.ts:82-87`'s `rangosX` `toEqual` (verified) to the new D-02/D-03
+- [x] 12.1 GREEN: update `bci.strategy.spec.ts:82-87`'s `rangosX` `toEqual` (verified) to the new D-02/D-03
       values, with a comment citing D-02's table as the justification — this is explicitly the one
       pre-existing expectation this whole change is allowed to rewrite, and only together with a written
       justification (design.md D-01 tripwire 1). Do not touch this test anywhere else in this change.
 
 ## Phase 13 (Slice 3): Infrastructure — header-row leak guard (D-12 hazard)
 
-- [ ] 13.1 RED-or-confirm-inert: assert no table-header fragment (`FECHA`, `SUCURSAL`, `DESCRIPCION`,
+- [x] 13.1 RED-or-confirm-inert: assert no table-header fragment (`FECHA`, `SUCURSAL`, `DESCRIPCION`,
       `CHEQUES`, `DEPOSITOS`, `SALDO DIARIO`) appears in any normalized description for the new fixture. If
       this is already green (design's analysis says it likely is — non-parseable date + non-empty `cargo`
       blocks fusion), **do not add a speculative `filasIgnoradas` anchor** (YAGNI) — keep the test as a
@@ -267,12 +267,12 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 ## Phase 14 (Slice 3): Infrastructure — close the loop, verify no regression
 
-- [ ] 14.1 Re-run Phase 7.1's fixture-level test — full expected movement set, correct `cargo`/`abono` sides,
+- [x] 14.1 Re-run Phase 7.1's fixture-level test — full expected movement set, correct `cargo`/`abono` sides,
       reconciliation identity all green.
-- [ ] 14.2 Run the full `pnpm api test` suite — confirm BOTH existing BCI fixtures (18 / 8 movements,
+- [x] 14.2 Run the full `pnpm api test` suite — confirm BOTH existing BCI fixtures (18 / 8 movements,
       unchanged) and all 3 other bank suites (BancoEstado, Banco de Chile, Santander) are byte-identical to
       before this slice.
-- [ ] 14.3 REFACTOR: update the `bci.strategy.ts` docblock (`:19-88`, verified) with the D-02/D-03/D-06
+- [x] 14.3 REFACTOR: update the `bci.strategy.ts` docblock (`:19-88`, verified) with the D-02/D-03/D-06
       numbers and a short pointer to design.md — do not duplicate the full essay, the existing docblock style
       is a few sentences per decision plus the measured ranges.
 
