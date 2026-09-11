@@ -672,6 +672,16 @@ fixture, per the amendment's own framing.**
       4. The statement's own printed totals reconcile with `Σcargo` / `Σabono`.
       This supersedes Phase 15 as the change's real acceptance gate for the real statement — Phase 15 stays in
       the tasks above as the record of the first (incomplete) run that surfaced this amendment's root cause.
+- [ ] 45.2 **RESULT (run 2026-09-11, Slice 3b) — PARTIAL PASS, gate NOT met.** Booleans:
+      1. Reconciliation `apertura − Σcargo + Σabono === cierre`: **FALSE**, short by exactly `6.128`.
+      2. Row parse: **104 movements from 106 dated lines** (was 0 before the change). No `EstructuraPdfInvalidaError`.
+      3. Wrong-column check: **0 sign inversions** — no row has both cargo and abono; the column-geometry fix
+         (the point of this change) holds on the real statement.
+      4. Printed totals: not reconciled — see (1).
+      The `6.128` gap is traced to a single dropped real movement (a "TRASPASO DESDE LINEA SOBREGIRO A CTA CTE"
+      abono), a continuation/row-grouping defect **distinct from this change's column geometry** — tracked as a
+      separate follow-up (Engram `sdd/bci-cartola-variante/bug-traspaso-sobregiro`), NOT a blocker on landing
+      Slice 3b per the user's decision (option A). The change may NOT be archived until this gate is met.
 
 ## Phase 46: Amendment verification
 
