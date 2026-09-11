@@ -289,11 +289,11 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 **Traces PDF-12.**
 
-- [ ] 16.1 RED: `apps/api/src/domain/errors/sin-movimientos.error.spec.ts` — asserts
+- [x] 16.1 RED: `apps/api/src/domain/errors/sin-movimientos.error.spec.ts` — asserts
       `new SinMovimientosError('cartola.pdf', 'BCI')` has `name === 'SinMovimientosError'`, a `readonly banco`
       property equal to `'BCI'`, and a message that contains the file name but contains **no** digits that
       could be an amount (guard against an accidental future interpolation).
-- [ ] 16.2 GREEN: create `apps/api/src/domain/errors/sin-movimientos.error.ts`, shaped like
+- [x] 16.2 GREEN: create `apps/api/src/domain/errors/sin-movimientos.error.ts`, shaped like
       `pdf-invalido.error.ts`/`pdf-sin-texto.error.ts` (both verified — bare `Error` subclass, constructor
       takes only identifying-but-non-sensitive params):
       ```ts
@@ -310,16 +310,16 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
       ```
       Constructor takes `(nombreArchivo, banco)` only — no amount, row or description parameter exists to
       interpolate (structural no-PII guarantee, D-08).
-- [ ] 16.3 REFACTOR: doc-comment on the error class explaining the one-message decision (D-08 — cannot
+- [x] 16.3 REFACTOR: doc-comment on the error class explaining the one-message decision (D-08 — cannot
       distinguish "we could not read it" from "the month was empty," so one message names both, leads with
       the one that is our fault, never accuses the user's file).
 
 ## Phase 17 (Slice 4): Application — the pipeline guard (D-07)
 
-- [ ] 17.1 RED: `ejecutar-pipeline-ingesta.use-case.spec.ts` — a stub `IPdfTransactionNormalizer` (or Excel
+- [x] 17.1 RED: `ejecutar-pipeline-ingesta.use-case.spec.ts` — a stub `IPdfTransactionNormalizer` (or Excel
       equivalent) returning `Result.ok([])` makes `EjecutarPipelineIngestaUseCase.execute()` return
       `Result.fail(SinMovimientosError)` instead of `Result.ok({ transacciones: [], ... })`.
-- [ ] 17.2 GREEN: add the guard in `ejecutar-pipeline-ingesta.use-case.ts` immediately after
+- [x] 17.2 GREEN: add the guard in `ejecutar-pipeline-ingesta.use-case.ts` immediately after
       `const transacciones = normalizeResult.getValue();` (`:184`, verified) and **before** the existing debug
       log (`:187-190`, verified):
       ```ts
@@ -327,31 +327,31 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
         return Result.fail(new SinMovimientosError(archivo.originalName, banco.banco));
       }
       ```
-- [ ] 17.3 GREEN: widen `EjecutarPipelineIngestaError` (`:57-67`, verified) with `SinMovimientosError`.
-- [ ] 17.4 Confirm this guard fires identically for the Excel branch — no `esPdf` check around it, by design
+- [x] 17.3 GREEN: widen `EjecutarPipelineIngestaError` (`:57-67`, verified) with `SinMovimientosError`.
+- [x] 17.4 Confirm this guard fires identically for the Excel branch — no `esPdf` check around it, by design
       (D-07, Trap 4: the fix is deliberately format-agnostic, one piece of knowledge in one place).
 
 ## Phase 18 (Slice 4): Application — widen the 3 remaining error unions
 
-- [ ] 18.1 GREEN: widen `ProcessIngestaError` (`process-ingesta.use-case.ts`, union declared after the
+- [x] 18.1 GREEN: widen `ProcessIngestaError` (`process-ingesta.use-case.ts`, union declared after the
       docblock at `:56-69`, verified) with `SinMovimientosError`.
-- [ ] 18.2 GREEN: widen `PreviewIngestaError` (`preview-ingesta.use-case.ts:70-74`, verified) with
+- [x] 18.2 GREEN: widen `PreviewIngestaError` (`preview-ingesta.use-case.ts:70-74`, verified) with
       `SinMovimientosError`.
-- [ ] 18.3 GREEN: widen `CommitIngestaError` (`commit-ingesta.use-case.ts:84-103`, verified) with
+- [x] 18.3 GREEN: widen `CommitIngestaError` (`commit-ingesta.use-case.ts:84-103`, verified) with
       `SinMovimientosError`, in the "Pipeline errors (400)" group alongside `PdfProtegidoError`.
-- [ ] 18.4 Run `pnpm api exec tsc --noEmit` — confirm it stays **clean** with all three widened but with NO
+- [x] 18.4 Run `pnpm api exec tsc --noEmit` — confirm it stays **clean** with all three widened but with NO
       mapper branch added yet (Phase 24 adds those). This empirically repeats the D-09 finding: the compiler
       does not force the mapper branch, only `instanceof` narrowing at runtime does. Record the observation —
       it is the reason Phase 24's tests are merge-blocking, not decorative.
 
 ## Phase 19 (Slice 4): Application — commit registers a FALLIDA row (no carve-out, D-10)
 
-- [ ] 19.1 RED: `commit-ingesta.use-case.spec.ts` — a stub pipeline returning
+- [x] 19.1 RED: `commit-ingesta.use-case.spec.ts` — a stub pipeline returning
       `Result.fail(new SinMovimientosError('x.pdf', 'BCI'))` makes `CommitIngestaUseCase.execute()` call
       `ingestaFallidaWriter.registrar` **exactly once**, with `motivo: error.message` — the opposite of the
       `PdfProtegidoError` carve-out (D-10: no field to change, no retry that helps, this is a genuine terminal
       failure and the only durable trace that the user tried to import an unreadable statement).
-- [ ] 19.2 GREEN: confirm the existing `runCommit()` failure branch already calls `registrarFallo` for any
+- [x] 19.2 GREEN: confirm the existing `runCommit()` failure branch already calls `registrarFallo` for any
       error that is NOT `PdfProtegidoError` (per the prior change's `if (!(error instanceof
       PdfProtegidoError)) await this.registrarFallo(...)` shape) — `SinMovimientosError` needs **no new
       branch**, it falls through to the default registration path. If it does not, that is itself a finding to
@@ -359,16 +359,16 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 ## Phase 20 (Slice 4): Application — rewrite the two pre-existing Excel-branch expectations (D-07, Trap 4)
 
-- [ ] 20.1 **Named rewrite, not a new spec.** `process-ingesta.use-case.spec.ts:673`
+- [x] 20.1 **Named rewrite, not a new spec.** `process-ingesta.use-case.spec.ts:673`
       (`"lista de transacciones vacía: persiste con total 0 y retorna ok, sin registrar FALLIDA"`) — change
       the expectation from `result.isOk() === true` / `estado === 'PROCESADA'` / 0 FALLIDA calls to
       `result.isFail() === true` with `result.getError()` an instance of `SinMovimientosError`, and confirm
       `ingestaFallidaWriter.calls` now has length **1** (per Phase 19).
-- [ ] 20.2 **Named rewrite, not a new spec.** `preview-ingesta.use-case.spec.ts:480`
+- [x] 20.2 **Named rewrite, not a new spec.** `preview-ingesta.use-case.spec.ts:480`
       (`"archivo con 0 filas de datos: retorna ok con totalFilas:0 y filas:[] (200 legítimo)"`) — change the
       expectation from `result.isOk() === true` to `result.isFail() === true` with `result.getError()` an
       instance of `SinMovimientosError`.
-- [ ] 20.3 Grep every other fake normalizer in the application specs
+- [x] 20.3 Grep every other fake normalizer in the application specs
       (`process-ingesta.use-case.spec.ts:129-140,185-195`, `ejecutar-pipeline-ingesta.use-case.spec.ts:162-188`,
       `commit-ingesta.use-case.spec.ts:206-219`, `preview-ingesta.use-case.spec.ts:123-134,195-206` — line
       numbers per design.md D-07, re-verify each before touching) — confirm all of them already return a
@@ -376,53 +376,53 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 ## Phase 21 (Slice 4): Infrastructure — the 3 merge-blocking route tests (D-09) — Trap 3
 
-- [ ] 21.1 RED: `POST /api/ingestas` (one-shot) — stub `processIngesta.execute` to return
+- [x] 21.1 RED: `POST /api/ingestas` (one-shot) — stub `processIngesta.execute` to return
       `Result.fail(new SinMovimientosError('x.pdf', 'BCI'))`; assert the response is **400** with
       `code: 'SIN_MOVIMIENTOS'` (not 500, not a message with no `code`).
-- [ ] 21.2 RED: `POST /api/ingestas/preview` — same stub/assertion shape against `previewIngesta.execute`.
-- [ ] 21.3 RED: `POST /api/ingestas/commit` — same stub/assertion shape against `commitIngesta.execute`.
+- [x] 21.2 RED: `POST /api/ingestas/preview` — same stub/assertion shape against `previewIngesta.execute`.
+- [x] 21.3 RED: `POST /api/ingestas/commit` — same stub/assertion shape against `commitIngesta.execute`.
       **These three tests are MERGE-BLOCKING per D-09 — the slice must not merge without them, and they must
       be observed RED before Phase 22's GREEN.**
 
 ## Phase 22 (Slice 4): Infrastructure — the mapper branches
 
-- [ ] 22.1 GREEN: add a `SinMovimientosError` branch to `aHttpError` (`ingesta.routes.ts:444-487`, verified —
+- [x] 22.1 GREEN: add a `SinMovimientosError` branch to `aHttpError` (`ingesta.routes.ts:444-487`, verified —
       this function is reused by both the one-shot route at `:125` and the preview route at `:178`):
       ```ts
       if (error instanceof SinMovimientosError) {
         return { status: 400, message: error.message, code: 'SIN_MOVIMIENTOS' };
       }
       ```
-- [ ] 22.2 GREEN: add the identical branch to `aCommitHttpError` (`ingesta.routes.ts:386-437`, verified).
-- [ ] 22.3 Confirm Phase 21's three tests now pass.
+- [x] 22.2 GREEN: add the identical branch to `aCommitHttpError` (`ingesta.routes.ts:386-437`, verified).
+- [x] 22.3 Confirm Phase 21's three tests now pass.
 
 ## Phase 23 (Slice 4): Contract — verify, do not assume (D-11)
 
-- [ ] 23.1 Run `pnpm api openapi:emit`; diff `apps/api/openapi.json`. `code` values appear only as free-text
+- [x] 23.1 Run `pnpm api openapi:emit`; diff `apps/api/openapi.json`. `code` values appear only as free-text
       description prose today (verified: `DEMO_SOLO_LECTURA`/`PDF_PROTEGIDO` are not a closed enum anywhere
       in `openapi-document.ts`), so the expected diff is a description-string addition at most, on the
       preview/commit/one-shot 400 responses — not a new schema/enum member. If the diff is anything else,
       stop and re-check the schema file before proceeding.
-- [ ] 23.2 Run `pnpm contract:sync` if the emit step changed anything; run `pnpm api openapi:check` — zero
+- [x] 23.2 Run `pnpm contract:sync` if the emit step changed anything; run `pnpm api openapi:check` — zero
       drift.
 
 ## Phase 24 (Slice 4): Web — verify D-11 holds, do not build a new affordance
 
-- [ ] 24.1 Confirm (read-only, then a regression test): `SubirCartola.tsx` derives `mensajeError` from
+- [x] 24.1 Confirm (read-only, then a regression test): `SubirCartola.tsx` derives `mensajeError` from
       `previewMutation.error?.message` (`:798`, verified) and renders it verbatim in a `role="alert"` block
       for the existing `preview-error` state (`:1085-1092`, verified). Add a test in `SubirCartola.test.tsx`
       asserting a `code: 'SIN_MOVIMIENTOS'` 400 response renders `SinMovimientosError`'s message verbatim,
       through the **existing** generic error state — with **no** new `EstadoSubida` member added (D-11: no
       affordance exists for this error, a dedicated state would just duplicate the server message and drift).
-- [ ] 24.2 Confirm `ApiError.tag === 'invalid'` already carries `code` and is already in
+- [x] 24.2 Confirm `ApiError.tag === 'invalid'` already carries `code` and is already in
       `TAGS_ERROR_PERMANENTE` (fail-closed retry policy) — no client plumbing changes needed beyond the test
       in 24.1.
 
 ## Phase 25 (Slice 4): Verification
 
-- [ ] 25.1 `pnpm api test`, `pnpm api exec tsc --noEmit`, `pnpm api openapi:check` — all green.
-- [ ] 25.2 `pnpm web test`, `pnpm web typecheck` — all green.
-- [ ] 25.3 Confirm the diff for this slice touches only: `domain/errors/sin-movimientos.error.{ts,spec.ts}`,
+- [x] 25.1 `pnpm api test`, `pnpm api exec tsc --noEmit`, `pnpm api openapi:check` — all green.
+- [x] 25.2 `pnpm web test`, `pnpm web typecheck` — all green.
+- [x] 25.3 Confirm the diff for this slice touches only: `domain/errors/sin-movimientos.error.{ts,spec.ts}`,
       `ejecutar-pipeline-ingesta.use-case.{ts,spec.ts}`, `process-ingesta.use-case.{ts,spec.ts}`,
       `preview-ingesta.use-case.{ts,spec.ts}`, `commit-ingesta.use-case.{ts,spec.ts}`, `ingesta.routes.{ts,spec.ts}`,
       `openapi.json` + `packages/api-client` (generated), `SubirCartola.test.tsx`.
