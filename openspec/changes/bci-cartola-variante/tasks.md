@@ -508,17 +508,17 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 ## Phase 30: Full change verification
 
-- [ ] 30.1 `pnpm api test` — ≥2595 tests baseline, all green, net additions only (no expected value removed
+- [x] 30.1 `pnpm api test` — ≥2595 tests baseline, all green, net additions only (no expected value removed
       except the 3 named rewrites in Phases 12/20.1/20.2).
-- [ ] 30.2 `pnpm api exec tsc --noEmit`, `pnpm api lint`, `pnpm web test`, `pnpm web typecheck`,
+- [x] 30.2 `pnpm api exec tsc --noEmit`, `pnpm api lint`, `pnpm web test`, `pnpm web typecheck`,
       `pnpm api openapi:check`, `pnpm build` — all green.
-- [ ] 30.3 Walk the proposal's Success Criteria checklist item by item and confirm each one explicitly (both
+- [x] 30.3 Walk the proposal's Success Criteria checklist item by item and confirm each one explicitly (both
       layouts parse with correct `cargo`/`abono` sides; both existing BCI fixtures unchanged; the 3 other bank
       suites untouched; zero-movement statements return an actionable error; the error message contains no
       statement content; no real statement or excerpt exists anywhere in the repo; audit findings are written
       down with follow-up named; full test/typecheck/contract gates green; the real statement parses end to
       end per Phase 15).
-- [ ] 30.4 PII sweep: confirm no amount, name, account number, merchant string or literal date from the real
+- [x] 30.4 PII sweep: confirm no amount, name, account number, merchant string or literal date from the real
       statement appears in any diff, test name, comment or commit message across all 5 slices — reviewer
       checklist item, repeated from the proposal's binding rule.
 
@@ -703,7 +703,7 @@ fixture, per the amendment's own framing.**
 
 ## Phase 45 (Slice 3b): Re-verification of the real statement — raised bar (amends D-13, never committed)
 
-- [ ] 45.1 Run the pipeline locally against the real statement (never committed, no exception — the repo is
+- [x] 45.1 Run the pipeline locally against the real statement (never committed, no exception — the repo is
       PUBLIC). Record only the following four booleans plus the row count in the PR description — never
       amounts, names, account numbers, descriptions or dates:
       1. `saldoAnterior − Σcargo + Σabono === saldoFinal` (catches a dropped row at 1×, a sign inversion at 2×).
@@ -728,17 +728,17 @@ fixture, per the amendment's own framing.**
 
 ## Phase 46: Amendment verification
 
-- [ ] 46.1 `pnpm api test` — all green, net additions only, baseline ≥2622 (the number recorded at the top of
+- [x] 46.1 `pnpm api test` — all green, net additions only, baseline ≥2622 (the number recorded at the top of
       this amendment section), no pre-existing expected value removed except the one named rewrite in Phase
       40.1 (the fourth and final allowed rewrite of the `rangosX` `toEqual` pin).
-- [ ] 46.2 `pnpm api exec tsc --noEmit`, `pnpm api lint`, `pnpm api openapi:check` — all green (no HTTP-surface
+- [x] 46.2 `pnpm api exec tsc --noEmit`, `pnpm api lint`, `pnpm api openapi:check` — all green (no HTTP-surface
       change in this amendment, so `openapi.json` diff should be empty — confirm, do not assume).
-- [ ] 46.3 Confirm via `git diff` that the diff for Phases 39-45 touches only: `token-grouping.ts`,
+- [x] 46.3 Confirm via `git diff` that the diff for Phases 39-45 touches only: `token-grouping.ts`,
       `token-grouping.spec.ts` (new or extended), `estructura-pdf-banco.ts`, `pdf-normalization.ts` (the one
       mapping line from Phase 39.5), `bci.strategy.ts`, `bci.strategy.spec.ts`,
       `pdfjs-transaction-normalizer.service.spec.ts`, `generar-bci-cartola-variante-test.ts`,
       `bci-cartola-variante-test.pdf`, and, if not already present, Phase 28's cross-bank spec file.
-- [ ] 46.4 PII sweep, repeated: confirm no amount, name, account number, merchant string or literal date from
+- [x] 46.4 PII sweep, repeated: confirm no amount, name, account number, merchant string or literal date from
       the real statement appears in any diff, test name, comment or commit message across Phases 39-45.
 
 ---
