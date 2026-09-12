@@ -60,10 +60,10 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 **Traces PDF-03's new table row** ("bci — variant B (dash dates, shifted geometry)").
 
-- [ ] 1.1 Read `generar-bci-cartola-montos-grandes-test.ts` in full again (already re-verified in this phase —
+- [x] 1.1 Read `generar-bci-cartola-montos-grandes-test.ts` in full again (already re-verified in this phase —
       raw uncompressed content streams, `BT/Tf/Tm/Tj/ET` per token, Helvetica `/WinAnsiEncoding`, latin1, the
       backward pen-jump spacer at x=599 (`:59-77`)) before writing anything new.
-- [ ] 1.2 Write `apps/api/test/fixtures/pdf/generar-bci-cartola-variante-test.ts`, same structure (catalog +
+- [x] 1.2 Write `apps/api/test/fixtures/pdf/generar-bci-cartola-variante-test.ts`, same structure (catalog +
       pages + content-stream objects + xref/trailer assembled by hand), reproducing the **D-12 geometry
       contract exactly**, entirely invented data:
       - Row dates `DD-MM-YYYY`, date token x = **33.6** (the out-of-band value — the fixture must prove D-03,
@@ -82,13 +82,13 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
         the generator must compute a running balance that is internally consistent by construction, same
         precedent as `generar-bci-cartola-montos-grandes-test.ts:80-83`.
       - Every name, merchant, account number and amount is **invented** — no value from the real statement.
-- [ ] 1.3 Run `pnpm exec tsx test/fixtures/pdf/generar-bci-cartola-variante-test.ts` (from `apps/api`); commit
+- [x] 1.3 Run `pnpm exec tsx test/fixtures/pdf/generar-bci-cartola-variante-test.ts` (from `apps/api`); commit
       both the generator script and the resulting `bci-cartola-variante-test.pdf` binary (D-12's
       committed-vs-generated-at-test-time tradeoff — same as the existing BCI fixtures).
 
 ## Phase 2 (Slice 1): Fixture self-assertions — RED first, no production code (D-12)
 
-- [ ] 2.1 RED: add a new `describe('fixture geometry — bci-cartola-variante-test.pdf (D-12 self-assertions,
+- [x] 2.1 RED: add a new `describe('fixture geometry — bci-cartola-variante-test.pdf (D-12 self-assertions,
       no production code)', ...)` block to `apps/api/src/infrastructure/pdf/strategies/bci.strategy.spec.ts`
       (see the vitest include-glob note above — **do not** create a new file under `test/fixtures/pdf/`).
       Reuse the existing `tokensPagina1` helper pattern to load all 3 pages' tokens via `PdfTextExtractor`
@@ -104,9 +104,9 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
         (the split-anchor shape D-06 must handle).
       - At least one cargo-range token (x ∈ [420.9, 434.1]) and at least two abono-range tokens
         (x ∈ [484, 487]) exist.
-- [ ] 2.2 GREEN: once Phase 1's generator produces the fixture, this block should already be green — if any
+- [x] 2.2 GREEN: once Phase 1's generator produces the fixture, this block should already be green — if any
       assertion fails, fix the **generator** (never loosen the assertion) until it passes.
-- [ ] 2.3 Run `pnpm api test -- bci.strategy` — confirm the new describe block is green and every pre-existing
+- [x] 2.3 Run `pnpm api test -- bci.strategy` — confirm the new describe block is green and every pre-existing
       test in the same file is untouched.
 
 ---
