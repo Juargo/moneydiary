@@ -115,37 +115,37 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 **Traces PDF-11** ("every movement row's date parses successfully").
 
-- [ ] 3.1 RED: `apps/api/src/infrastructure/pdf/pdf-normalization.spec.ts` — call `normalizarTransaccionesPdf`
+- [x] 3.1 RED: `apps/api/src/infrastructure/pdf/pdf-normalization.spec.ts` — call `normalizarTransaccionesPdf`
       with a **synthetic single-row token set** (following the file's existing synthetic-token pattern) whose
       date token sits at **x=40** (inside the CURRENT `fecha` band [35, 85), so Trap 1 cannot interfere) with
       value `'22-07-2026'`, `formatoFecha: 'DD/MM/YYYY'`, and a valid cargo or abono token in-band. Assert the
       row is dropped today (0 transactions returned) because the slash-only regex does not match a dash date.
       This is the "unit test on the parser," not a fixture-level test (design.md, "Everything else follows
       from...", ¶2).
-- [ ] 3.2 GREEN: widen the `'DD/MM/YYYY'` case in `parsearFechaFila` (`pdf-normalization.ts:81`, verified) from
+- [x] 3.2 GREEN: widen the `'DD/MM/YYYY'` case in `parsearFechaFila` (`pdf-normalization.ts:81`, verified) from
       `/(\d{2})\/(\d{2})\/(\d{4})/` to `/(\d{2})[/-](\d{2})[/-](\d{4})/` (D-04). Do **not** add a fourth
       `FormatoFechaPdf` member — BCI keeps exactly one structure, one `formatoFecha` (D-01/D-04).
-- [ ] 3.3 GREEN: Phase 3.1's test now passes.
-- [ ] 3.4 REFACTOR: update the `FormatoFechaPdf` docblock (`estructura-pdf-banco.ts:14-21`, verified) to state
+- [x] 3.3 GREEN: Phase 3.1's test now passes.
+- [x] 3.4 REFACTOR: update the `FormatoFechaPdf` docblock (`estructura-pdf-banco.ts:14-21`, verified) to state
       the `'DD/MM/YYYY'` member denotes the form `DD?MM?YYYY` and that BCI prints both separators across its
       two layouts.
 
 ## Phase 4 (Slice 2): Confirm the existing pins stay untouched
 
-- [ ] 4.1 Run `pnpm api test -- bci.strategy` — confirm `formatoFecha` pin (`bci.strategy.spec.ts:67`, verified)
+- [x] 4.1 Run `pnpm api test -- bci.strategy` — confirm `formatoFecha` pin (`bci.strategy.spec.ts:67`, verified)
       still reads `'DD/MM/YYYY'` and is unmodified; confirm the `xMin < xMax` pin (`:71-75`) is unmodified.
       **No `rangosX` change happens in this slice** — that is Phase 12's job, not this one.
 
 ## Phase 5 (Slice 2): Infrastructure — the mandatory same-slice checkpoint (D-05) — Trap 2
 
-- [ ] 5.1 **Checkpoint, do not skip.** Run `pnpm api test -- pdfjs-transaction-normalizer` immediately after
+- [x] 5.1 **Checkpoint, do not skip.** Run `pnpm api test -- pdfjs-transaction-normalizer` immediately after
       Phase 3 lands. Confirm it is now RED: the existing `bci-cartola-montos-grandes-test.pdf` fixture's
       8-movement assertion (`pdfjs-transaction-normalizer.service.spec.ts:342-435`) fails with
       `EstructuraPdfInvalidaError`, because the totals-value row (`generar-...ts:220`, `'01-05-2026 al
       31-05-2026'` at x=45.0) now parses a date and carries both a cargo (`386.0`) and an abono (`461.0`)
       token. Record the exact failure (problema tipo + message) before proceeding — this is what proves the
       anchor below is necessary, not speculative.
-- [ ] 5.2 RED confirmed above; GREEN: add the `filasIgnoradas` anchor to `bci.strategy.ts` (after the existing
+- [x] 5.2 RED confirmed above; GREEN: add the `filasIgnoradas` anchor to `bci.strategy.ts` (after the existing
       `/^Periodo\s+Saldo Anterior\s*$/` entry, `:170`, verified), in the exact-anchor style the file already
       uses:
       ```ts
@@ -158,17 +158,17 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
       // esa columna.
       /^\d{2}[/-]\d{2}[/-]\d{4}\s+al\s+\d{2}[/-]\d{2}[/-]\d{4}\b/,
       ```
-- [ ] 5.3 Re-run `pnpm api test -- pdfjs-transaction-normalizer` — confirm both existing BCI fixtures
+- [x] 5.3 Re-run `pnpm api test -- pdfjs-transaction-normalizer` — confirm both existing BCI fixtures
       (`bci-cartola-test.pdf` → **18** movements, `bci-cartola-montos-grandes-test.pdf` → **8** movements,
       verified at `:212-339` and `:342-435`) are green again with their **unchanged** documented counts. This
       IS Slice 2's real acceptance bar, per design.md D-05 — not "the new fixture's dates parse."
 
 ## Phase 6 (Slice 2): Verification
 
-- [ ] 6.1 `pnpm api test`, `pnpm api exec tsc --noEmit` — all green. Confirm the diff for this slice touches
+- [x] 6.1 `pnpm api test`, `pnpm api exec tsc --noEmit` — all green. Confirm the diff for this slice touches
       only: `pdf-normalization.ts`, `pdf-normalization.spec.ts`, `estructura-pdf-banco.ts` (comment-only),
       `bci.strategy.ts` (one new `filasIgnoradas` entry + comment).
-- [ ] 6.2 Confirm the 3 non-BCI bank suites and every other pre-existing BCI test are byte-identical in
+- [x] 6.2 Confirm the 3 non-BCI bank suites and every other pre-existing BCI test are byte-identical in
       expectation (no other rewritten value in this slice).
 
 ---
