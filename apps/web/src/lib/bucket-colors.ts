@@ -1,5 +1,5 @@
 /**
- * Bucket pastel palette — WEB ONLY, diverges from
+ * Bucket fill palette — WEB ONLY, diverges from
  * `apps/mobile/src/theme/colors.ts` by product decision (see
  * `openspec/changes/web-dashboard-redesign-mobile/design.md` §1.1 — do NOT
  * port this migration to `apps/mobile`). Hex values MUST match the Tailwind
@@ -8,12 +8,17 @@
  * `var(--color-...)`) because this module also feeds the pure
  * `resumen-view-model` (no DOM, no CSS cascade available).
  *
- * These four hexes were minted for the retired light "Serene Finance"
- * identity and OUTLIVED it: the Tecno-Analítico restyle (2026-09-02)
- * deliberately left them alone because they are mid-tone and still clear
- * 7.94-13.10:1 as fills on the dark ground (per-token table in `index.css`).
- * They are named for the buckets, not for an identity — do not assume a
- * future identity change has to move them, and do not assume it can't.
+ * "Brote" palette (2026-09-12): the previous mid-tone pastels (minted for the
+ * retired light "Serene Finance" identity and merely left alone by the
+ * Tecno-Analítico restyle) were replaced by product-owner choice for
+ * psychological meaning, not just contrast — Necesidades reads as structure
+ * (steel blue), Deseos as pleasure (plum), Ahorro as growth and the most
+ * salient color of the three (jade). All four fills (including the
+ * `SinCategoria` grey below) are re-measured against the Tecno-Analítico dark
+ * ground (`--background` #090a0f, `--card` #11131a) — see the per-token table
+ * in `index.css`. They are named for the buckets, not for an identity — do
+ * not assume a future identity change has to move them, and do not assume it
+ * can't.
  */
 
 /**
@@ -21,21 +26,30 @@
  * bucket names ('Deseos', not the UI label 'Gustos').
  */
 export const COLOR_BUCKET: Record<string, string> = {
-  Necesidades: '#8FA7D1', // soft blue
-  Deseos: '#B1A7D1', // lavanda
-  Ahorro: '#E6D194', // pastel yellow
+  Necesidades: '#77A7E5', // steel blue — structure
+  Deseos: '#BB6C90', // plum — pleasure
+  Ahorro: '#47DAB4', // jade — growth, the most salient of the three
   // US-047 (design D-08): a deliberate neutral grey for the donut ring's 4th
   // wedge — NOT `COLOR_EXCESO` (over-budget and uncategorized are different
   // meanings; sharing the accent would teach the user the wrong thing) and
-  // NOT the `#CCCCCC` unstyled fallback. Contrast verified (WCAG AA):
-  // ≈8.3:1 against `PIE_LABEL_FILL` (#1a1c1c) on-wedge label text — well
-  // above the 3:1 large-text floor the other 3 pastels already clear — and
-  // and ≈9.2:1 against the `PIE_WEDGE_STROKE` separator. That second number
-  // was ≈2.1:1 while the separator was white; the Tecno-Analítico restyle
-  // (2026-09-02) moved that literal to a dark neutral, which lifted every
-  // wedge/separator pair well clear of the old ~1.5:1 pastel-yellow floor
-  // this US originally shipped against.
-  SinCategoria: '#AEB4C4', // neutral grey
+  // NOT the `#CCCCCC` unstyled fallback.
+  //
+  // Brote re-tint (2026-09-12) moved this from #AEB4C4 to a darker mid grey:
+  // the old grey sat adjacent to Ahorro and Necesidades on the donut ring and
+  // measured deutan ΔE 4.6 against the new jade and normal-vision ΔE 9.7
+  // against the new blue — under the CVD floor of 6 and the normal-vision
+  // floor of 15. #686663 clears both: worst normal-vision pair is 16.1
+  // (Deseos↔SinCategoria), worst CVD pair is 8.7 protan (Deseos↔SinCategoria)
+  // — and among the three spend buckets alone, worst CVD is 12.5 deutan
+  // (Necesidades↔Deseos) (OKLab ΔE×100).
+  //
+  // Contrast against `--background`/`--card`: 3.46:1 / 3.24:1 (still clears
+  // the 3:1 non-text floor, tighter than the other three buckets by design —
+  // see `index.css`). #686663 is too dark for the shared dark on-wedge label
+  // (2.99:1) — it takes the LIGHT label instead (`PIE_LABEL_FILL_LIGHT`
+  // #e8e6e1, 4.59:1) via `colorEtiquetaPie` (`lib/pie-colors.ts`); the on-wedge
+  // label choice is per-bucket now, not a single constant.
+  SinCategoria: '#686663', // mid grey
 };
 
 /**
@@ -88,37 +102,43 @@ export function construirOpcionesBucket(
 }
 
 /**
- * Focus-ring contrast against these pastels — canonical source (the numbers
- * live HERE ONLY; `DistribucionPie.tsx`, `LeyendaGasto.tsx` and
+ * Focus-ring contrast against these bucket fills — canonical source (the
+ * numbers live HERE ONLY; `DistribucionPie.tsx`, `LeyendaGasto.tsx` and
  * `ResumenAnual.tsx` point back to this comment instead of repeating them).
  *
- * ⚠️ REWRITTEN 2026-09-03. Round 9 routed every focus state through `--ring`
- * and recorded that contrast "can only improve". That held while `--ring` was
- * #1A1C1C — a dark ring on light pastels. The Tecno-Analítico restyle moved
- * `--ring` to cyan #67E8F9, which INVERTED the conclusion for anything drawn
- * on a pastel. Current ratios:
+ * ⚠️ REWRITTEN 2026-09-12 for the Brote re-tint (previously rewritten
+ * 2026-09-03, when the Tecno-Analítico restyle moved `--ring` from dark
+ * #1A1C1C to cyan #67E8F9 and inverted Round 9's "contrast can only improve"
+ * conclusion for a dark ring on light fills — see git history for those
+ * retired per-pastel numbers, superseded now that the fills themselves
+ * changed). Current ratios, cyan `--ring` against each `COLOR_BUCKET` fill:
  *
- * | Pastel fill                | --ring #1A1C1C (old) | --ring #67E8F9 (now) |
- * | -------------------------- | -------------------- | -------------------- |
- * | Necesidades   (#8FA7D1)    | 7.02:1               | 1.68:1               |
- * | Deseos/Gustos (#B1A7D1)    | 7.60:1               | 1.55:1               |
- * | Ahorro        (#E6D194)    | 11.34:1              | 1.04:1               |
- * | Sin categoría (#AEB4C4)    | 8.25:1               | 1.43:1               |
+ * | Bucket fill                 | --ring #67E8F9 (cyan) |
+ * | ---------------------------- | ---------------------- |
+ * | Necesidades   (#77A7E5)      | 1.72:1                  |
+ * | Deseos/Gustos (#BB6C90)      | 2.56:1                  |
+ * | Ahorro        (#47DAB4)      | 1.21:1                  |
+ * | Sin categoría (#686663)      | 3.95:1                  |
  *
- * On the app's own surfaces the trade runs the other way — cyan is 12.80:1 on
- * `--card`, 13.64:1 on `--background`, where #1A1C1C was ~1.1:1. Neither tone
- * serves both, and no third one does either: clearing 3:1 against #E6D194
- * caps relative luminance at 0.093 while clearing 3:1 against `--background`
- * needs ≥0.113, so the interval is EMPTY.
+ * On the app's own surfaces cyan stays strong regardless — 12.80:1 on
+ * `--card`, 13.64:1 on `--background`. Relative luminance of each fill:
+ * Necesidades 0.372, Deseos 0.233, Ahorro 0.548, Sin categoría 0.133;
+ * `--background` 0.0031. Re-derived interval for a single opaque tone:
+ * clearing 3:1 against Ahorro (lightest fill) caps that tone's luminance at
+ * ≤0.149; clearing 3:1 against Sin categoría (darkest fill) requires ≤0.011
+ * or ≥0.500; clearing 3:1 against `--background` requires ≥0.109. No value
+ * satisfies all three at once → the interval is still EMPTY (same conclusion
+ * as before the re-tint, now driven by Sin categoría's own fill closing the
+ * gap rather than Ahorro alone).
  *
  * What this means per consumer:
  * - `LeyendaGasto` / `ResumenAnual`: their focus rings sit on `--card`, never
- *   on a pastel (the pastel is a small dot INSIDE the row, not the row's
+ *   on a fill (the fill is a small dot INSIDE the row, not the row's
  *   background). Cyan at 12.80:1 — fine, nothing to do.
- * - `DistribucionPie`: its wedges ARE the pastel, and `outline` on an SVG
+ * - `DistribucionPie`: its wedges ARE the fill, and `outline` on an SVG
  *   path draws around the bounding box, which crosses them. That one needed a
  *   TWO-TONE indicator; the full derivation is at its call site.
  *
  * So "route every focus state through --ring" is still the house grammar, but
- * it is no longer sufficient on its own wherever the ring lands on a pastel.
+ * it is no longer sufficient on its own wherever the ring lands on a fill.
  */

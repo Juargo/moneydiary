@@ -156,8 +156,8 @@ describe('LeyendaGasto', () => {
 
   // Round-9 critique P3: the old "do NOT re-tint" LOCKED literal
   // (outline-slate-800, #1e293b) converges to the shared --ring token
-  // (#1a1c1c) — verified DARKER, so contrast against every bucket pastel
-  // fill can only improve (see round-9 report for the computed ratios).
+  // (#1a1c1c) — verified DARKER, so contrast against every bucket fill
+  // can only improve (see round-9 report for the computed ratios).
   // `outline-ring` is the class the rest of the app already uses for this
   // same focus grammar (was FIX 3, WCAG 1.4.11).
   it('round-9 P3: uses the shared --ring focus-visible outline, converged from the old slate-800 literal', () => {
@@ -192,8 +192,9 @@ describe('LeyendaGasto', () => {
     const colores = screen
       .getAllByTestId('leyenda-dot')
       .map((dot) => dot.style.backgroundColor);
-    // rgb(174, 180, 196) === #AEB4C4, the SinCategoria dedicated grey.
-    expect(colores).toContain('rgb(174, 180, 196)');
+    // rgb(104, 102, 99) === #686663, the SinCategoria dedicated mid grey
+    // (Brote re-tint, 2026-09-12).
+    expect(colores).toContain('rgb(104, 102, 99)');
     expect(colores).not.toContain('#CCCCCC');
     expect(colores).not.toContain('rgb(204, 204, 204)');
   });

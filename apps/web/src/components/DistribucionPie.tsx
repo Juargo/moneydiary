@@ -4,7 +4,7 @@ import {
   radioEtiqueta,
 } from '@/domain/pie-geometry';
 import { COLOR_BUCKET, ETIQUETA_BUCKET } from '@/lib/bucket-colors';
-import { PIE_LABEL_FILL, PIE_WEDGE_STROKE } from '@/lib/pie-colors';
+import { PIE_WEDGE_STROKE, colorEtiquetaPie } from '@/lib/pie-colors';
 // US-047 PR1 compile-fix (tasks.md "Proposed PR boundaries" #1): `BUCKETS_GASTO`
 // was split into `BUCKETS_5030`/`BUCKETS_ANILLO` (D-05). The IDEAL inset
 // indexes `targets`, which has no `SinCategoria` key, so it MUST keep using
@@ -135,29 +135,35 @@ function Pie({
             tabIndex={0}
             aria-label={ETIQUETA_BUCKET[slice.bucket] ?? slice.bucket}
             stroke={PIE_WEDGE_STROKE}
-            // TWO-TONE focus indicator (2026-09-03) — required here, and only
-            // here, because the outline crosses two opposite backgrounds.
+            // TWO-TONE focus indicator (2026-09-03, re-derived for the Brote
+            // re-tint 2026-09-12) — required here, and only here, because the
+            // outline crosses two opposite backgrounds.
             //
             // Round 9 pointed every focus state at the shared `--ring` token
             // and noted contrast "can only improve": true while `--ring` was
-            // #1a1c1c, a dark ring on light pastels (7.02-11.34:1). The
-            // Tecno-Analítico restyle moved `--ring` to cyan #67e8f9, which is
-            // right for the other ~40 focusable things in the app (12.80:1 on
-            // `bg-card`) but WRONG here: `outline` on an SVG path draws around
-            // the path's BOUNDING BOX, and a wedge's bbox rectangle cuts
-            // straight across neighbouring pastel fills, where cyan measures
-            // 1.04-1.68:1 — under the WCAG 2.2 SC 1.4.11 3:1 floor.
+            // #1a1c1c, a dark ring on light fills. The Tecno-Analítico restyle
+            // moved `--ring` to cyan #67e8f9, which is right for the other
+            // ~40 focusable things in the app (12.80:1 on `bg-card`) but
+            // WRONG here: `outline` on an SVG path draws around the path's
+            // BOUNDING BOX, and a wedge's bbox rectangle cuts straight across
+            // neighbouring bucket fills, where cyan measures 1.21-3.95:1 —
+            // under the WCAG 2.2 SC 1.4.11 3:1 floor for three of the four
+            // buckets.
             //
-            // No single opaque colour fixes it: clearing 3:1 against the
-            // lightest pastel (#e6d194) caps relative luminance at 0.093,
-            // while clearing 3:1 against `--background` needs at least 0.113.
-            // The interval is EMPTY. So the indicator carries two tones, each
-            // covering where the other fails:
+            // No single opaque colour fixes it against every fill AND
+            // `--background` at once. Relative luminance: Necesidades 0.372,
+            // Deseos 0.233, Ahorro 0.548, Sin categoría 0.133, `--background`
+            // 0.0031. Clearing 3:1 against Ahorro (lightest) caps a single
+            // tone at luminance ≤0.149; clearing 3:1 against Sin categoría
+            // (darkest) requires ≤0.011 or ≥0.500; clearing 3:1 against
+            // `--background` requires ≥0.109. No value satisfies all three —
+            // the interval is still EMPTY. So the indicator carries two
+            // tones, each covering where the other fails:
             //   - the cyan `outline-ring` bbox rectangle, for the stretches
             //     that fall on the dark card/background (12.80:1);
             //   - the wedge's OWN stroke, which on focus goes dark and
-            //     thickens to 4px, for the stretches that fall on pastel
-            //     (7.86-12.69:1, the `PIE_WEDGE_STROKE` table in
+            //     thickens to 4px, for the stretches that fall on the fill
+            //     (3.35-10.91:1, the `PIE_WEDGE_STROKE` table in
             //     `lib/pie-colors.ts`). It also traces the wedge's real shape
             //     rather than a rectangle, so it reads as "this slice".
             // Do not collapse this back to a single ring without re-deriving
@@ -191,14 +197,16 @@ function Pie({
               key={`label-${slice.bucket}`}
               x={x}
               y={y}
-              // WDS-07 (WCAG 2.2 AA): white (#FFFFFF) FAILS contrast on all 4
-              // bucket pastel fills (1.52-2.49:1, under the 3:1
-              // large-text floor). Theme-immune literal — see
-              // `lib/pie-colors.ts` for why this must NOT be a
-              // `--foreground` token class (it flips in dark mode, the
-              // pastel fills below it don't). See DistribucionPie.test.tsx
-              // for the guarding assertion.
-              fill={PIE_LABEL_FILL}
+              // WDS-07 (WCAG 2.2 AA): white (#FFFFFF) would fail contrast on
+              // the bucket fills. Theme-immune, per-bucket resolution — see
+              // `lib/pie-colors.ts`'s `colorEtiquetaPie` for why this must
+              // NOT be a `--foreground` token class (it flips in dark mode,
+              // the bucket fills below it don't) and why the label itself is
+              // no longer a single constant: the Brote re-tint (2026-09-12)
+              // gave Sin categoría a fill too dark for the shared dark label,
+              // so it alone takes the light one. See DistribucionPie.test.tsx
+              // for the guarding assertions.
+              fill={colorEtiquetaPie(slice.bucket)}
               fontSize={size * 0.09}
               fontWeight="bold"
               textAnchor="middle"
