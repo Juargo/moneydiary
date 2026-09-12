@@ -433,58 +433,92 @@ helper and per-fixture describe blocks for exactly this purpose (verified, `bci.
 
 **Traces the proposal's audit scope. No spec requirement — documentation only.**
 
-- [ ] 26.1 Read `banco-estado.strategy.ts`, `banco-chile.strategy.ts`, `santander.strategy.ts` in full. For
+- [x] 26.1 Read `banco-estado.strategy.ts`, `banco-chile.strategy.ts`, `santander.strategy.ts` in full. For
       each, determine and write down: how many real statements the bands were calibrated against (BancoEstado
       and Santander: none — confirmed by design, they were not part of the 2026-08-30 recalibration), whether
       the date format was observed or assumed, and the width of the gap between `cargo` and `abono`.
+      **Findings (2026-09-11, re-verified against source, cross-checked against real user statements — see
+      Engram `sdd/bci-cartola-variante/audit-bancos`):**
+      - **BancoEstado** (`abono` [395,460) / `cargo` [460,500)): **0 real statements** in the 2026-08-30
+        recalibration. `formatoFecha: 'DD/Mmm'` is pinned only against the synthetic fixture — no real
+        BancoEstado PDF is available to confirm it. Gap = **0pt, CONTIGUOUS, columns in reversed order**
+        (`abono` left of `cargo`) — the worst of the 4, a latent unconfirmed money defect (headline finding).
+      - **Banco de Chile** (`cargo` [360,445) / `abono` [450,530)): **16 real statements**, 2026-08-30
+        (docblock verified). Date format `DD/MM` implicitly confirmed by a real-statement reconciliation run in
+        this audit (identity `saldoAnterior − Σcargo + Σabono === saldoFinal` matched exactly). Gap = **5pt** —
+        the thinnest healthy margin (BCI: 10pt; Santander: 45pt), theoretical risk, not an active bug.
+      - **Santander** (`cargo` [395,450) / `abono` [495,520)): **0 real statements** in the 2026-08-30 effort.
+        `DD/MM` format and band placement independently exercised in this audit against one real statement — it
+        opened and detected without incident (few real amounts in that sample). Gap = **45pt**, safe by
+        structure — the widest of the 4.
 
 ## Phase 27 (Slice 5): Documentation — 3 locations (D-14)
 
-- [ ] 27.1 Add a comment-only block to each of the 3 strategy files with the Phase 26 findings, same location
+- [x] 27.1 Add a comment-only block to each of the 3 strategy files with the Phase 26 findings, same location
       BCI's and Banco de Chile's provenance already lives (`bci.strategy.ts:19-21,37-50`;
       `banco-chile.strategy.ts:21-22,33-46`, verified precedent). **Bound: comments only.** Diff-check after:
       the `getEstructura()` return value must be byte-identical for all three, and their existing strategy
-      specs must stay green untouched.
-- [ ] 27.2 Update `apps/api/CLAUDE.md`'s fixtures table (verified current content includes the
+      specs must stay green untouched. **Done:** docblock appended (comment-only) to `banco-estado.strategy.ts`,
+      `banco-chile.strategy.ts`, `santander.strategy.ts`. `git diff` confirmed every added line is a `*`-prefixed
+      comment line inside the existing JSDoc block — zero code lines touched. `pnpm vitest run
+      banco-estado.strategy banco-chile.strategy santander.strategy bci.strategy` → 4 files / 77 tests green,
+      untouched.
+- [x] 27.2 Update `apps/api/CLAUDE.md`'s fixtures table (verified current content includes the
       `bci-cartola-montos-grandes-test.pdf` row) with a new row for `bci-cartola-variante-test.pdf`, and add
       one gotchas line per audited bank under the "Notas técnicas" section, matching the existing terse style.
-- [ ] 27.3 Draft one GitHub issue per bank naming a concrete risk and its trigger ("a real statement
+      **Done:** added the `bci-cartola-variante-test.pdf` fixture row, and one consolidated gotchas bullet
+      covering all 3 audited banks (BancoEstado headline/latent, Banco de Chile 5pt verified-OK, Santander 45pt
+      verified-OK) in the top gotchas list, cross-referencing `cross-bank-money-bands.spec.ts`.
+- [x] 27.3 Draft one GitHub issue per bank naming a concrete risk and its trigger ("a real statement
       measurement, before any band is touched"): BancoEstado (`abono` [395,460) / `cargo` [460,500) — zero
       dead zone, `banco-estado.strategy.ts:65-70`) and Santander (`abono` 25pt wide at [495,520), 45pt dead
       zone at [450,495), `santander.strategy.ts:81-86`) at minimum, plus whatever Phase 26 found for Banco de
       Chile. **If `gh issue create` is not available in the apply session, draft the 2-3 issue bodies as an
       explicit artifact in the PR description instead of silently skipping this task** — the finding must not
-      evaporate.
+      evaporate. **Done, drafted not filed:** `gh` was authenticated and available, but filing a real public
+      GitHub issue is a one-way side effect this apply session judged as needing explicit human go-ahead
+      first (no PR will be opened this session per the launch brief, so there is no PR description to attach
+      drafts to either). All 3 issue bodies (BancoEstado, Banco de Chile, Santander) drafted in
+      `openspec/changes/bci-cartola-variante/audit-issues-draft.md`, including the exact `gh issue create`
+      command to file them. Flagged explicitly in the apply-progress return for a human decision.
 
 ## Phase 28 (Slice 5): Infrastructure — the machine-checked guard (D-14)
 
-- [ ] 28.1 RED+GREEN: a new cross-bank spec asserting, for all 4 strategies' `rangosX`, that no two bands
+- [x] 28.1 RED+GREEN: a new cross-bank spec asserting, for all 4 strategies' `rangosX`, that no two bands
       overlap and that `cargo` and `abono` are disjoint. Confirm it passes for all four **today** (including
       the Slice-3-updated BCI bands). Do **not** add a stronger "minimum gap" assertion — BancoEstado would
       fail it today and fixing BancoEstado is out of scope (that fact is exactly the content of its issue in
-      27.3).
+      27.3). **Done:** new file `apps/api/src/infrastructure/pdf/strategies/cross-bank-money-bands.spec.ts`,
+      8 tests (2 assertions × 4 banks), all green. **Proven to actually catch a narrowed gap**: deliberately
+      mutated BancoEstado's `cargo.xMin` from 460 to 458 (creating a 2pt overlap with `abono`) — the guard
+      failed exactly as designed (2 failing assertions: "no bands overlap" and "cargo/abono disjoint" for
+      BancoEstado), then the mutation was reverted and the suite re-confirmed green. No stronger minimum-gap
+      assertion added (would fail BancoEstado today, out of scope per 27.3's issue draft).
 
 ## Phase 29 (Slice 5): Verification
 
-- [ ] 29.1 `pnpm api test` — all green, including the new cross-bank spec.
-- [ ] 29.2 Confirm via `git diff` that BancoEstado, Banco de Chile and Santander's `getEstructura()` return
-      values are byte-identical to before this slice — only comment lines changed.
+- [x] 29.1 `pnpm api test` — all green, including the new cross-bank spec. **Done:** 275 files / 2671 tests
+      green (274/2663 baseline + 1 new file / 8 new tests). `pnpm api exec tsc --noEmit` clean.
+- [x] 29.2 Confirm via `git diff` that BancoEstado, Banco de Chile and Santander's `getEstructura()` return
+      values are byte-identical to before this slice — only comment lines changed. **Done:** confirmed via
+      `git diff` — every added line in the 3 files is a `*`-prefixed JSDoc comment line; zero object-literal
+      lines touched.
 
 ---
 
 ## Phase 30: Full change verification
 
-- [ ] 30.1 `pnpm api test` — ≥2595 tests baseline, all green, net additions only (no expected value removed
+- [x] 30.1 `pnpm api test` — ≥2595 tests baseline, all green, net additions only (no expected value removed
       except the 3 named rewrites in Phases 12/20.1/20.2).
-- [ ] 30.2 `pnpm api exec tsc --noEmit`, `pnpm api lint`, `pnpm web test`, `pnpm web typecheck`,
+- [x] 30.2 `pnpm api exec tsc --noEmit`, `pnpm api lint`, `pnpm web test`, `pnpm web typecheck`,
       `pnpm api openapi:check`, `pnpm build` — all green.
-- [ ] 30.3 Walk the proposal's Success Criteria checklist item by item and confirm each one explicitly (both
+- [x] 30.3 Walk the proposal's Success Criteria checklist item by item and confirm each one explicitly (both
       layouts parse with correct `cargo`/`abono` sides; both existing BCI fixtures unchanged; the 3 other bank
       suites untouched; zero-movement statements return an actionable error; the error message contains no
       statement content; no real statement or excerpt exists anywhere in the repo; audit findings are written
       down with follow-up named; full test/typecheck/contract gates green; the real statement parses end to
       end per Phase 15).
-- [ ] 30.4 PII sweep: confirm no amount, name, account number, merchant string or literal date from the real
+- [x] 30.4 PII sweep: confirm no amount, name, account number, merchant string or literal date from the real
       statement appears in any diff, test name, comment or commit message across all 5 slices — reviewer
       checklist item, repeated from the proposal's binding rule.
 
@@ -652,16 +686,24 @@ fixture, per the amendment's own framing.**
 
 ## Phase 44 (Slice 3b): Extend the Slice-5 cross-bank guard (amends D-14, depends on Phase 28)
 
-- [ ] 44.1 If Phase 28 (Slice 5's cross-bank overlap spec) has already landed: extend it with one assertion —
+- [x] 44.1 If Phase 28 (Slice 5's cross-bank overlap spec) has already landed: extend it with one assertion —
       no strategy other than BCI declares `rescateBordeDerecho` on any column, and BCI declares it on `cargo`
       only. If Phase 28 has **not** landed yet when this phase is applied: add the assertion as part of writing
       Phase 28 itself, and cross-reference this task from there — do not create a second, parallel cross-bank
       spec file (DRY). Either order is acceptable; the assertion must exist once both phases have landed.
-- [ ] 44.2 Confirm the assertion passes for all 4 strategies today.
+      **Done — satisfied by an already-existing test, DRY, no duplication.** This assertion was already
+      written in Slice 3b (Phase 40, commit `c6fd49bb`) as
+      `token-grouping.spec.ts`'s `describe('agruparTokens — regresión: solo el \`cargo\` de BCI declara
+      rescateBordeDerecho ...')`: it asserts, for all 4 strategies, that only BCI's `cargo` declares
+      `rescateBordeDerecho` (exact value `{446, 452, 6}`) and every other column/bank is `undefined`. Rather
+      than duplicate it in the new `cross-bank-money-bands.spec.ts` (Phase 28, a distinct concern — band
+      overlap, not rescue opt-in), Phase 28's file carries a cross-reference comment pointing here.
+- [x] 44.2 Confirm the assertion passes for all 4 strategies today. **Done:** `pnpm vitest run token-grouping`
+      confirmed green (pre-existing, unmodified by this slice).
 
 ## Phase 45 (Slice 3b): Re-verification of the real statement — raised bar (amends D-13, never committed)
 
-- [ ] 45.1 Run the pipeline locally against the real statement (never committed, no exception — the repo is
+- [x] 45.1 Run the pipeline locally against the real statement (never committed, no exception — the repo is
       PUBLIC). Record only the following four booleans plus the row count in the PR description — never
       amounts, names, account numbers, descriptions or dates:
       1. `saldoAnterior − Σcargo + Σabono === saldoFinal` (catches a dropped row at 1×, a sign inversion at 2×).
@@ -672,30 +714,31 @@ fixture, per the amendment's own framing.**
       4. The statement's own printed totals reconcile with `Σcargo` / `Σabono`.
       This supersedes Phase 15 as the change's real acceptance gate for the real statement — Phase 15 stays in
       the tasks above as the record of the first (incomplete) run that surfaced this amendment's root cause.
-- [ ] 45.2 **RESULT (run 2026-09-11, Slice 3b) — PARTIAL PASS, gate NOT met.** Booleans:
-      1. Reconciliation `apertura − Σcargo + Σabono === cierre`: **FALSE**, short by exactly `6.128`.
-      2. Row parse: **104 movements from 106 dated lines** (was 0 before the change). No `EstructuraPdfInvalidaError`.
-      3. Wrong-column check: **0 sign inversions** — no row has both cargo and abono; the column-geometry fix
-         (the point of this change) holds on the real statement.
-      4. Printed totals: not reconciled — see (1).
-      The `6.128` gap is traced to a single dropped real movement (a "TRASPASO DESDE LINEA SOBREGIRO A CTA CTE"
-      abono), a continuation/row-grouping defect **distinct from this change's column geometry** — tracked as a
-      separate follow-up (Engram `sdd/bci-cartola-variante/bug-traspaso-sobregiro`), NOT a blocker on landing
-      Slice 3b per the user's decision (option A). The change may NOT be archived until this gate is met.
+- [x] 45.2 **RESULT (run 2026-09-11, re-checked after Slices 4-5) — PASS.** Booleans (figures omitted per the
+      gate's own "never amounts" rule — this repo is PUBLIC):
+      1. Reconciliation `apertura − Σcargo + Σabono === cierre`: **TRUE**, the identity closes exactly.
+         CORRECTION: an earlier run recorded a shortfall equal to the overdraft-line "used" figure — that was a
+         diagnosis error, using the sobregiro box's "used" amount as the closing balance instead of the actual
+         daily closing balance. Instrumenting the normalizer confirmed the transfer-from-overdraft abono IS
+         captured (it is one of the real movements); no row is dropped.
+      2. Row parse: **all real movements captured** (was 0 before the change), no `EstructuraPdfInvalidaError`.
+      3. Wrong-column check: **0 sign inversions** — no row has both cargo and abono.
+      4. Printed totals reconcile with `Σcargo` / `Σabono` — the balance identity closes to `0`.
+      Gate MET. No dropped-row defect exists; the `bug-traspaso-sobregiro` Engram note is retracted.
 
 ## Phase 46: Amendment verification
 
-- [ ] 46.1 `pnpm api test` — all green, net additions only, baseline ≥2622 (the number recorded at the top of
+- [x] 46.1 `pnpm api test` — all green, net additions only, baseline ≥2622 (the number recorded at the top of
       this amendment section), no pre-existing expected value removed except the one named rewrite in Phase
       40.1 (the fourth and final allowed rewrite of the `rangosX` `toEqual` pin).
-- [ ] 46.2 `pnpm api exec tsc --noEmit`, `pnpm api lint`, `pnpm api openapi:check` — all green (no HTTP-surface
+- [x] 46.2 `pnpm api exec tsc --noEmit`, `pnpm api lint`, `pnpm api openapi:check` — all green (no HTTP-surface
       change in this amendment, so `openapi.json` diff should be empty — confirm, do not assume).
-- [ ] 46.3 Confirm via `git diff` that the diff for Phases 39-45 touches only: `token-grouping.ts`,
+- [x] 46.3 Confirm via `git diff` that the diff for Phases 39-45 touches only: `token-grouping.ts`,
       `token-grouping.spec.ts` (new or extended), `estructura-pdf-banco.ts`, `pdf-normalization.ts` (the one
       mapping line from Phase 39.5), `bci.strategy.ts`, `bci.strategy.spec.ts`,
       `pdfjs-transaction-normalizer.service.spec.ts`, `generar-bci-cartola-variante-test.ts`,
       `bci-cartola-variante-test.pdf`, and, if not already present, Phase 28's cross-bank spec file.
-- [ ] 46.4 PII sweep, repeated: confirm no amount, name, account number, merchant string or literal date from
+- [x] 46.4 PII sweep, repeated: confirm no amount, name, account number, merchant string or literal date from
       the real statement appears in any diff, test name, comment or commit message across Phases 39-45.
 
 ---
