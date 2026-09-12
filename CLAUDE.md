@@ -6,9 +6,7 @@ App de finanzas personales para consolidar y analizar movimientos bancarios chil
 
 **Repositorio:** `git@github.com:Juargo/MoneyDiary.git`
 **Stack backend:** **Express + TypeScript strict** (ADR-028, migrado desde NestJS) · pnpm v11 · Node.js 22+ · Prisma 7 · PostgreSQL (Supabase)
-**Stack frontend:** React 19 · TypeScript · Vite 8 · Tailwind 4 · shadcn/ui · TanStack Query · TanStack Router · Zustand
 **Stack mobile:** Expo SDK 57 · Expo Router · NativeWind 4 (Tailwind 3) · jest-expo + RNTL (ADR-010/017)
-**Estructura:** Monorepo `pnpm workspaces` — `apps/api` (backend) + `apps/web` (frontend) + `apps/mobile` (Expo)
 **Producción (dominio propio `moneydiary.cl`, DNS gestionado por Vercel):** landing → `https://moneydiary.cl` (apex, Vercel) · web → `https://app.moneydiary.cl` (Vercel `money-diary-web`) · API → `https://api.moneydiary.cl` (CNAME → Render `moneydiary-api`; sigue accesible en `https://moneydiary-api.onrender.com`), protegida por `apiKeyMiddleware` (`x-api-key`). El API expone **CORS con allowlist por env** (`CORS_ALLOWED_ORIGINS`, incluye `app.moneydiary.cl`; ver `render.yaml`) para el `GET /version` público; el web lo lee cross-origin vía `VITE_API_BASE_URL=https://api.moneydiary.cl`. Deploy git→prod del web (Vercel) confirmado.
 
 ---
@@ -30,38 +28,6 @@ Los IDs de US son **globales y secuenciales** (no se reinician por épica). La *
 ## Arquitectura
 
 **Estructura raíz:** monorepo `pnpm workspaces` (ADR-008)
-
-```
-apps/
-  api/              ← Backend Express + Clean Architecture (ADR-028, ADR-005)
-    src/
-      domain/         ← Entidades, Value Objects, errores de negocio (sin dependencias externas)
-      application/    ← Use Cases y Ports (interfaces). Depende solo del dominio.
-      infrastructure/ ← Adapters concretos: `http-express/` (app + middleware + routes),
-                        `persistence/`, `excel/`, `pdf/`, `cli/`, `scheduler/`. Depende de application.
-      shared/         ← Result<T,E>, utilidades transversales
-      composition/    ← Composition Root real: `container.ts` (DI manual con `new`) + helpers `crear-*`
-    test/
-    prisma/
-  web/              ← Frontend React (ADR-003, ADR-008)
-    src/
-      routes/         ← TanStack Router file-based (`__root.tsx`, `index.tsx`, ...)
-      components/ui/  ← shadcn/ui — componentes copiados al repo, no instalados
-      stores/         ← Zustand stores (client state)
-      api/            ← TanStack Query hooks + tipos DTO escritos a mano
-      lib/            ← `cn()` y helpers
-  mobile/           ← App Expo (ADR-010; +subida de cartola por ADR-026)
-    app/              ← Expo Router (`_layout.tsx`, `index.tsx`)
-    src/
-      domain/         ← lógica pura (view-model, formateo CLP sobre string, geometría pie)
-      api/            ← cliente HTTP mínimo (`fetchResumen`) + config env (`EXPO_PUBLIC_*`)
-      components/     ← pantalla resumen + estados Loading/Error/Empty (NativeWind)
-    .maestro/         ← E2E manual en dispositivo (no CI)
-openspec/           ← Proceso SDD (OpenSpec): specs vigentes + changes archivados
-  specs/              ← `api-access-control` · `mobile-resumen-screen`
-  changes/archive/    ← `2026-07-14-sprint3-mvp-mobile` (proposal/spec/design/tasks)
-```
-
 **Backend — patrón:** Monolito Modular + Clean Architecture (ADR-005)
 **Regla de dependencias backend:** `domain ← application ← infrastructure`. Nunca al revés.
 **Manejo de errores backend:** `Result<T,E>` (en `apps/api/src/shared/result.ts`) — nunca lanzar excepciones en domain/application.
@@ -75,52 +41,9 @@ openspec/           ← Proceso SDD (OpenSpec): specs vigentes + changes archiva
 
 ## Decisiones Técnicas Clave (ADRs)
 
-Resumen de una línea por decisión. **Texto completo y estado en `docs/adr/`** (fuente de verdad).
-
-| ADR | Decisión |
-|-----|----------|
-| ADR-001 | Backend: NestJS + TypeScript — ⛔ **supersedido por ADR-028** (framework); TypeScript se mantiene |
-| ADR-002 | Base de datos: PostgreSQL + Supabase + Prisma 7 |
-| ADR-003 | Frontend: React + TypeScript + Vite |
-| ADR-004 | Hosting: Vercel + Render + GitHub Actions |
-| ADR-005 | Arquitectura: Monolito Modular + Clean Architecture |
-| ADR-006 | Package manager: pnpm v11+ (security by default) |
-| ADR-007 | Parseo Excel: ExcelJS únicamente `.xlsx` — SheetJS descartado por CVEs en npm |
-| ADR-008 | Frontend Stack: Monorepo pnpm + Tailwind/shadcn + TanStack Query/Zustand + TanStack Router — ⚠️ parcialmente reemplazado por ADR-011/012 |
-| ADR-009 | Parseo PDF: pdfjs-dist (build legacy) |
-| ADR-010 | Mobile: React Native + Expo + Expo Router + NativeWind — ✅ adelantado a Sprint 3 (pivote MVP mobile). Nota: NativeWind 4 exige `tailwindcss@3` (soporte v4 solo en preview) |
-| ADR-011 | Contrato-first: `openapi.json` como fuente única del contrato HTTP |
-| ADR-012 | `@moneydiary/api-client`: cliente HTTP agnóstico de plataforma — ✅ construido y en uso (`workspace:*` en `apps/web` y `apps/mobile`), generado desde `openapi.json` (`pnpm contract:sync`) |
-| ADR-013 | Cifrado de datos en reposo (todo) + a nivel de app en columnas sensibles |
-| ADR-014 | Validación de requisitos: 3 técnicas cualitativas de bajo coste (demos → usabilidad → piloto); métricas de negocio y test A/B diferidas como trabajo futuro |
-| ADR-015 | Verificación de requisitos: verificación por capas con énfasis en dinero (unit) y control de acceso (integración) + criterios ejecutables BDD + peer review con checklist de seguridad + UAT |
-| ADR-016 | Testing framework: Vitest (runner único front + back, reemplaza Jest) — ✅ implementado. Backend usa el transformador **Oxc por defecto** (se quitó `unplugin-swc`/`oxc:false` al eliminar Nest — ya no hay decoradores, ADR-028); front usa jsdom + Testing Library |
-| ADR-017 | Testing mobile: Jest (jest-expo) + React Native Testing Library + Maestro (E2E) — ✅ activo: `apps/mobile` ya es app Expo real dentro del workspace (Sprint 3, PR #28); jest-expo 57 fija jest@29. Maestro corre manual en dispositivo, no en CI |
-| ADR-018 | Testing accesibilidad + UX: a11y por capas — web (eslint-jsx-a11y + vitest-axe + @axe-core/playwright), mobile (eslint-rn-a11y + rn-accessibility-engine + VoiceOver/TalkBack, post-MVP); WCAG 2.2 AA; UX validada vía ADR-014 |
-| ADR-019 | Tracking y monitoring: 🔵 EN DISCUSIÓN (decisión final diferida). Propuesta: SDKs de Sentry (backend/web/mobile) → GlitchTip (cloud free → self-host cuando el volumen/privacidad lo exija). Highlight descartado (deprecado feb 2026). PII/financial scrubbing obligatorio en `beforeSend` (ADR-013). Session replay/tracing profundo diferido |
-| ADR-020 | Git hooks (monorepo): Husky + lint-staged + commitlint, instalados **solo en la raíz** (instalarlos en `apps/*` los deja sin efecto). `pre-commit` → lint-staged (solo `eslint --fix` por workspace, routing por glob — Prettier entra por la cadena eslint-prettier, sin `tsc`); `commit-msg` → commitlint (Conventional Commits); `pre-push` → tests de workspaces afectados (`pnpm --filter "...[origin/main]" test`). **Los hooks son conveniencia, NO enforcement (`--no-verify` los salta): CI debe re-correr las mismas checks.** Lefthook evaluado y diferido (stack all-Node) — ✅ **implementado** (estaba documentado pero nunca construido; se hizo como precondición del Slice A de ADR-030, PR #118, 2026-07-27) |
-| ADR-021 | Análisis de seguridad automatizado en el pipeline (GitHub Actions, OSS/gratis): **SCA** (Dependabot + `pnpm audit --audit-level=high` gate + Socket.dev supply-chain) · **DAST** (OWASP ZAP API scan + Schemathesis dirigidos por `openapi.json`, contra entorno efímero — **nunca Supabase real**) · **SAST** (Semgrep; CodeQL si repo público/GHAS) · **secretos** (gitleaks, solo en CI). Bloquean high/critical + secretos; el resto advierte. BOLA/IDOR (aislamiento user_id) NO lo cubre DAST → tests de integración (ADR-015). **Impl real (verificado 2026-08-06):** el job `security` corre solo `pnpm audit --audit-level=high` + gitleaks (ambos gate); DAST (Schemathesis GET-only + ZAP passive) pasó a **bloqueante** el 2026-09-04 tras 3 corridas limpias con el pin de `jsonschema-rs` (825 casos, fase Fuzzing ✅, 0 Runtime Errors; ZAP FAIL-NEW 0 / PASS 115): bloquean el exit≠0 de Schemathesis, la malfunción del scanner, el no-op de cualquiera de los dos, y las alertas **High** de ZAP — sus WARN siguen advirtiendo (`fail_action: false` + gate de severidad propio); **Semgrep cableado el 2026-09-05** (job `sast`, `uvx semgrep` pinneado, `p/typescript` + `p/owasp-top-ten`, **bloqueante desde el día uno** sobre una base de 0 hallazgos en 1052 archivos; ERROR bloquea, WARNING advierte, y malfunción/no-op del scanner también bloquean). CodeQL sigue sin cablear pero **su condición ya se cumple: el repo es público**. Socket.dev aún NO cableado; gitleaks NO está en el pre-commit local (solo CI) |
-| ADR-022 | Ruta de despliegue mobile: distribución interna con EAS Build (APK Android firmado, compartido por URL/QR) antes que store. Publicación en tiendas deja de ser prioridad y no bloquea nada. **Impl real:** el CD (`mobile-release.yml`, trigger `mobile-v*`) buildea el profile `production` (AAB por defecto), NO un APK `distribution: internal`; `eas submit` no se invoca — el APK internal y el submit siguen siendo pasos manuales |
-| ADR-023 | Topología de despliegue: actual PaaS free tier mono-usuario (Render + Vercel + Supabase) y evolución prevista hacia multi-cliente |
-| ADR-024 | Arquitectura de clientes: backend rico + clientes delgados contract-first. El dominio canónico vive una sola vez en el backend; web/mobile solo tienen lógica de presentación. Regla de oro: si afecta cuánto dinero se muestra o cómo se clasifica → `domain`; si afecta cómo se presenta → cliente |
-| ADR-025 | Landing page: workspace propio `apps/landing` con Astro 100 % estático, desplegado como proyecto Vercel independiente bajo el dominio raíz |
-| ADR-026 | Ingesta desde mobile: la app gana una única capacidad de escritura — subir cartola `.xlsx`/`.pdf` vía `POST /api/ingestas` (`expo-document-picker`). Toda otra escritura queda fuera. Enmienda ADR-010 (mobile deja de ser solo-lectura) |
-| ADR-027 | Set de iconos unificado web+mobile: **`lucide`** (`lucide-react` ya embebido en web + default de shadcn; `lucide-react-native` en mobile). Iconoir evaluado y descartado por peaje de migración + fricción permanente con shadcn. `react-native-svg` vía `expo install` |
-| ADR-028 | Backend framework: **NestJS → Express + TypeScript strict** — ✅ **código completo** (PR #109, change SDD `migrate-api-to-express`, 10 slices TDD). Supersede ADR-001. Motivo: la magia de Nest (DI, decoradores) tapaba los fundamentos que el proyecto busca aprender. Capa HTTP reescrita a `http-express/` (middleware + routes) + composition root real (`container.ts` + `crear-*`); `domain`/`application` **0 cambios** (el aislamiento de ADR-005 lo permitió). Prisma se mantiene. Guards → middleware; `@Cron` demo → node-cron. ✅ **Mergeado a `main` y deployado** (2026-07-24, PR #109); 8d verificado por smoke-test del entrypoint de prod (`start:prod`: boot + matriz curl 200/401/401/401 + conectividad DB). Deuda: e2e/int con DB (bloqueados: `.env`→prod, el gate db-safety los rechaza; necesitan una DB de dev; varios bit-rotteados de sesión) + reubicar sobrevivientes de `http/` |
-| ADR-029 | Ambientes (dev/test/prod) + validación de entorno: **`NODE_ENV` ∈ `{development, test, production}`** como fuente única del ambiente lógico (se descarta `APP_ENV`, YAGNI sin staging deployado). Testing = configuración + **BD Postgres efímera en localhost** (sin servidor deployado; desbloquea la deuda e2e/int de ADR-028 y el DAST de ADR-021). Validación de env centralizada con **Zod** en `apps/api/src/config/env.ts` (fail-fast al boot, reglas condicionales por ambiente: prod ⇒ Supabase + `COOKIE_SECURE=true` + `ALLOW_DESTRUCTIVE_DB` prohibido; test/dev ⇒ localhost). `.env.example` **derivado del schema** (script `env:example` + check en CI). Scope: solo `apps/api`. Implementación como change SDD aparte |
-| ADR-030 | Versionado + releases: versión **semver independiente por workspace** (api/web/mobile/landing, cada uno su changelog) — se descarta lockstep. **release-please** (GitHub Actions, manifest mode) deriva bump+changelog de los Conventional Commits ya obligatorios (ADR-020); emite tag con prefijo **`<paquete>-vX.Y.Z`** (identidad de release). **Impl real:** solo `mobile-v*` dispara un CD en Actions (`mobile-release.yml` → EAS); api/web/landing despliegan por **git-integration nativa** de Render/Vercel al hacer push a `main` (`buildFilter`/`ignoreCommand`), el tag NO los despliega. Mobile: release-please dueño de `version`, **EAS `autoIncrement`** dueño de `versionCode`/`buildNumber`, `runtimeVersion`/OTA diferido (YAGNI, ADR-022). CI partido por **path filters**. Changesets descartado (para libs npm, duplica la intención del commit). — ✅ **implementado**: change SDD `versioning-release-automation` mergeado a `main` (4 PRs encadenados #118-#121, 2026-07-27). Pendiente: activación en plataformas (EXPO_TOKEN, Vercel Root Directory + Deep Clone, buildFilter de Render). Branch protection en `main` (C.7) ✅ activa (PR obligatorio + checks `CI success`/`Commitlint` + `enforce_admins`, sin force-push/borrado) |
-| ADR-031 | Estrategia de ramas: **GitHub Flow (trunk-based)** — `main` es tronco único protegido; ramas efímeras `type/descripción` → PR → `main`; releases/deploy derivan de `main` (ADR-030). Se descarta **GitFlow** (pelea con release-please/CD cableados a `main` y es overkill mono-dev) y el **trunk-based puro** (bloqueado por la branch protection de C.7). — ✅ **Decidido** (2026-07-28). Trabajo concurrente (p. ej. Claude Code + OpenCode en paralelo por throughput) se aísla con **git worktree** particionado por workspace (conflicto ≈ 0); helpers fish `wt-new`/`wt-rm` |
-| ADR-032 | Runner de scripts TS: **`ts-node` → `tsx`** — se reemplaza el runner heredado de la era NestJS (sin ADR que lo justificara) por `tsx` (esbuild, zero-config, independiente de la versión de TS). Se eliminan `ts-node`, `tsconfig-paths` y `baseUrl` (inertes: sin `paths`/aliases) y el bloque `"ts-node"` del tsconfig. Producción intacta (`start:prod` = `node dist`). El type-check sigue en `tsc --noEmit` (CI). Destraba TS 7 a futuro. — ✅ **Decidido** (2026-08-03) |
-| ADR-033 | Logging estructurado: **Pino** en `apps/api` — se reemplazan las `console.*` dispersas por un port `ILogger` (application) + adapter `PinoLogger` (infrastructure), con **redacción obligatoria** de montos/PII (ADR-013) y `pino-http` para request logging. La capa application depende solo del port (ADR-005); la CLI (`ingestar.ts`) queda fuera (output al usuario, no logs). Complementario a ADR-019 (error tracking). — ✅ **Decidido** (2026-08-03) |
-| ADR-034 | Login con Google: flujo **OIDC Authorization Code + PKCE terminado en `apps/api`** con `openid-client` (v6) — **solo ingreso, sin registro** (vinculación por primera vez vía `email_verified` + `emailBlindIndex`; sin match ⇒ error genérico, no se crea usuario). `User` gana `googleSub String? @unique`; el callback emite la MISMA sesión `md_session` (token opaco + SHA-256, TTL 7d); no se persisten tokens de Google. Botón en `/login` como `<a href>` top-level (guard Sec-Fetch, patrón del flujo demo). Descartados: Supabase Auth (rompe ADR-002), Passport (magia anti-ADR-028), GIS en cliente, Auth0/Clerk. Alcance de esta decisión: **solo web** — mobile se agregó el mismo día con mecanismo propio, ver ADR-035. — ✅ **Decidido** (2026-08-07); implementación como change SDD aparte (regla solo-ingreso supersedida por ADR-041; el resto vigente) |
-| ADR-035 | Login con Google en mobile: **verificación nativa de `id_token` (M1)** — `expo-auth-session` obtiene el `id_token` en el dispositivo (client IDs nativos iOS/Android); nuevo `POST /api/auth/google/token` (con `x-api-key`) lo verifica contra el JWKS de Google y responde el mismo `LoginResponseDto` del login por password. Reusa `LoginConGoogleUseCase`/`IIdentidadGoogleRepository` sin cambios (find-only, gate `email_verified`, regla ★ de no re-vincular); solo suma una segunda implementación de `IVerificadorIdentidadExterna`. Sin `nonce` server-side (ventana de replay ~1h, costo asumido). Descartado M2 (redirect+deep link — el navegador del sistema no puede enviar `x-api-key`) y WebView embebido (bloqueado por Google). Desviación explícita de "termina en `apps/api`" de ADR-034 — por eso ADR propio. Entrega: change SDD separado `auth-google-login-mobile`, después del change web. — ✅ **Decidido** (2026-08-07) (regla find-only supersedida por ADR-041; el resto vigente) |
-| ADR-036 | Catálogo de clasificación por usuario: **`Categoria`/`PatronClasificacion` dejan de ser un set global y pasan a ser propiedad de cada usuario**, materializadas copiando una plantilla definida en código (`catalogo-template.ts`) en el momento de creación del usuario (bootstrap vía seed, demo vía `PrismaDemoRepository`). `userId` NOT NULL en ambas tablas; FK compuesta `(categoriaId,userId) → Categoria(id,userId)` confirmada viva (sin fallback). Desempate de clasificación movido a `(prioridad, patron, id)` para no depender del id surrogate (`cuid()` por usuario). `foldCategoriaId` eliminado (no adaptado) — `tsc` fuerza a migrar cada call site. Backfill legacy (`backfill-categorias.ts`) acotado a `USER_ID_FIJO`, incluyendo la carga del catálogo de patrones (hallazgo de judgment-day en PR #301, endurece D-10 más allá del diseño original). Precondiciones vinculantes para US-038: catálogo demo de solo lectura, y el desempate `(prioridad, patron, id)` debe preservarse. Change SDD `us-037-catalogo-per-user` (7 PRs encadenados, #296-#302). — ✅ **Decidido/implementado y desplegado a producción** (gate 6.9 pasó 2026-08-11 contra snapshot de prod; commit `4d4cc4c`) |
-| ADR-037 | Identidad de categoría como fila del usuario: retiro del enum cerrado `Categoria` y de `CATEGORIA_BUCKET: Record<Categoria, Bucket>` (ambos en `domain/value-objects/categoria.ts`, borrados) — la validez de una categoría pasa a ser `NOT NULL Categoria.bucketId` + `@@unique([userId, nombre])` + FK compuesta (ADR-036), no un tipo cerrado. `PatronClasificacion` anida `categoria: {id, nombre, bucket}`; `coincide()` y el desempate `(prioridad, patron, id)` de ADR-036 D-08 quedan sin tocar. El compilador retiene solo la prueba de consistencia de la plantilla semilla (`CategoriaTemplateNombre`). Habilita el CRUD de catálogo por usuario de US-038 (`POST/PATCH/DELETE /api/categorias` y `/api/patrones`). — ✅ **Decidido** (2026-08-12); PR #1 de 3 (`us-038-catalogo-crud`, Feature Branch Chain) |
-| ADR-038 | Alcance de escritura de la app mobile: perfil propio y catálogo de clasificación — mobile gana **dos** superficies de escritura además de la ingesta (ADR-026): `PATCH /api/perfil`/`PATCH /api/perfil/password` (perfil propio) y el CRUD de `/api/categorias`/`/api/patrones` (catálogo propio, ADR-036/037), reusando endpoint/sesión/credencial existentes, sin lógica de negocio duplicada (ADR-024). Reclasificar transacciones, editar montos y borrar ingestas quedan fuera. Supersede **solo** la regla de alcance de ADR-026 (regla 4 de su Decisión); la capacidad de ingesta de ADR-026 sigue vigente sin cambios. — ✅ **Decidido** (2026-08-17; implementado 2026-08-20, change SDD us-044-mobile-configuracion) |
-| ADR-039 | Movimientos manuales: columna `origen` nullable + cuenta centinela per-user (`Account(banco='Manual')`), con CHECK de paridad `(ingestaId IS NULL) = (origen IS NOT DISTINCT FROM 'Manual')`. Enmienda la premisa de ADR-026 de que toda `Transaccion` nace de una `Ingesta`; la capacidad de ingesta sigue vigente sin cambios. Cero cambios en los 5 readers (CA-05, D-07). — ✅ **Decidido** (2026-08-21, change SDD us-058-registro-manual) |
-| ADR-040 | Corrección de movimientos: la proveniencia determina la mutabilidad — `DELETE /api/movimientos/:id` solo para filas `origen='Manual'`, sin ventana de tiempo, solo web (enmienda ADR-039, reafirma ADR-038). — ✅ **Decidido** (2026-08-29, PR1 de change SDD `correccion-movimientos-manuales`) |
-| ADR-041 | Login con Google crea la cuenta al primer ingreso (**signup-on-first-login**) — supersede SOLO la regla "solo ingreso, sin registro" de ADR-034: una identidad Google verificada sin match por `googleSub` ni `emailBlindIndex` crea un `User` passwordless (`passwordHash` NULL, `nombre` = parte local del email, email cifrado ADR-013) con su catálogo materializado desde `catalogo-template.ts` en la MISMA transacción (invariante ADR-036, mecánica de `PrismaDemoRepository`). Carrera P2002 → retry único por `googleSub`; gates `email_verified`/demo/★ anti-takeover y AUTH-15 intactos. Aplica a web y mobile (ADR-035 comparte el use case). Consecuencia asumida: registro abierto a cualquier cuenta Google. — ✅ **Decidido** (2026-08-30) |
-| ADR-042 | Unicidad de `Categoria`: pasa de `(userId, nombre)` a `(userId, bucketId, nombre)` — un usuario puede repetir un nombre de categoría entre buckets, nunca dentro de uno. Enmienda SOLO la cláusula de unicidad de ADR-036/037 (el resto de ambos sigue vigente). Consecuencia: el contrato de reclasificación (`PATCH /api/transacciones/:id/categoria`) identifica la categoría por `categoriaId` en vez de por `nombre`, corte duro sin alias de transición — resolver por nombre podría, bajo la nueva unicidad, devolver cualquiera de varias filas homónimas entre buckets. `existeNombre` se vuelve bucket-scoped. — ✅ **Decidido** (2026-08-31); change SDD `categoria-unica-por-bucket` (Feature Branch Chain: PR1 contrato → `categoriaId`, PR2/PR3 clientes, PR4 migración de esquema + gate bucket-scoped) |
+Índice completo (número, título y estado) en `docs/adr/README.md`; el texto y el
+rationale de cada decisión en `docs/adr/ADR-NNN-slug.md` (43 ADRs). **`docs/adr/` es la
+fuente de verdad.** Este archivo referencia ADRs por número (`ADR-028`); ese mapeo es estable.
 
 ---
 
@@ -137,7 +60,7 @@ El estado de sprints y User Stories **no vive en este archivo** — se derivaba 
 Conocimiento no obvio del código ya entregado — durable, no derivable de un vistazo. El *estado* de cada US vive en los Issues; esto es solo el saber técnico.
 
 - **Backend (`apps/api/`):** gotchas de parseo Excel, Prisma, dinero, semáforo, categorización, aislamiento multi-tenant, db-safety y cifrado, más los patrones de detección bancaria y los fixtures de prueba, viven en `apps/api/CLAUDE.md` (se carga al trabajar bajo ese directorio).
-- **Landing (Tailwind 4 CSS-first):** la utility `rounded` a secas lee el token `--radius` — el nombre `--radius-DEFAULT` se ignora en silencio y `rounded` cae al fallback de 4px sin error de build. Al tocar tokens de `@theme`, verificar el mapping en el CSS de `dist/`. Tipografía: DM Sans (cuerpo) + Plus Jakarta Sans (títulos) con tinta `#022030` — excepción scoped documentada en `DESIGN.md` (las apps siguen en Inter). El header sticky exige `scroll-mt-*` en los targets de anchors (`#como-funciona`, `#main`).
+- **Landing (`apps/landing/`):** gotchas de Tailwind 4 CSS-first (token `--radius`), tipografía scoped y anchors del header sticky viven en `apps/landing/CLAUDE.md` (se carga al trabajar bajo ese directorio).
 
 ---
 
@@ -182,7 +105,6 @@ El plan de pruebas separa **verificación** (*¿lo construimos correctamente?*, 
 - **`CryptoService` (ADR-013)** se verifica aislado: cifra/descifra correctamente y la clave vive fuera de la BD.
 - **Peer review con checklist de seguridad fijo** antes de integrar (inyección, gestión de secretos, validación de entrada, no commitear claves — RNF-SEC-005).
 - **BDD / criterios de aceptación ejecutables** dan la trazabilidad requisito → prueba; la cobertura es guía para detectar huecos en lógica crítica, no una meta.
-- **Validación (ADR-014):** demos al cierre de sprint, pruebas de usabilidad (5 usuarios, think-aloud, SUS) y prueba piloto con datos reales en entorno tipo producción (ADR-004). Métricas de negocio y test A/B quedan como trabajo futuro.
 
 ---
 
