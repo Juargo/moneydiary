@@ -371,8 +371,8 @@ describe('ResumenAnual', () => {
   // LeyendaGasto/DistribucionPie's interactive controls.
   // Round-9 critique P3: the old "do NOT re-tint" LOCKED literal
   // (outline-slate-800, #1e293b) converges to the shared --ring token
-  // (#1a1c1c) — verified DARKER, so contrast against every bucket pastel
-  // fill (the MiniDistribucionPie wedges inside each cell) can only improve
+  // (#1a1c1c) — verified DARKER, so contrast against every bucket fill
+  // (the MiniDistribucionPie wedges inside each cell) can only improve
   // (see round-9 report for the computed ratios). `outline-ring` is the
   // class the rest of the app already uses for this same focus grammar
   // (was FIX 2, WCAG 1.4.11).
@@ -504,10 +504,10 @@ describe('ResumenAnual', () => {
     const slices = screen.getAllByTestId('mini-pie-slice');
     expect(slices).toHaveLength(4);
     expect(slices.map((slice) => slice.getAttribute('fill'))).toEqual([
-      '#8FA7D1',
-      '#B1A7D1',
-      '#E6D194',
-      '#AEB4C4',
+      '#77A7E5',
+      '#BB6C90',
+      '#47DAB4',
+      '#686663',
     ]);
   });
 

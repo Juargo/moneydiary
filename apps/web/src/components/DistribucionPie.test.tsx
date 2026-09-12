@@ -71,9 +71,10 @@ describe('DistribucionPie', () => {
     const fills = screen
       .getAllByTestId('pie-slice')
       .map((el) => el.getAttribute('fill'));
-    // Bucket pastel palette: azul→Necesidades, lavanda→Gustos, amarillo→Ahorro,
-    // deliberate neutral grey→Sin categoría (never the #CCCCCC unstyled fallback).
-    expect(fills).toEqual(['#8FA7D1', '#B1A7D1', '#E6D194', '#AEB4C4']);
+    // Brote bucket palette (2026-09-12): steel blue→Necesidades, plum→Gustos,
+    // jade→Ahorro, deliberate mid grey→Sin categoría (never the #CCCCCC
+    // unstyled fallback).
+    expect(fills).toEqual(['#77A7E5', '#BB6C90', '#47DAB4', '#686663']);
     expect(fills).not.toContain('#CCCCCC');
   });
 
@@ -84,17 +85,18 @@ describe('DistribucionPie', () => {
     expect(screen.getByText('20%')).toBeInTheDocument();
   });
 
-  // WDS-07 (WCAG 2.2 AA): white labels (#FFFFFF) fail contrast on ALL 4
-  // pastel slice fills (1.52-2.49:1, well under the 3:1 large-text floor).
-  // The dark on-surface tone (#1a1c1c, `PIE_LABEL_FILL`) passes 7.4-11.9:1
-  // against every pastel. Reliability follow-up (post-PR4): reverted from
-  // the `fill-foreground` token class back to a theme-immune literal — the
-  // pastel slice fills (`COLOR_BUCKET`) are PERMANENT literal hex that do
-  // NOT flip with `.dark`, but `--foreground` DOES flip (near-white in
-  // dark mode). A token-based label would silently reintroduce this exact
-  // contrast failure the moment dark mode is wired up, and this class-based
-  // assertion wouldn't catch it (jsdom doesn't resolve CSS vars). Assert the
-  // literal `fill` attribute AND that no theme-flipping class is used.
+  // WDS-07 (WCAG 2.2 AA): white labels (#FFFFFF) would fail contrast on the
+  // bucket slice fills. The dark on-surface tone (#1a1c1c, `PIE_LABEL_FILL`)
+  // clears Necesidades/Deseos/Ahorro at 6.88:1/4.61:1/9.75:1 (Brote re-tint,
+  // 2026-09-12 — see `lib/pie-colors.ts`). Reliability follow-up (post-PR4):
+  // reverted from the `fill-foreground` token class back to a theme-immune
+  // literal — the bucket slice fills (`COLOR_BUCKET`) are PERMANENT literal
+  // hex that do NOT flip with `.dark`, but `--foreground` DOES flip
+  // (near-white in dark mode). A token-based label would silently
+  // reintroduce this exact contrast failure the moment dark mode is wired
+  // up, and this class-based assertion wouldn't catch it (jsdom doesn't
+  // resolve CSS vars). Assert the literal `fill` attribute AND that no
+  // theme-flipping class is used.
   it('renders percent labels via a theme-immune literal fill for WCAG AA contrast, never white or a theme-flipping token (WDS-07)', () => {
     renderPie();
     for (const label of [
@@ -107,8 +109,21 @@ describe('DistribucionPie', () => {
     }
   });
 
-  // WDS-07 (WCAG 1.4.11 non-text contrast): adjacent pastel slices can be
-  // under 1.2:1 apart, so wedges need a visible separator between them.
+  // Brote re-tint (2026-09-12): Sin categoría's new fill (#686663) is too
+  // dark for the shared dark label (2.99:1) — the on-wedge label fill is now
+  // resolved per bucket via `colorEtiquetaPie` (`lib/pie-colors.ts`), not a
+  // single constant. Necesidades/Deseos/Ahorro keep the dark label; Sin
+  // categoría gets the light one (#e8e6e1, 4.59:1 on its own fill).
+  it('gives the Sin categoría wedge a light on-wedge label while the other three keep the dark one (Brote re-tint)', () => {
+    renderPie({ tajadas: tajadasConSinCategoria });
+    expect(screen.getByText('44%')).toHaveAttribute('fill', '#1a1c1c');
+    expect(screen.getByText('28%')).toHaveAttribute('fill', '#1a1c1c');
+    expect(screen.getByText('18%')).toHaveAttribute('fill', '#1a1c1c');
+    expect(screen.getByText('10%')).toHaveAttribute('fill', '#e8e6e1');
+  });
+
+  // WDS-07 (WCAG 1.4.11 non-text contrast): adjacent fill slices can sit
+  // close in luminance, so wedges need a visible separator between them.
   // Reliability follow-up (post-PR4): reverted from the `stroke-card` token
   // class back to a theme-immune literal — a token cannot track this stroke's
   // backdrop (the mini pie alone sits on `bg-card` OR on `bg-ingreso` when its
@@ -116,13 +131,12 @@ describe('DistribucionPie', () => {
   // guards it.
   //
   // Tecno-Analítico (2026-09-02): only the literal's VALUE changed, white →
-  // #0d0f15. White was always the weaker separator against the pastel fills
-  // (Ahorro 1.51:1, Necesidades 2.44:1 — knowingly shipped under the old
-  // floor) and, once the app sat on a matte-dark ground, its outer perimeter
-  // drew a bright halo around the whole donut (18.55:1 against the card). The
-  // dark neutral separates from the pastels at 7.86-12.69:1 AND disappears
-  // into every surface a pie can sit on (1.03:1 card, 1.03:1 background,
-  // 1.24:1 the selected-month ingreso tint).
+  // #0d0f15, and it still disappears into every surface a pie can sit on
+  // (1.03:1 card, 1.03:1 background, 1.24:1 the selected-month ingreso tint)
+  // regardless of what the fills above it are. Brote re-tint (2026-09-12)
+  // re-measured the OTHER side of that pair — separation from the new fills
+  // is now 7.70:1 (Necesidades), 5.16:1 (Deseos), 10.91:1 (Ahorro), 3.35:1
+  // (Sin categoría) — see `lib/pie-colors.ts`.
   it('renders a theme-immune dark stroke separator on each slice for WCAG 1.4.11 adjacency contrast, never a theme-flipping token', () => {
     renderPie();
     for (const slice of screen.getAllByTestId('pie-slice')) {
@@ -130,7 +144,7 @@ describe('DistribucionPie', () => {
       expect(slice).not.toHaveClass('stroke-card');
       expect(slice).toHaveAttribute('stroke-width', '2');
     }
-    // The nested IDEAL reference pie shares the same pastel fills and the
+    // The nested IDEAL reference pie shares the same bucket fills and the
     // same adjacency problem — its wedges need the same separator.
     for (const slice of screen.getAllByTestId('pie-ideal-slice')) {
       expect(slice).toHaveAttribute('stroke', '#0d0f15');
@@ -139,19 +153,21 @@ describe('DistribucionPie', () => {
     }
   });
 
-  // TWO-TONE focus indicator (2026-09-03). `--ring` is cyan under the
-  // Tecno-Analítico identity: 12.80:1 on `bg-card`, but only 1.04-1.68:1 on
-  // the pastel wedge fills the outline's bounding box cuts across — under the
-  // WCAG 2.2 SC 1.4.11 3:1 floor. No single opaque colour clears both (the
-  // luminance interval is empty; derivation at the call site), so the wedge's
-  // own dark stroke thickens on focus to carry the indicator over the pastel
-  // stretches while `outline-ring` carries it over the dark ones.
+  // TWO-TONE focus indicator (2026-09-03, re-derived for the Brote re-tint
+  // 2026-09-12). `--ring` is cyan under the Tecno-Analítico identity: 12.80:1
+  // on `bg-card`, but only 1.21-3.95:1 on the bucket wedge fills the
+  // outline's bounding box cuts across — three of the four buckets stay
+  // under the WCAG 2.2 SC 1.4.11 3:1 floor. No single opaque colour clears
+  // that floor against every fill AND `--background` (the luminance interval
+  // is still EMPTY; derivation at the call site), so the wedge's own dark
+  // stroke thickens on focus to carry the indicator over the fill stretches
+  // while `outline-ring` carries it over the dark ones.
   //
   // Asserted as classes, not geometry: jsdom resolves no CSS variables and
   // paints nothing, so the ratio itself is not checkable here — same
   // "mechanism, not geometry" split the stroke/label assertions above use.
   // This exists so a future "simplify the focus ring" pass cannot drop half
-  // the indicator and leave the pastel stretches under the floor.
+  // the indicator and leave the fill stretches under the floor.
   it('gives focused wedges a two-tone indicator: the cyan ring AND a thickened dark stroke', () => {
     renderPie();
     for (const slice of screen.getAllByTestId('pie-slice')) {
@@ -208,7 +224,7 @@ describe('DistribucionPie', () => {
   // Round-9 critique P3 (converged from the "do NOT re-tint" LOCKED literal):
   // the focus ring moves to the shared --ring token (#1a1c1c) — verified
   // DARKER than the old outline-slate-800 (#1e293b), so contrast against
-  // every bucket pastel fill can only improve (see PreviewMuestra/DESIGN.md
+  // every bucket fill can only improve (see PreviewMuestra/DESIGN.md
   // round-9 report for the computed ratios). `outline-ring` is the class the
   // rest of the app already uses for this same focus grammar.
   it('round-9 P3: uses the shared --ring focus-visible outline, converged from the old slate-800 literal', () => {

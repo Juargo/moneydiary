@@ -39,29 +39,31 @@
    * `apps/web/src/lib/bucket-colors.ts`. THESE ARE FILLS ONLY, never text —
    * see the two-tier color rule below.
    *
-   * DELIBERATELY UNCHANGED by the Tecno-Analítico restyle (2026-09-02): the
-   * pastels were chosen against a LIGHT surface but they are mid-tone, so on
-   * the new `#090A0F` ground they still read as fills. Measured against that
-   * background, one line per token declared below so no one has to guess
-   * which number belongs to which:
+   * "Brote" palette (2026-09-12): re-tinted by product-owner choice for
+   * psychological meaning — Necesidades=structure (steel blue), Deseos=
+   * pleasure (plum), Ahorro=growth and the most salient of the three (jade).
+   * `--color-exceso` is UNCHANGED. Measured against the Tecno-Analítico dark
+   * ground (`--background` #090A0F, `--card` #11131A), one line per token so
+   * no one has to guess which number belongs to which:
    *
-   *   --color-necesidades   #8fa7d1    8.11:1
-   *   --color-gustos        #b1a7d1    8.77:1
-   *   --color-ahorro        #e6d194   13.10:1
-   *   --color-exceso        #e88a8a    7.94:1
-   *   --color-sin-categoria #aeb4c4    9.53:1
+   *   token                  hex       vs --background   vs --card
+   *   --color-necesidades    #77a7e5   7.95:1            7.46:1
+   *   --color-gustos         #bb6c90   5.33:1            5.00:1
+   *   --color-ahorro         #47dab4   11.26:1           10.56:1
+   *   --color-exceso         #e88a8a   7.94:1            (unchanged)
+   *   --color-sin-categoria  #686663   3.46:1            3.24:1
    *
-   * All far past the 3:1 non-text floor, and the donut's dark on-wedge label
-   * (`PIE_LABEL_FILL` #1a1c1c) still clears 7.02:1 on the darkest of them.
-   * Re-tinting them is a separate decision with a `bucket-colors.ts` sync and
-   * a pie-contrast re-verification attached; it is not required for AA and
-   * was not part of this change.
+   * All clear the 3:1 non-text floor. Unlike the other three,
+   * `--color-sin-categoria`'s fill is too dark for the donut's shared dark
+   * on-wedge label (`PIE_LABEL_FILL` #1a1c1c, 2.99:1 against it) — it takes a
+   * light label instead (`PIE_LABEL_FILL_LIGHT` #e8e6e1, 4.59:1), resolved
+   * per bucket by `colorEtiquetaPie` in `lib/pie-colors.ts`.
    */
-  --color-necesidades: #8fa7d1; /* soft blue — Necesidades */
-  --color-gustos: #b1a7d1; /* lavanda — Deseos/Gustos */
-  --color-ahorro: #e6d194; /* pastel yellow — Ahorro */
+  --color-necesidades: #77a7e5; /* steel blue — Necesidades */
+  --color-gustos: #bb6c90; /* plum — Deseos/Gustos */
+  --color-ahorro: #47dab4; /* jade — Ahorro */
   --color-exceso: #e88a8a; /* coral — over-budget state (currently unconsumed) */
-  --color-sin-categoria: #aeb4c4; /* neutral grey — donut ring's 4th wedge (US-047 D-08) (currently unconsumed) */
+  --color-sin-categoria: #686663; /* mid grey — donut ring's 4th wedge (US-047 D-08) (currently unconsumed) */
 
   /*
    * Income card fill+text PAIR (DCR-01/03). Unlike the bucket fills above
@@ -168,7 +170,7 @@
  * working) — only the resolved colors shift, so the app never runs two
  * parallel token systems.
  *
- * Two-tier color rule (drives contrast): the bucket pastels
+ * Two-tier color rule (drives contrast): the bucket fills
  * (`--color-necesidades` / `--color-gustos` / `--color-ahorro` /
  * `--color-exceso` above) are backgrounds/SVG-fills/dots ONLY — never text.
  * The tones below are for all text and any control needing a contrasting
