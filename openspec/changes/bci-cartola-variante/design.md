@@ -563,3 +563,307 @@ None blocking. All five proposal questions are resolved: 1 → D-01/D-02/D-03, 2
    change to a path this change never otherwise touches.
 5. **The compiler will not force the four union widenings (D-09).** The three route tests are the only
    detector. If they are dropped from the slice, the failure mode is a silent 500.
+
+---
+
+# AMENDMENT A-01 (2026-09-10) — right-edge rescue for BCI's `cargo` column
+
+> **Amendment, not a rewrite.** D-01 … D-14 above stay as written. This section adds AD-01 … AD-04 and states
+> exactly which of the original decisions are amended and how (AD-04). Where the two disagree, the amendment
+> wins for BCI's `cargo` column only; everything else above is untouched.
+>
+> Every line number below was re-read against the working tree (`/Users/jorge/dev/MoneyDiary.wt/debug-bci`,
+> branch `feat/api-bci-s3-geometria`) on 2026-09-10, after Slices 1–3 landed.
+>
+> **PII boundary (inherited, binding).** Only non-identifying page geometry and font metrics cross over. No
+> amount, name, account number, merchant or date from the real statement appears here or in any fixture.
+
+## Why this amendment exists
+
+Slices 1–3 are implemented and the suite is green (273 files / 2622 tests, `tsc` clean), **and the real
+statement still fails**: `EstructuraPdfInvalidaError` on 7 rows, each reading *"se encontró un valor con forma
+de monto fuera de las columnas configuradas"* (`estructura-pdf-invalida.error.ts:72`, raised at
+`pdf-normalization.ts:253-260`).
+
+Measured root cause:
+
+| Fact | Value |
+|---|---|
+| Amount columns are **right-aligned**; the reported `x` is the token's **left** edge (`pdf-text-extractor.ts:142`) | so `x` moves left as the amount gets wider |
+| Amounts below 1.000 are 1–3 characters, no thousands separator → they start **further right** than long ones | measured `x` ∈ **437.6 – 444.2** |
+| Shipped `cargo` band (`bci.strategy.ts:164`) | `[360, 440)` |
+| Short amounts landing **inside** `cargo` (x ∈ [437.6, 440)) | 11 |
+| Short amounts landing in the **dead zone** `[440, 450)` → unassigned → loud rejection | **7** |
+| Short amounts reaching the `abono` band `[450, 515)` | **0 — no sign inversion occurred** |
+
+Two things follow, and both matter. First, the fixture-fidelity risk named in original risk 3 has
+**materialised**: the synthetic fixture has no sub-1000 amounts, which is the only reason the build is green
+while production is broken. Second, **the dead zone did its job exactly as D-02 designed it** — every affected
+peso failed loudly instead of being read on the wrong side. Whatever we build must preserve that property.
+
+## What the measurement actually says (verify this before building)
+
+Digit glyphs in this statement are **monospaced at 3.336 pt**, confirmed by three independent
+consecutive-length comparisons (2→3, 5→6, 6→7 chars each yield exactly 3.336). Separators measure ~1.66 pt.
+Estimating `rightEdge ≈ x + digits × 3.336 + periods × 1.66` makes the measured groups converge:
+
+| token length | median x | estimated right edge |
+|---|---|---|
+| 2 chars | 442.41 | **449.08** |
+| 3 chars | 439.07 | **449.08** |
+| 6 chars | 430.73 | **449.07** |
+
+**0.01 pt of spread across widths.** That is the signature of a genuinely right-aligned column.
+
+**Corroboration that upgrades this from "measured on one document" to "standard font metrics".** Helvetica
+(and metrically-identical Arial) publish digit advance = 556/1000 em and period advance = 278/1000 em, and
+Helvetica's digits are monospaced by design. At **6 pt**: `0.556 × 6 = 3.336` — exact to the measured value —
+and `0.278 × 6 = 1.668`, matching the ~1.66 separator measurement. The statement is 6 pt Helvetica/Arial. The
+metric is therefore a *table lookup at a known size*, not a curve fitted to one file. This is the single most
+important finding in this amendment: it is what makes AD-02 auditable.
+
+## AD-01 — A right-edge **rescue pass**, opted into per column. Left-edge classification is untouched. (A-1)
+
+**Decision.** `repartirEnColumnas` (`token-grouping.ts:101-122`) keeps its current left-edge pass **verbatim**
+and gains a **second pass** that runs only over tokens the first pass left unassigned
+(`token-grouping.ts:120`). A column opts in by declaring one new optional field on `RangoX`
+(`estructura-pdf-banco.ts:7-11`) / `RangoColumna` (`token-grouping.ts:3-8`):
+
+```ts
+/** Presencia = opt-in. Ausencia = comportamiento actual, byte-idéntico. */
+readonly rescateBordeDerecho?: {
+  readonly xMin: number;          // banda sobre el BORDE DERECHO estimado
+  readonly xMax: number;          // [xMin, xMax), misma convención que arriba
+  readonly tamanoFuentePt: number; // tamaño con el que se estima el ancho
+};
+```
+
+Exactly **one** column declares it: BCI's `cargo`, as `{ xMin: 446, xMax: 452, tamanoFuentePt: 6 }`.
+BancoEstado (`banco-estado.strategy.ts:65-70`), Banco de Chile (`banco-chile.strategy.ts:94-99`) and
+Santander (`santander.strategy.ts:81-86`) declare nothing; for them the second pass has no column to iterate
+and the function returns exactly what it returns today. **Zero regression for the other three banks is
+structural, not tested-into-existence.**
+
+**Why a rescue pass and not a replacement.** The obvious reading of "classify by right edge" is: swap the
+membership test. That is wrong here for a reason that only shows up once you look at the evidence we actually
+hold. BCI's bands were calibrated against **15 real V1 statements measured by LEFT edge** (`bci.strategy.ts:52-56`)
+— we have no V1 right-edge measurements and cannot obtain them (those statements are not in the repo, ADR-013).
+Replacing the test would discard a 15-statement calibration in favour of numbers derived from two synthetic
+fixtures. A rescue pass keeps every currently-correct assignment bit-identical and only adjudicates tokens
+that the left edge could not place at all.
+
+**Why per-column and not per-strategy or global.**
+
+| Option | Verdict |
+|---|---|
+| Global switch in `repartirEnColumnas` + full recalibration | **Rejected.** Silently invalidates four calibrations at once. Two of the three siblings (BancoEstado, Santander) were never calibrated against a real statement at all (D-14) — there is nothing to recalibrate *against*. This trades a bounded BCI defect for four unbounded ones. |
+| Per-**strategy** flag | **Rejected — wrong granularity.** BCI's `fecha` and `descripcion` are left-aligned; `cargo` is right-aligned. A strategy-level flag would apply right-edge logic to columns where the left edge is the invariant. Alignment is a property of a *column*, not of a bank. |
+| Per-**column** optional field (chosen) | The unit of alignment is the unit of configuration. |
+| A separate `RangoColumnaDerecha` type / parallel array | **Rejected (KISS).** Two shapes for one concept; every consumer of `rangosX` would need to merge them. |
+
+**SOLID / YAGNI / DRY / KISS, argued rather than asserted.**
+
+- **OCP + LSP.** The field is optional and its absence reproduces today's code path literally. Adding a
+  column's alignment does not modify behaviour that works — the definition of extension over modification.
+- **SRP.** `repartirEnColumnas` stays *purely geometric* (`token-grouping.ts:28-31`). It learns one new
+  geometric concept — "a column may be anchored on its right edge" — not a bank branch. There is no
+  `if (banco === BCI)` anywhere.
+- **DRY.** The knowledge *"in a right-aligned column the right edge is the invariant, and it is estimated as
+  `x + advance(str) × size`"* lives in **one** function in `token-grouping.ts`. No strategy computes a width.
+- **YAGNI, honestly.** One field with one consumer invites the "plugin system with one plugin" objection
+  (`yagni` rule 4). It does not apply: this is not an extension point built for imagined futures, it is the
+  *only* mechanism that makes "don't touch the other three banks" a property of the type rather than a promise
+  in a review checklist. The speculative option here is the global switch, which asks us to recalibrate three
+  banks against evidence we do not have.
+- **KISS.** A reader of `banco-estado.strategy.ts` sees exactly the four lines they see today. Presence of the
+  field is the whole opt-in — there is no half-configured state to get wrong.
+
+**Implementation shape (specified, because the ordering contract is load-bearing).** Pass 1 must collect
+per-column **token lists** instead of joining immediately; pass 2 appends rescued tokens to their column's
+list; the join happens once at the end, still `.sort((a, b) => a.x - b.x)` then `.join(' ').trim()`
+(`token-grouping.ts:113,115-118`). The retained-token set and ordering for every non-opted-in column is
+therefore provably unchanged. If pass 2 rescues a token into a column pass 1 already filled, the column text
+becomes two tokens, `parsearMontoPdf` returns `null`, and the row fails **loudly** with `MontoIleeible`
+(`pdf-normalization.ts:263-273`) — the correct outcome.
+
+**The application port does not learn about this.** `RangoXValidado`
+(`pdf-structure-validator.port.ts:9-13`) deliberately duplicates `{col, xMin, xMax}` to keep application free
+of infrastructure (ADR-005, its own comment at `:6`). `normalizarTransaccionesPdf` reads `rangosX` from the
+**strategy** object, not from the validated structure (`pdf-normalization.ts:182,185-190`), so the port needs
+no change; the widened object stays assignable at `pdf-structure-extraction.ts:144`. Verify, do not assume.
+
+## AD-02 — Glyph metrics: a standard advance table × a declared font size, and a loud failure if either is wrong (A-2)
+
+**Decision.** `token-grouping.ts` gains one constant and one function:
+
+```ts
+/** Advances estándar Helvetica/Arial, en 1/1000 em. La medición del statement
+ *  real coincidió a 0.01 pt con estas cifras a 6 pt — no es una curva ajustada
+ *  a un documento. */
+const ANCHOS_GLIFO_1000EM: Readonly<Record<string, number>> = {
+  '0':556,'1':556,'2':556,'3':556,'4':556,'5':556,'6':556,'7':556,'8':556,'9':556,
+  '.':278, ',':278, '$':556, '-':333, ' ':278,
+};
+
+/** `null` si ALGÚN carácter no está en la tabla — entonces el token no es
+ *  medible y NO es elegible para el rescate. Esto NO es una regla de negocio
+ *  de ningún banco: es la frontera de lo que este estimador puede medir. */
+function anchoEstimado(str: string, tamanoPt: number): number | null;
+```
+
+**Why this and not the alternatives.**
+
+| Source of metrics | Verdict |
+|---|---|
+| Standard advance table × per-column declared size (chosen) | The size is one auditable number in a diff, next to the band it governs. The table is public font metrics, independently checkable, and the measurement matched it to 0.01 pt. |
+| Raw hard-coded `3.336` / `1.66` per strategy | **Rejected.** Same information, worse form: two magic numbers that hide the fact that they are one number (the point size) times a public table — and that hiding is what would make a future 8 pt layout look like a mystery instead of a one-character edit. |
+| Derived at runtime from the tokens (slope of median x vs. length) | **Rejected.** It is the same objection D-01 already sustained against header-derived bands: it replaces a number auditable in a diff with a number computed at runtime from a document we cannot see. It also needs ≥2 distinct token lengths per column per document and a fallback when that fails. **Recorded as deferred with an explicit trigger** (`yagni`, the 11.6 idiom): the first BCI layout whose advances are not Helvetica-at-a-declared-size re-opens it — and it will announce itself as a `TokenSinAsignarSospechoso` bug report, not as bad data. |
+| Widen `PagedToken` with a real width from pdfjs | **Rejected for this change.** `PagedToken` exposes `str`/`x`/`y`/`page` only (`pdf-text-extractor.ts:11-16`); pdfjs's `width` would mean widening the single interop boundary the whole module rests on (`pdf-text-extractor.ts:57-68`) and re-pinning every extractor test, in the riskiest slice of the change. Recorded as the preferred future path if a second right-aligned column ever needs this. |
+
+**How a wrong metric fails — and why it can only fail loudly.** A wrong size shifts every estimated right
+edge by a constant factor. The shifted value either lands in `cargo`'s rescue window `[446, 452)` or it does
+not. If it does not, the token stays unassigned and `pdf-normalization.ts:253-260` raises
+`TokenSinAsignarSospechoso`, rejecting the **whole statement**. It cannot land anywhere else, because
+**`abono` declares no rescue window at all** (AD-03). Therefore:
+
+> **A wrong glyph metric can reject a statement. It cannot move a peso from `cargo` to `abono`.**
+
+That is the ADR-015 property this amendment is built around, and it is structural — it does not depend on the
+numbers being right.
+
+**The eligibility gate is the table itself, not a regex.** `anchoEstimado` returns `null` for any token
+containing a character it has no advance for. Descriptions contain letters, so they are never measurable and
+can never be rescued into a money column — the "a wide description token whose right edge reaches the amount
+band" hazard is closed by construction rather than by a width bound. Note that `REGEX_POSIBLE_MONTO`
+(`pdf-normalization.ts:48`) is **not** reusable as this gate: it requires a `$` prefix or a thousands
+separator, so it rejects exactly the sub-1000 amounts this amendment exists to rescue.
+
+**The window `[446, 452)`.** Centred on the measured 449.08 with ±~3 pt — roughly 300× the observed 0.01 pt
+spread, and 38+ pt below any plausible V2 deposit right edge (≥ 486.6 + width ≈ 490) and ~110 pt below the
+saldo column (V2 saldo starts at 555.9). Deliberately narrow: the estimate is precise, so the window that
+trusts it should be.
+
+## AD-03 — The dead zone is kept, and becomes the **catchment area** for the rescue (A-3)
+
+**Decision.** `cargo.xMax = 440` and `abono.xMin = 450` are **unchanged**. The 10 pt dead zone `[440, 450)`
+stays exactly where D-02 put it. What changes is its meaning:
+
+> **Before:** "left-edge positions where no amount has ever been observed — anything here is drift, reject it."
+> **After:** "left-edge positions where a money token's column **cannot be decided from its left edge alone** —
+> decide it by right edge if it is measurable, reject it loudly if it is not."
+
+**Why this is strictly safer than the cheap fix.** Raising `cargo.xMax` to 450 would also cover the 7 rows —
+by spending the entire buffer, leaving `cargo` and `abono` contiguous. That is precisely the configuration
+D-14 flags as BancoEstado's standing defect (`abono` `[395,460)` / `cargo` `[460,500)`, zero dead zone,
+`banco-estado.strategy.ts:65-70`). The rescue pass buys the same coverage **and keeps the buffer**.
+
+**The dead zone is now provably wide enough, not just empirically empty.** The narrowest possible amount is
+one digit: right edge 449.08 − 3.336 = **left edge 445.74**, still 4.26 pt below `abono.xMin = 450`. So no BCI
+`cargo` amount of any width — down to a single digit — can reach the `abono` band. The dead zone's width is
+no longer a judgement call; it is bounded below by one glyph width and above by `abono.xMin`.
+
+**Width-invariance, stated precisely.** The rescue classifier is width-invariant; the *catchment* is not, and
+that is deliberate. Coverage of the catchment `[440, 450)` is what decides which tokens get adjudicated at
+all. A token left of 440 is already correctly in `cargo`; a token at or right of 450 is in `abono` by left
+edge and is **not** second-guessed. That asymmetry is the safety property: **the rescue can only ever *add*
+`cargo` assignments to rows that would otherwise have been rejected. It can never move an amount that the
+left-edge pass already placed, and it can never produce an `abono`.**
+
+**`abono` gets no rescue window — YAGNI and evidence.** Zero deposits landed in the dead zone. A V2 deposit's
+left edge is ≥ ~455 even at 9 digits + 3 separators (490 − 35), comfortably inside `[450, 515)`; a deposit
+narrow enough to matter starts at ~487, also inside. And we hold **2** deposit samples — inventing a
+right-edge window for `abono` from two samples would be the guess D-02 already refused to make, with the
+added hazard that it is the only configuration in which a mis-estimated charge could become a deposit.
+
+## AD-04 — Effect on D-01 … D-14 (A-4)
+
+| Decision | Status | What changes |
+|---|---|---|
+| **D-01** (one structure, no variant selection) | **Reaffirmed** | `rescateBordeDerecho` is a property of a column, not of a variant — no runtime selection, no second `EstructuraPdfBanco`. **One grant added:** D-01's tripwire 1 (`bci.strategy.spec.ts:162-177`, the `rangosX` `toEqual`) must be rewritten **a second time** to carry the new field. This amendment is the written justification that rewrite requires; it raises the change's allowance from three pre-existing expectations to four, and to no more than four. |
+| **D-02** (band coordinates + separation argument) | **Amended** | Coordinates **unchanged** — `cargo [360,440)`, `abono [450,515)` all stand, and the per-edge justification for `cargo.xMin`, `abono.xMin`, `abono.xMax` is untouched. What is amended is the **meaning of `cargo.xMax = 440`**: it is no longer the coverage ceiling ("covers V2's narrowest observed charge with 5.9 pt of headroom") but the **floor of the rescue catchment** — coverage of narrow charges now comes from AD-01, not from where this edge sits. D-02's closing sentence *"an amount narrower than anything ever observed for its variant will be rejected, not misread"* is **superseded for BCI `cargo` only**: such an amount is now **rescued if measurable, rejected loudly if not**. It remains true verbatim for `abono` and for all three sibling banks. |
+| **D-02's invariant test** (`bci.strategy.spec.ts:233-249`) | **Extended, not rewritten** | Every existing assertion stays. Added: (a) each measured V2 `cargo` left-edge sample, plus a synthetic 1-, 2- and 3-digit sample, yields an estimated right edge inside `[446, 452)`; (b) every V1 and V2 **saldo** sample's estimated right edge is **outside** `[446, 452)` — the right-edge-space restatement of D-02's "phantom deposit equal to the running balance" hazard; (c) `cargo.xMax < abono.xMin` still holds (the catchment exists); (d) `abono` declares **no** `rescateBordeDerecho`. |
+| **`abono.xMax = 515` / 521.2 pin** | **Unchanged, test stays green untouched** | `abono` remains left-edge classified, so `V2_SALDO_DIARIO_HEADER_X = 521.2` (`bci.strategy.spec.ts:249`) and the `abono.xMax < 521.2` assertion keep their original meaning and their original numbers. **No right-edge restatement is needed or permitted for this pin** — restating it would imply `abono` opted in, which it did not. |
+| **D-03** (`fecha` 30, SUCURSAL unmodelled) | **Untouched** | Both are left-aligned; the left edge is their invariant. |
+| **D-04, D-05, D-06** (dash dates, totals-row anchor, `PERIODO` colon) | **Untouched** | |
+| **D-07 … D-11** (`SinMovimientosError` and its plumbing) | **Untouched** | Worth recording the interaction: the real statement fails *loudly* at structure validation, not silently at zero rows, so D-07's guard is **not** what was protecting us here. The two mechanisms are complementary — D-07 covers silent emptiness, the dead zone covers geometric drift. |
+| **D-12** (fixture contract) | **Amended — see below** | |
+| **D-13** (acceptance = reconciliation) | **Amended — see below** | |
+| **D-14** (sibling audit) | **Amended** | The cross-bank spec (Phase 28) gains one assertion: **no strategy other than BCI declares `rescateBordeDerecho`, and BCI declares it on `cargo` only.** That is what makes "zero regression for the other three" machine-checked. BancoEstado's issue gains a materially stronger finding: its money columns are contiguous **and**, if they are right-aligned like BCI's (unverified — it has never been measured against a real statement), it has this exact defect with **no dead zone to fail loudly into**, meaning its failure mode would be a **silent sign inversion** rather than a rejection. That upgrades its issue from "thin margin" to "latent money defect, trigger: a real statement measurement." |
+
+## Fixture obligation (amends D-12)
+
+**This is the gap that let a broken parser ship green, and closing it is binding on the implementation phase.**
+`bci-cartola-variante-test.pdf` and its generator MUST gain sub-1000 amounts:
+
+- At least one **1-digit**, one **2-digit** and one **3-digit** charge.
+- All amount tokens in both money columns placed **right-aligned by construction**: the generator computes
+  `x = bordeDerecho − anchoEstimado(str, 6)` from the same advance table AD-02 puts in `token-grouping.ts`,
+  rather than hand-picking an `x`. This makes the fixture *prove* the estimator instead of merely coexisting
+  with it.
+- At least one of those short charges must land in the **catchment** `[440, 450)` — reproducing the exact
+  production failure — and at least one must land inside `[437.6, 440)`, reproducing the 11 that happen to
+  work today.
+- The existing self-assertion block (`bci.strategy.spec.ts:66-…`) gains assertions pinning those left-edge
+  values and the 449.08 convergence, so a drifting generator fails **before** the parser tests do.
+- Fixture regeneration must leave the existing 18/8 movement assertions for the two V1 fixtures untouched.
+
+## Re-verification of the real statement (amends D-13)
+
+After implementation, the manual run of D-13 is repeated with a **raised bar**. Acceptance requires all four:
+
+1. `saldoAnterior − Σcargo + Σabono === saldoFinal` (the original identity — catches a dropped row at 1× and a
+   sign inversion at 2×).
+2. **All 106 movement rows parse.** No `EstructuraPdfInvalidaError`, and the movement count equals 106.
+3. **No row is attributed to the wrong column**, checked mechanically rather than by eye: for every row, the
+   sign of the running-balance delta `saldoₙ − saldoₙ₋₁` must agree with the side the amount landed on
+   (`+` ⇒ `abono`, `−` ⇒ `cargo`). This is the only check that distinguishes "parsed" from "parsed correctly"
+   per row, and it is also assertable on the fixture, where the generator knows both.
+4. The statement's own printed totals reconcile with `Σcargo` / `Σabono`.
+
+**Record only the four booleans and the row count in the PR.** Never amounts, names, account numbers,
+descriptions or dates. The statement is never committed, quoted or reproduced — the repo is PUBLIC.
+
+## Review Workload impact
+
+This amendment lands in **Slice 3 (PR 3 — geometry)**, already forecast at ~520 lines and already requiring
+`size:exception`. Added: the `token-grouping.ts` two-pass refactor + advance table + `anchoEstimado` (~70
+production lines), its unit spec (~120), the `RangoX` field + BCI docblock (~30), the extended invariant test
+(~70), generator changes + regeneration + new self-assertions (~100), and the second `rangosX` `toEqual`
+rewrite. **≈ +390 lines → Slice 3 lands near ~910.**
+
+```
+Decision needed before apply: Yes
+Chained PRs recommended: Yes
+400-line budget risk: High — Slice 3 now more than doubles the budget on its own
+```
+
+**Recommended split, and it is a clean one.** Unlike the splits D-12/tasks.md rejected, this one has a
+provably inert half:
+
+| PR | Ships | Why it is independently verifiable |
+|---|---|---|
+| **3a — estimator** | Two-pass `repartirEnColumnas`, `ANCHOS_GLIFO_1000EM`, `anchoEstimado`, the optional `RangoX` field, `token-grouping.spec.ts` additions. **No strategy opts in.** | Behaviour change is **zero by construction** — no column declares the field, so pass 2 iterates nothing. The entire existing suite staying green at 2622 tests *is* the proof. ~250 lines, inside budget, no `size:exception`. |
+| **3b — BCI opts in** | `cargo`'s `rescateBordeDerecho`, fixture regeneration with sub-1000 amounts, extended invariant test, the `toEqual` rewrite, docblock. | ~300 lines. Rollback restores the shipped Slice-3 bands verbatim. Still the highest-value revert target. |
+
+Strict TDD is unaffected: 3a's RED is a `token-grouping.spec.ts` unit test on a synthetic right-aligned
+column (no bank involved); 3b's RED is the fixture's short-amount rows failing with
+`TokenSinAsignarSospechoso` before the opt-in lands.
+
+## Risks this amendment accepts, in writing
+
+1. **The 6 pt metric is declared once and applies to BCI's `cargo` for BOTH layouts** (D-01: one structure).
+   V1 is very likely a different point size (D-02's own prose assumes ≈5 pt/digit, i.e. ~9 pt). This is
+   harmless **only because no V1 amount has ever been observed in the catchment** — D-02's measured 21.2 pt of
+   emptiness at `(434.1, 455.3)` covers `[440, 450)` entirely — so no V1 token reaches pass 2. If a V1
+   statement ever produces a catchment token, the 6 pt estimate misplaces it and the row is **rejected
+   loudly**. Residual, and the reason the invariant test pins V1's clusters as outside the catchment.
+2. **`[446, 452)` rests on one statement.** 106 rows and a 0.01 pt spread make it the best-evidenced number in
+   this entire change, but it is still one document. Mitigated by the failure mode: outside the window ⇒
+   unassigned ⇒ loud.
+3. **The rescue adds a second reason a token can be assigned**, which is new surface in the most
+   money-critical function in the module. Bounded by: it only sees tokens the first pass rejected, it only
+   assigns to a column that opted in, exactly one column has opted in, and that column is `cargo` — so the
+   worst outcome it can produce is a charge recorded as a charge, or a loud rejection.
+4. **The fixture still cannot prove the real statement parses.** It can now prove the *mechanism*, which is
+   strictly more than before, but only Phase 15's manual re-run against the real file closes this. It is the
+   one open task in Slices 1–3 and it is now the gate for the whole change.
