@@ -1134,6 +1134,35 @@ describe('SubirCartola (US-059 PR3 — commit flow)', () => {
     expect(screen.getByLabelText(/selecciona un archivo/i)).toBeEnabled();
   });
 
+  // bci-cartola-variante Fase 24.1 (D-11): un 400 SIN_MOVIMIENTOS NO gana un
+  // EstadoSubida dedicado ni copy nuevo — verifica que el mensaje del
+  // dominio (design.md D-08) llega verbatim a través del estado genérico
+  // `preview-error` ya existente, igual que cualquier otro error 400 de
+  // validación del archivo (WEB-PRV-08 de arriba). Un estado dedicado
+  // duplicaría el mensaje del servidor y empezaría a driftear (YAGNI+DRY).
+  it('SIN_MOVIMIENTOS: renderiza el mensaje de SinMovimientosError verbatim a través del estado preview-error existente', () => {
+    mockedUsePreviewIngesta.mockReturnValue(
+      unaMutacion<PreviewIngestaDto>({
+        isError: true,
+        status: 'error',
+        error: {
+          tag: 'invalid',
+          code: 'SIN_MOVIMIENTOS',
+          message: 'No encontramos movimientos en "cartola.pdf".',
+        },
+      }),
+    );
+    mockedUseCommitIngesta.mockReturnValue(unaMutacion({}));
+    mockedUseCategorias.mockReturnValue(unaConsulta({ data: unCatalogoDto() }));
+
+    render(<SubirCartola />);
+
+    expect(
+      screen.getByText('No encontramos movimientos en "cartola.pdf".'),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/selecciona un archivo/i)).toBeEnabled();
+  });
+
   // ── Commit error (D-11: preserve preview + edits) ────────────────────────
 
   it('D-11: commit error shows message in role="alert"; review table remains rendered; picker re-enabled', async () => {
