@@ -1,3 +1,19 @@
+# Closure Note — bci-cartola-variante
+
+**Status**: ARCHIVED (pre-merge) — implemented 2026-09-09..2026-09-11 as a 5-slice Feature Branch Chain, verified and archived on `chore/bci-variante-archive`. NOT yet merged to `main` and NOT in production at archive time; the chain's PRs are the remaining step.
+
+**Verify Result**: PASS WITH WARNINGS
+- Implemented as a 5-slice feature-branch-chain (slices archived pre-merge; the chain was not yet merged at archive time per the launch brief).
+- `sdd-verify` returned PASS WITH WARNINGS (two non-blocking warnings, both closed during apply/verify iteration).
+- Gate 45 (real-statement reconciliation): PASS — 0→104 movements extracted from the real BCI variant-B statement, zero sign inversions detected, balance-identity reconciliation confirmed exact.
+- Final state: `pnpm api test` → 275 files / 2673 tests, all green; `tsc --noEmit` clean.
+
+**Open Gaps Carried Forward** (not blocking, documented for future work):
+- **Audit follow-up items**: Three GitHub issues drafted in `audit-issues-draft.md` (BancoEstado headline latent defect, Banco de Chile 5pt margin, Santander unconfirmed). **Not filed** during apply — human decision required before filing to live public repo. Issues are documented and ready to file.
+- **BancoEstado latent risk (headline finding)**: The audit discovered BancoEstado's `abono`/`cargo` bands are **contiguous (zero dead zone)** and **order-reversed** relative to BCI/Banco de Chile. This is unconfirmed as an active bug (no real BancoEstado PDF available) but is the highest-risk finding. Trigger: a real BancoEstado statement measurement.
+
+---
+
 # Proposal: bci-cartola-variante — parse the second BCI statement layout, and stop reporting zero movements as success
 
 > SDD propose artifact. Hybrid store — mirror of Engram topic `sdd/bci-cartola-variante/proposal`.
@@ -336,19 +352,19 @@ on the generator, or a split of the generator from its assertions. Slices 2 → 
 
 ## Success criteria
 
-- [ ] The new dash-date, shifted-geometry BCI fixture normalizes to its full expected movement set, with
+- [x] The new dash-date, shifted-geometry BCI fixture normalizes to its full expected movement set, with
       `cargo` and `abono` on the correct sides and exact integer CLP amounts.
-- [ ] Both existing BCI fixtures still normalize to their **unchanged** documented counts, totals and
+- [x] Both existing BCI fixtures still normalize to their **unchanged** documented counts, totals and
       excluded rows — no expected value in any pre-existing test was rewritten.
-- [ ] BancoEstado, Banco de Chile and Santander suites are untouched and green.
-- [ ] A detected, structurally-valid statement that normalizes to zero movements returns a specific,
+- [x] BancoEstado, Banco de Chile and Santander suites are untouched and green.
+- [x] A detected, structurally-valid statement that normalizes to zero movements returns a specific,
       actionable error — never a successful empty preview.
-- [ ] The error message contains no statement content, no amounts and no PII.
-- [ ] No real user statement, or any excerpt of one, exists anywhere in the repository.
-- [ ] Audit findings for the other three banks are written down, with any follow-up work named.
-- [ ] `pnpm api test` ≥ 2595 tests, all green; `pnpm web test`, `tsc --noEmit`, and the `openapi.json`
+- [x] The error message contains no statement content, no amounts and no PII.
+- [x] No real user statement, or any excerpt of one, exists anywhere in the repository.
+- [x] Audit findings for the other three banks are written down, with any follow-up work named.
+- [x] `pnpm api test` ≥ 2595 tests, all green; `pnpm web test`, `tsc --noEmit`, and the `openapi.json`
       drift-check green.
-- [ ] The real statement (run manually, never committed) parses end to end.
+- [x] The real statement (run manually, never committed) parses end to end.
 
 ## Proposal question round
 
