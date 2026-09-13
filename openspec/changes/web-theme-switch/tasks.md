@@ -255,12 +255,12 @@ code was delivered in four chained PRs, each under 400 lines:
 
 ## Phase 11: S7b — Unlock, sidebar shortcut, e2e [WT-02][WT-03][WT-04][WT-05][WT-06][D10] (PR11 `feat/tema-selector-sidebar-e2e`, base PR10)
 
-- [ ] 11.1 Set `TEMA_FORZADO = null` in `apps/web/src/lib/tema.ts` and `forzado = null` in the `index.html` inline script; re-run `prepaint-tema.test.ts` parity.
-- [ ] 11.2 [RED] Update `apps/web/src/routes/_authenticated.tsx` test coverage for the `sidebarFooter` slot rendering the compact `SelectorTema` alongside `ApiVersionBadge`/logout.
-- [ ] 11.3 [GREEN] Inject the compact `SelectorTema` via the existing `sidebarFooter` slot in `_authenticated.tsx`; `Sidebar.tsx` untouched [D10].
-- [ ] 11.4 [RED] Write a sync test: changing theme via one `SelectorTema` instance updates the other's checked state (Perfil ↔ Sidebar) [WT-06].
-- [ ] 11.5 [GREEN] Confirm 11.4 passes via the shared `usePreferenciaTema` store.
-- [ ] 11.6 [RED] Update `dark-chrome.e2e.ts`/`light-chrome.e2e.ts` to use `page.emulateMedia({colorScheme})` instead of a static class, now that the toggle is live.
-- [ ] 11.7 [RED] Create `apps/web/e2e/tema.e2e.ts`: reload restores the stored choice with the class present at `DOMContentLoaded` while `#root` is empty; `emulateMedia` live follow under `system`; two pages cross-tab sync via `storage`.
-- [ ] 11.8 [GREEN] Confirm 11.6/11.7 pass end-to-end.
-- [ ] 11.9 [REFACTOR] Full suite: `pnpm web test`, `pnpm web typecheck`, `pnpm web lint`, `pnpm --filter @moneydiary/web exec playwright test`.
+- [x] 11.1 Set `TEMA_FORZADO = null` in `apps/web/src/lib/tema.ts` and `forzado = null` in the `index.html` inline script; re-run `prepaint-tema.test.ts` parity.
+- [x] 11.2 [RED] Update `apps/web/src/routes/_authenticated.tsx` test coverage for the `sidebarFooter` slot rendering the compact `SelectorTema` alongside `ApiVersionBadge`/logout.
+- [x] 11.3 [GREEN] Inject the compact `SelectorTema` via the existing `sidebarFooter` slot in `_authenticated.tsx`; `Sidebar.tsx` untouched [D10].
+- [x] 11.4 [RED] Write a sync test: changing theme via one `SelectorTema` instance updates the other's checked state (Perfil ↔ Sidebar) [WT-06].
+- [x] 11.5 [GREEN] Confirm 11.4 passes via the shared `usePreferenciaTema` store.
+- [x] 11.6 [RED] Update `dark-chrome.e2e.ts`/`light-chrome.e2e.ts` to use `page.emulateMedia({colorScheme})` instead of a static class, now that the toggle is live.
+- [x] 11.7 [RED] Create `apps/web/e2e/tema.e2e.ts`: reload restores the stored choice with the class present at `DOMContentLoaded` while `#root` is empty; `emulateMedia` live follow under `system`; two pages cross-tab sync via `storage`.
+- [x] 11.8 [GREEN] Confirm 11.6/11.7 pass end-to-end.
+- [x] 11.9 [REFACTOR] Full suite: `pnpm web test`, `pnpm web typecheck`, `pnpm web lint`, `pnpm --filter @moneydiary/web exec playwright test`.

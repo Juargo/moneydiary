@@ -3,27 +3,22 @@ import { stubApi } from './fixtures/api-stubs';
 
 /**
  * e2e/light-chrome.e2e.ts — mirrors `dark-chrome.e2e.ts` for the `:root`
- * default (S4, D1/D2, DCR-04/05). Light is reached by removing the class
- * in-page. Since S6, the pre-paint script AND `lib/tema.ts`'s `aplicarTema`
- * also set `documentElement.style.colorScheme` directly (D2) — an inline
- * style wins the cascade over both `:root`/`.dark`'s CSS-declared
- * `color-scheme`, so removing only the class is no longer enough to flip
- * the UA-reported scheme; the first test below also clears that inline
- * property. Same jsdom-can't-paint reasoning as `dark-chrome.e2e.ts`.
+ * default (S4, D1/D2, DCR-04/05). Since S7b (PR11) the selector is live and
+ * light is reachable: no preference is stored (default `system`), so
+ * `page.emulateMedia({ colorScheme: 'light' })` before navigating drives the
+ * pre-paint script to resolve `light` for real — no in-page DOM
+ * manipulation needed anymore. Same jsdom-can't-paint reasoning as
+ * `dark-chrome.e2e.ts`.
  */
 
-test.describe('chrome claro (Clínico frío, aún inalcanzable en prod)', () => {
-  test('sin la clase dark, el elemento raíz declara color-scheme: light', async ({
+test.describe('chrome claro (Clínico frío)', () => {
+  test('con OS claro y sin preferencia guardada, el elemento raíz declara color-scheme: light', async ({
     page,
   }) => {
     await stubApi(page);
+    await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/?periodo=2026-07');
     await page.getByText('Toca un ítem del gráfico o la leyenda').waitFor();
-
-    await page.evaluate(() => {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.style.colorScheme = '';
-    });
 
     const esquema = await page.evaluate(
       () => getComputedStyle(document.documentElement).colorScheme,
@@ -42,15 +37,12 @@ test.describe('chrome claro (Clínico frío, aún inalcanzable en prod)', () => 
     expect(tarjeta).toBe('rgb(249, 250, 252)');
   });
 
-  test('los <select> nativos pintan la cara Clínico frío sin la clase dark', async ({
+  test('los <select> nativos pintan la cara Clínico frío con OS claro', async ({
     page,
   }) => {
     await stubApi(page);
+    await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/buckets/Deseos?periodo=2026-07');
-
-    await page.evaluate(() =>
-      document.documentElement.classList.remove('dark'),
-    );
 
     const select = page.locator('select').first();
     await select.waitFor();

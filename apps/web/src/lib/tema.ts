@@ -13,14 +13,14 @@ export const CLAVE_PREFERENCIA_TEMA = 'moneydiary:tema';
 
 /**
  * Palanca de emergencia (D5). Mientras no sea `null`, `resolverTema` la
- * devuelve SIEMPRE, sin importar la preferencia guardada ni el OS — esa es
- * la invariante de esta PR (S6): el tema visible sigue forzado a Tinta
- * cálida. `leerPreferencia`/`cambiarPreferencia` siguen leyendo y
- * escribiendo la preferencia real en `localStorage`, así que activar el
- * selector en S7b (PR11) es un cambio de una sola línea: `TEMA_FORZADO =
- * null` acá y `forzado = null` en el script de `index.html`.
+ * devuelve SIEMPRE, sin importar la preferencia guardada ni el OS. Se usó
+ * durante S6 para dejar el tema visible forzado a Tinta cálida mientras el
+ * selector aún no existía. Desde S7b (PR11) queda en `null`: el selector es
+ * real y `resolverTema` respeta la preferencia guardada (o el OS bajo
+ * `system`). Para un rollback de emergencia, volver a poner `'dark'` acá Y
+ * `forzado = 'dark'` en el script de `index.html` (deben moverse juntos).
  */
-export const TEMA_FORZADO: TemaResuelto | null = 'dark';
+export const TEMA_FORZADO: TemaResuelto | null = null;
 
 // `<meta name="theme-color">` por tema (Token Table, design.md). Deben
 // coincidir con el script inline de `index.html` — cambiarlos ahí también.
