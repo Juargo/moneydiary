@@ -3,9 +3,13 @@ import { stubApi } from './fixtures/api-stubs';
 
 /**
  * e2e/light-chrome.e2e.ts — mirrors `dark-chrome.e2e.ts` for the `:root`
- * default (S4, D1/D2, DCR-04/05). `<html>` still boots with a static
- * `class="dark"` (S6 makes it dynamic); light is reached by removing the
- * class in-page. Same jsdom-can't-paint reasoning as `dark-chrome.e2e.ts`.
+ * default (S4, D1/D2, DCR-04/05). Light is reached by removing the class
+ * in-page. Since S6, the pre-paint script AND `lib/tema.ts`'s `aplicarTema`
+ * also set `documentElement.style.colorScheme` directly (D2) — an inline
+ * style wins the cascade over both `:root`/`.dark`'s CSS-declared
+ * `color-scheme`, so removing only the class is no longer enough to flip
+ * the UA-reported scheme; the first test below also clears that inline
+ * property. Same jsdom-can't-paint reasoning as `dark-chrome.e2e.ts`.
  */
 
 test.describe('chrome claro (Clínico frío, aún inalcanzable en prod)', () => {
@@ -16,9 +20,10 @@ test.describe('chrome claro (Clínico frío, aún inalcanzable en prod)', () => 
     await page.goto('/?periodo=2026-07');
     await page.getByText('Toca un ítem del gráfico o la leyenda').waitFor();
 
-    await page.evaluate(() =>
-      document.documentElement.classList.remove('dark'),
-    );
+    await page.evaluate(() => {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.style.colorScheme = '';
+    });
 
     const esquema = await page.evaluate(
       () => getComputedStyle(document.documentElement).colorScheme,
