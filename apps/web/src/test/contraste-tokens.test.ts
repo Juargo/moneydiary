@@ -13,9 +13,9 @@ import { describe, expect, it } from 'vitest';
  * (Tecno-Analítico), no theme, no ratio math. Phase 6 (S3, `.dark` = Tinta
  * cálida, below) adds the dark half: every token re-declared inside `.dark`
  * plus a curated set of the measured pairs' WCAG ratios
- * (`palette-measurements.md`). Phase 7 (S4, `:root` = Clínico frío) closes
- * the light half; a half-applied palette fails this file once both halves
- * exist.
+ * (`palette-measurements.md`). Phase 7 (S4, `:root` = Clínico frío) syncs
+ * the `@theme`/`:root` VALUES below to the light default — the `.dark`-style
+ * shadcn-var + AA-table coverage lands in the next dedicated PR.
  *
  * Comments in `index.css` narrate hex values in prose (docblock tables like
  * "--color-necesidades    #77a7e5   7.95:1") — stripping `/* ... *\/` blocks
@@ -45,57 +45,53 @@ function bloqueDark(css: string): string {
   return match[1];
 }
 
-// Tokens migrados por D1 (buckets, semáforo, ingreso, warning, etc.) — hoy
-// declarados en `@theme` con el único valor vigente (Tecno-Analítico). D1
-// los deja en `@theme`; el revert de `:root`/`@theme inline` fue descartado
-// en design.md, así que este test NO asume una selector específico.
+// Tokens migrados por D1, declarados en `@theme` con el valor LIGHT
+// (Clínico frío) por defecto desde S4 (`.dark` los reescribe, ver
+// `TOKENS_DARK_CUSTOM`). El revert de `:root`/`@theme inline` fue
+// descartado en design.md, así que este test NO asume un selector específico.
 const TOKENS_EXISTENTES: Record<string, string> = {
-  'color-necesidades': '#77a7e5',
-  'color-gustos': '#bb6c90',
-  'color-ahorro': '#47dab4',
-  'color-exceso': '#e88a8a',
-  'color-sin-categoria': '#686663',
-  'color-ingreso': '#0c2a1d',
-  'color-ingreso-foreground': '#4ade80',
-  'color-vinculo-activo': '#0c2a1d',
-  'color-vinculo-activo-foreground': '#4ade80',
-  'color-semaforo-verde': '#0c2a1d',
-  'color-semaforo-verde-foreground': '#4ade80',
-  'color-semaforo-amarillo': '#2a2109',
-  'color-semaforo-amarillo-foreground': '#fbbf24',
-  'color-semaforo-rojo': '#2c1017',
-  'color-semaforo-rojo-foreground': '#fb7185',
-  'color-semaforo-verde-band': '#34d399',
-  'color-semaforo-amarillo-band': '#fbbf24',
-  'color-semaforo-rojo-band': '#fb7185',
-  'color-warning': '#241d0b',
-  'color-warning-border': '#8a701e',
-  'color-warning-foreground': '#fbbf24',
-  'color-warning-accent': '#2e2510',
-  'color-exito-foreground': '#4ade80',
-  'color-cargo-foreground': '#fb7185',
+  'color-necesidades': '#4369a2',
+  'color-gustos': '#782c5c',
+  'color-ahorro': '#049a78',
+  'color-exceso': '#c2410c',
+  'color-sin-categoria': '#2b2e32',
+  'color-ingreso': '#dcfce7',
+  'color-ingreso-foreground': '#0f6b4a',
+  'color-vinculo-activo': '#dcfce7',
+  'color-vinculo-activo-foreground': '#0f6b4a',
+  'color-semaforo-verde': '#dcfce7',
+  'color-semaforo-verde-foreground': '#0f6b4a',
+  'color-semaforo-amarillo': '#f3e4c0',
+  'color-semaforo-amarillo-foreground': '#8a5000',
+  'color-semaforo-rojo': '#f8dce3',
+  'color-semaforo-rojo-foreground': '#b4143c',
+  'color-semaforo-verde-band': '#0f6b4a',
+  'color-semaforo-amarillo-band': '#8a5000',
+  'color-semaforo-rojo-band': '#b4143c',
+  'color-warning': '#f5e7c4',
+  'color-warning-border': '#b5760a',
+  'color-warning-foreground': '#8a5000',
+  'color-warning-accent': '#eedba8',
+  'color-exito-foreground': '#0f6b4a',
+  'color-cargo-foreground': '#b4143c',
 };
 
-// Tokens de S1b (D3), consumidos desde PR4 vía `claseEtiquetaPie`/
-// `CLASE_SEPARADOR_PIE` (`lib/pie-colors.ts`) — la etiqueta sobre la tajada y
-// el separador de bordes. Mismos números que los literales-hex retirados en
-// PR4, para que declarar el token no cambiara nada visualmente en su
-// momento.
+// Tokens de D3, consumidos vía `claseEtiquetaPie`/`CLASE_SEPARADOR_PIE`
+// (`lib/pie-colors.ts`) — la etiqueta sobre la tajada y el separador de
+// bordes. Valores LIGHT (Clínico frío) desde S4.
 const TOKENS_NUEVOS_PIE: Record<string, string> = {
-  'color-pie-etiqueta-necesidades': '#1a1c1c',
-  'color-pie-etiqueta-gustos': '#1a1c1c',
-  'color-pie-etiqueta-ahorro': '#1a1c1c',
-  'color-pie-etiqueta-sin-categoria': '#e8e6e1',
-  'color-pie-separador': '#0d0f15',
+  'color-pie-etiqueta-necesidades': '#ffffff',
+  'color-pie-etiqueta-gustos': '#ffffff',
+  'color-pie-etiqueta-ahorro': '#0f1f1a',
+  'color-pie-etiqueta-sin-categoria': '#ffffff',
+  'color-pie-separador': '#fafbfd',
 };
 
-// Token de S2 (D6, DCR-06) — texto de error separado del fill/border de
-// `--destructive`. Valor de hoy (Tecno-Analítico) idéntico al literal ya
-// vigente en `--color-semaforo-rojo-foreground`/`--color-cargo-foreground`;
-// S3/S4 lo reemplazan por los valores medidos de cada tema
-// (`palette-measurements.md`).
+// Token de D6/DCR-06 — texto de error separado del fill/border de
+// `--destructive`. Valor LIGHT (Clínico frío) desde S4; `.dark` carga Tinta
+// cálida en `TOKENS_DARK_CUSTOM`.
 const TOKENS_NUEVOS_ERROR: Record<string, string> = {
-  'color-error-foreground': '#fb7185',
+  'color-error-foreground': '#b4143c',
 };
 
 // S3 (D1, D7, DCR-07) — shadcn raw vars inside `.dark`, Tinta cálida values.

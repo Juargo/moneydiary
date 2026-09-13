@@ -185,11 +185,11 @@ Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that sh
 
 ## Phase 7: S4 — `:root` = Clínico frío (unreachable) [D1][DCR-04][DCR-05] (PR7 `feat/tema-light-clinico-frio`, base PR6)
 
-- [ ] 7.1 Replace `:root`/`@theme` defaults in `apps/web/src/index.css` with Clínico frío measured values; `color-scheme: light` in `:root`.
-- [ ] 7.2 Rewrite the `index.css` docstring that claims "dark is the ONLY theme."
-- [ ] 7.3 [RED] Create `apps/web/e2e/light-chrome.e2e.ts` (mirrors `dark-chrome.e2e.ts`): removes `.dark` in-page, expects `color-scheme: light`, select face `rgb(249, 250, 252)`.
-- [ ] 7.4 [GREEN] Confirm 7.3 passes against 7.1.
-- [ ] 7.5 [RED] Extend `contraste-tokens.test.ts` with the light half of every measured pair (fails until 7.1).
+- [x] 7.1 Replace `:root`/`@theme` defaults in `apps/web/src/index.css` with Clínico frío measured values; `color-scheme: light` in `:root`.
+- [x] 7.2 Rewrite the `index.css` docstring that claims "dark is the ONLY theme."
+- [x] 7.3 [RED] Create `apps/web/e2e/light-chrome.e2e.ts` (mirrors `dark-chrome.e2e.ts`): removes `.dark` in-page, expects `color-scheme: light`, select face `rgb(249, 250, 252)`.
+- [x] 7.4 [GREEN] Confirm 7.3 passes against 7.1.
+- [ ] 7.5 [RED] Extend `contraste-tokens.test.ts` with the light half of every measured pair (fails until 7.1). Partial in this PR: existing `@theme` dicts synced to light values (kept green); the shadcn `:root` dict + curated AA table move to the dedicated contrast-test PR right after this one (size-budget split, chained-pr).
 - [ ] 7.6 [GREEN] Confirm 7.5 passes; both themes now covered — a half-applied palette fails this file.
 - [ ] 7.7 [REFACTOR] `pnpm web test`, `pnpm web typecheck`.
 

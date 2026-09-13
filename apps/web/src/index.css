@@ -37,32 +37,18 @@
    * `apps/web/src/lib/bucket-colors.ts`. THESE ARE FILLS ONLY, never text —
    * see the two-tier color rule below.
    *
-   * "Brote" palette (2026-09-12): re-tinted by product-owner choice for
-   * psychological meaning — Necesidades=structure (steel blue), Deseos=
-   * pleasure (plum), Ahorro=growth and the most salient of the three (jade).
-   * `--color-exceso` is UNCHANGED. Measured against the Tecno-Analítico dark
-   * ground (`--background` #090A0F, `--card` #11131A), one line per token so
-   * no one has to guess which number belongs to which:
-   *
-   *   token                  hex       vs --background   vs --card
-   *   --color-necesidades    #77a7e5   7.95:1            7.46:1
-   *   --color-gustos         #bb6c90   5.33:1            5.00:1
-   *   --color-ahorro         #47dab4   11.26:1           10.56:1
-   *   --color-exceso         #e88a8a   7.94:1            (unchanged)
-   *   --color-sin-categoria  #686663   3.46:1            3.24:1
-   *
-   * All clear the 3:1 non-text floor. Unlike the other three,
-   * `--color-sin-categoria`'s fill is too dark for the donut's shared dark
-   * on-wedge label (`--color-pie-etiqueta-*` #1a1c1c, 2.99:1 against it) — it
-   * takes a light label instead (`--color-pie-etiqueta-sin-categoria`
-   * #e8e6e1, 4.59:1), resolved per bucket by `claseEtiquetaPie` in
-   * `lib/pie-colors.ts`.
+   * "Brote" palette: Necesidades=structure (steel blue), Deseos=pleasure
+   * (plum), Ahorro=growth and the most salient bucket (jade). Light below is
+   * the Clínico frío default (`web-theme-switch` D1, ADR-043, S4); `.dark`
+   * overrides with Tinta cálida, including Sin categoría's adjusted anchor.
+   * Measured ratios for both themes: `openspec/changes/web-theme-switch/
+   * palette-measurements.md`.
    */
-  --color-necesidades: #77a7e5; /* steel blue — Necesidades, consumed via fill-/bg-necesidades */
-  --color-gustos: #bb6c90; /* plum — Deseos/Gustos, consumed via fill-/bg-gustos */
-  --color-ahorro: #47dab4; /* jade — Ahorro, consumed via fill-/bg-ahorro */
-  --color-exceso: #e88a8a; /* coral — over-budget state (currently unconsumed) */
-  --color-sin-categoria: #686663; /* mid grey — donut ring's 4th wedge (US-047 D-08), consumed via fill-/bg-sin-categoria */
+  --color-necesidades: #4369a2; /* steel blue — Necesidades, consumed via fill-/bg-necesidades */
+  --color-gustos: #782c5c; /* plum — Deseos/Gustos, consumed via fill-/bg-gustos */
+  --color-ahorro: #049a78; /* jade — Ahorro, consumed via fill-/bg-ahorro */
+  --color-exceso: #c2410c; /* over-budget state (currently unconsumed) */
+  --color-sin-categoria: #2b2e32; /* donut ring's 4th wedge (US-047 D-08), consumed via fill-/bg-sin-categoria */
 
   /*
    * On-wedge pie label fills + wedge separator stroke (`web-theme-switch`
@@ -71,111 +57,97 @@
    * `fill-pie-etiqueta-*`/`stroke-pie-separador` classes bound to these
    * tokens — the literal-hex `PIE_LABEL_FILL`/`PIE_LABEL_FILL_LIGHT`/
    * `PIE_WEDGE_STROKE` trio that module used to export was retired the same
-   * PR. Values below are unchanged from those retired constants, so this
-   * migration caused no visual change. They diverge per theme once Clínico
-   * frío / Tinta cálida land (S3/S4) — see design.md's Token Table.
+   * PR. Light values below are the Clínico frío default (S4); `.dark`
+   * overrides with Tinta cálida — see design.md's Token Table.
    */
-  --color-pie-etiqueta-necesidades: #1a1c1c;
-  --color-pie-etiqueta-gustos: #1a1c1c;
-  --color-pie-etiqueta-ahorro: #1a1c1c;
-  --color-pie-etiqueta-sin-categoria: #e8e6e1;
-  --color-pie-separador: #0d0f15;
+  --color-pie-etiqueta-necesidades: #ffffff;
+  --color-pie-etiqueta-gustos: #ffffff;
+  --color-pie-etiqueta-ahorro: #0f1f1a;
+  --color-pie-etiqueta-sin-categoria: #ffffff;
+  --color-pie-separador: #fafbfd;
 
   /*
    * Income card fill+text PAIR (DCR-01/03). Unlike the bucket fills above
    * (fills only, never text), income is a self-contained pair —
    * `--color-ingreso` is the card background, `--color-ingreso-foreground`
    * is the ONLY text token in this block, following shadcn's `-foreground`
-   * convention.
-   *
-   * Tecno-Analítico inversion: the light system paired a MINT fill with dark
-   * emerald text; on a matte-dark ground that reads as a glowing white block,
-   * so the pair inverts to a deep green tint carrying terminal-green text.
-   * The fill/text ROLES are unchanged, only their lightness swapped.
-   * Contrast: 8.83:1 (AA) — was 6.78:1 under the light identity.
+   * convention. Light values below are Clínico frío; `.dark` carries Tinta
+   * cálida's own pair — both clear AA (`palette-measurements.md`).
    */
-  --color-ingreso: #0c2a1d; /* deep green tint — income card fill */
-  --color-ingreso-foreground: #4ade80; /* terminal green — income card text */
+  --color-ingreso: #dcfce7; /* mint fill — income card fill */
+  --color-ingreso-foreground: #0f6b4a; /* deep green — income card text */
 
   /*
    * Estado de vínculo de identidad externa (US-042). MISMOS valores del par
-   * `ingreso` (8.83:1, AA): no se introduce un color nuevo, se le da NOMBRE
+   * `ingreso` en cada tema: no se introduce un color nuevo, se le da NOMBRE
    * al segundo concepto que lo usa. Los valores están literales, NO como
    * `var(--color-ingreso)`: un alias por referencia haría de la tarjeta de
    * ingresos la fuente de verdad del color de un estado de seguridad. Si
    * mañana cambia el color de ingresos, este par NO debe seguirlo.
    */
-  --color-vinculo-activo: #0c2a1d; /* deep green tint — same verified pair, 8.83:1 AA */
-  --color-vinculo-activo-foreground: #4ade80; /* terminal green */
+  --color-vinculo-activo: #dcfce7; /* mismo fill que ingreso, literal aparte */
+  --color-vinculo-activo-foreground: #0f6b4a;
 
   /*
    * Semáforo estado chip PAIRS. Each pair follows the
    * `ingreso`/`vinculo-activo` precedent: literal values, no aliasing, so a
    * future edit to one semáforo color never silently drags the others.
-   *
-   * Tecno-Analítico inversion: the light system used Tailwind's `*-100` fills
-   * with `*-700` text; both halves swap roles — a near-black tint of the same
-   * hue carries the neon `*-400` tone as text. Contrast verified AA (4.5:1
-   * floor), and every pair now clears it by a WIDER margin than the light
-   * identity did: verde 8.83:1 (was 4.72:1), amarillo 9.53:1 (was 4.52:1 —
-   * the tightest of the old three, no longer a concern), rojo 6.54:1 (was
-   * 5.02:1).
+   * Light values are the product-owner's Clínico frío ink anchors; `.dark`
+   * carries Tinta cálida's own pair — both clear AA
+   * (`palette-measurements.md`).
    */
-  --color-semaforo-verde: #0c2a1d; /* deep green tint */
-  --color-semaforo-verde-foreground: #4ade80; /* terminal green — 8.83:1 AA */
-  --color-semaforo-amarillo: #2a2109; /* deep amber tint */
-  --color-semaforo-amarillo-foreground: #fbbf24; /* amber-400 — 9.53:1 AA */
-  --color-semaforo-rojo: #2c1017; /* deep rose tint */
-  --color-semaforo-rojo-foreground: #fb7185; /* rose-400 — 6.54:1 AA */
+  --color-semaforo-verde: #dcfce7;
+  --color-semaforo-verde-foreground: #0f6b4a;
+  --color-semaforo-amarillo: #f3e4c0;
+  --color-semaforo-amarillo-foreground: #8a5000;
+  --color-semaforo-rojo: #f8dce3;
+  --color-semaforo-rojo-foreground: #b4143c;
 
   /*
    * Semáforo ZONE BAND fills (`ZonaBar.tsx`). Fills only, never text
    * (two-tier color rule), so no `-foreground` pair is needed here —
    * separate token family from the chip pairs above (a band fill and a chip
    * fill are different intents even though both key off the same estado).
-   *
-   * On the dark ground these take the NEON tone directly rather than a tint:
-   * a band is read as a saturated mark against `#090A0F`, not as a surface
-   * that holds text. Against the background: verde 10.29:1, amarillo
-   * 11.85:1, rojo 7.35:1 — all far past the 3:1 non-text floor.
+   * Light reuses each chip's own ink as a saturated non-text mark; `.dark`
+   * does the same with Tinta cálida's ink — both clear 3:1
+   * (`palette-measurements.md`).
    */
-  --color-semaforo-verde-band: #34d399; /* emerald-400 */
-  --color-semaforo-amarillo-band: #fbbf24; /* amber-400 */
-  --color-semaforo-rojo-band: #fb7185; /* rose-400 */
+  --color-semaforo-verde-band: #0f6b4a;
+  --color-semaforo-amarillo-band: #8a5000;
+  --color-semaforo-rojo-band: #b4143c;
 
   /*
    * Warning surface family (`DemoBanner.tsx`, `DemoUploadNudge.tsx`,
    * `SemaforoDetallePage.tsx`'s "sin categoría" notice, `PatronFila.tsx`'s
-   * REGEX hint). Same inversion as the semáforo chips: a deep amber tint
-   * surface carrying amber-400 notice text.
+   * REGEX hint). Same amber-tint-surface/amber-ink pattern as the semáforo
+   * chips, reused per theme (`palette-measurements.md`).
    */
-  --color-warning: #241d0b; /* deep amber tint — notice surface */
-  --color-warning-border: #8a701e; /* amber stroke — 4.16:1 on background, 3.52:1 on the warning fill */
-  --color-warning-foreground: #fbbf24; /* amber-400 — 10.02:1 on warning, 11.11:1 on card */
-  --color-warning-accent: #2e2510; /* one step up — hover wash (9.06:1 with the foreground) */
+  --color-warning: #f5e7c4; /* amber tint — notice surface */
+  --color-warning-border: #b5760a; /* amber stroke */
+  --color-warning-foreground: #8a5000; /* reused semáforo-amarillo ink */
+  --color-warning-accent: #eedba8; /* one step up — hover wash */
 
   /*
    * Success feedback TEXT (perfil/registro-movimiento "guardado" messages).
-   * SAME literal as `--color-ingreso-foreground` (#4ade80, 10.65:1 on card,
-   * 11.35:1 on the background) — deliberately NOT aliased, same reasoning as
-   * `vinculo-activo` above: this is a distinct intent (generic success copy,
-   * not income money) and must not silently follow the income card if that
-   * ever changes.
+   * SAME literal as `--color-ingreso-foreground` (per theme) — deliberately
+   * NOT aliased, same reasoning as `vinculo-activo` above: this is a
+   * distinct intent (generic success copy, not income money) and must not
+   * silently follow the income card if that ever changes.
    */
-  --color-exito-foreground: #4ade80;
+  --color-exito-foreground: #0f6b4a;
 
   /*
    * Cargo (expense amount text) in the upload preview rows — paired with
    * `--color-ingreso-foreground` for abono on the same row. SAME literal as
-   * `--color-semaforo-rojo-foreground` (#fb7185, 6.89:1 on card, 7.35:1 on
-   * the background, AA) but a distinct token, same discipline as `exito`: an
-   * expense figure must never silently follow the semáforo chip if that one
-   * changes. NOT `destructive` — that token means "error / destructive
-   * action", and a $6.990 purchase is neither, AND under this identity the
-   * two are no longer even the same red (see `--destructive` below). Zero
-   * amounts deliberately do NOT take this color.
+   * `--color-semaforo-rojo-foreground` per theme (AA) but a distinct token,
+   * same discipline as `exito`: an expense figure must never silently
+   * follow the semáforo chip if that one changes. NOT `destructive` — that
+   * token means "error / destructive action", and a $6.990 purchase is
+   * neither, AND the two are no longer even the same red (see
+   * `--destructive` below). Zero amounts deliberately do NOT take this
+   * color.
    */
-  --color-cargo-foreground: #fb7185;
+  --color-cargo-foreground: #b4143c;
 
   /*
    * Error/validation TEXT (`web-theme-switch` D6, DCR-06). Split off `--destructive`
@@ -186,20 +158,18 @@
    * stays a fill/border token only (buttons, invalid-input outlines); this token is
    * for every `text-destructive` reader (form errors, delete confirmations, etc.).
    * SAME literal as `--color-semaforo-rojo-foreground`/`--color-cargo-foreground`
-   * for now (today's Tecno-Analítico identity has one palette) but deliberately its
-   * own token, same discipline as `exito`/`cargo` above — S3/S4 give it its own
-   * measured value per theme (dark `#D97A72`, light `#B4143C`).
+   * per theme, but deliberately its own token, same discipline as `exito`/`cargo`
+   * above.
    */
-  --color-error-foreground: #fb7185;
+  --color-error-foreground: #b4143c;
 }
 
 /*
  * shadcn/ui design tokens (style: new-york, base color: slate — see
- * components.json), remapped to the Tecno-Analítico identity
- * ("Precisión de Terminal", DESIGN.md). Same variable *names* as before
- * (consumers like `bg-card`/`text-muted-foreground`/`bg-primary` keep
- * working) — only the resolved colors shift, so the app never runs two
- * parallel token systems.
+ * components.json). Same variable *names* as before (consumers like
+ * `bg-card`/`text-muted-foreground`/`bg-primary` keep working) — only the
+ * resolved colors shift per theme, so the app never runs two parallel token
+ * systems.
  *
  * Two-tier color rule (drives contrast): the bucket fills
  * (`--color-necesidades` / `--color-gustos` / `--color-ahorro` /
@@ -207,20 +177,13 @@
  * The tones below are for all text and any control needing a contrasting
  * foreground.
  *
- * Restyle note (2026-09-02): this REPLACES the light "Serene Finance"
- * identity rather than sitting beside it — dark is the only theme, there is
- * no toggle and no `.dark` block.
- *
- * ⚠️ REVERTING IS NOT A ONE-FILE OPERATION. Restoring the light identity
- * means reverting THIS file's `--color-pie-separador` token too (`web-theme-
- * switch` D3 moved the wedge separator from a hand-picked literal in
- * `lib/pie-colors.ts` to this token — see that module's docstring). Its
- * current value #0d0f15 was chosen to disappear into the DARK surfaces
- * below. Revert only the surface tokens below and `--card` goes back to
- * white while the donut keeps a near-black stroke: exactly the halo defect
- * this restyle removed, pointing the other way. The pie specs assert the
- * resolved class, not a live contrast ratio, so a half-revert ships green.
- * `git show HEAD~:apps/web/src/index.css` has the prior token values.
+ * `:root` carries the Clínico frío (light) identity by default
+ * (`web-theme-switch` D1/D2, ADR-043); `.dark` below overrides it with Tinta
+ * cálida. Light stays unreachable while `<html>` keeps its static
+ * `class="dark"` (S4 — the pre-paint script that makes the theme dynamic
+ * lands in S6). Measured ratios for both themes:
+ * `openspec/changes/web-theme-switch/palette-measurements.md`; per-token
+ * source of truth: `design.md`'s Token Table.
  */
 :root {
   /*
@@ -246,41 +209,35 @@
    * you end up with a correctly-dark `<select>` whose UA-painted face is
    * still light. Keep it here.
    */
-  color-scheme: dark;
+  color-scheme: light;
   --radius: 0rem;
-  --background: #090a0f; /* matte dark ground (DESIGN.md) */
-  --foreground: #e6e9ef; /* on-surface — 16.26:1 on background, 15.25:1 on card */
-  --card: #11131a; /* surface-container: one step up from the ground */
-  --card-foreground: #e6e9ef;
-  --popover: #11131a;
-  --popover-foreground: #e6e9ef;
-  --primary: #22d3ee; /* electric cyan — the accent layer (10.27:1 as text on card) */
-  --primary-foreground: #090a0f; /* ground ink on the cyan face — 10.94:1 */
-  --secondary: #a5b4fc; /* indigo — section subheads (9.31:1 on card) */
-  --secondary-foreground: #090a0f; /* 9.92:1 */
-  --muted: #171a23; /* surface-container-low */
-  --muted-foreground: #949cad; /* sub-labels — 6.73:1 on card, 7.17:1 on background */
-  --accent: #1b1f2a; /* hover wash */
-  --accent-foreground: #e6e9ef; /* 13.53:1 */
+  --background: #edf0f5; /* Clínico frío ground */
+  --foreground: #2a2f3a; /* on-surface */
+  --card: #f9fafc; /* surface-container: one step up from the ground */
+  --card-foreground: #2a2f3a;
+  --popover: #f9fafc;
+  --popover-foreground: #2a2f3a;
+  --primary: #1d5fa8; /* accent layer — white text passes AA, palette-measurements.md */
+  --primary-foreground: #ffffff;
+  --secondary: #4f4a6b; /* section subheads */
+  --secondary-foreground: #ffffff;
+  --muted: #e3e7ee; /* surface-container-low */
+  --muted-foreground: #5a6270; /* sub-labels */
+  --accent: #dce1ea; /* hover wash */
+  --accent-foreground: #2a2f3a;
   /*
-   * Crimson red. NOT the brighter #f43f5e the neon family uses elsewhere:
-   * shadcn's stock `button.tsx` and `badge.tsx` hardcode `text-white` on
-   * `bg-destructive`, and white on #f43f5e measures 3.67:1 — BELOW the 4.5:1
-   * AA floor. #e11d48 (rose-600) is the point where white clears AA (4.70:1)
-   * while the fill still separates from the ground (4.21:1). Changing this
-   * value means re-checking white-on-fill, not just the fill itself.
+   * White text on this fill clears AA (`palette-measurements.md`);
+   * `--destructive` stays a fill/border token only (buttons, invalid-input
+   * outlines) — error TEXT uses `--color-error-foreground` (D6, above).
    */
-  --destructive: #e11d48;
-  --border: #1e222d; /* 1px crisp stroke (DESIGN.md) — surface separation, decorative */
+  --destructive: #c1121f;
+  --border: #b6becc; /* 1px crisp stroke (DESIGN.md) — surface separation, decorative */
   /*
-   * Input stroke is NOT `--border`. A field's border is what makes the
-   * control identifiable, so WCAG 2.2 AA (1.4.11 non-text contrast) puts a
-   * 3:1 floor on it — and #1e222d measures 1.24:1 against the ground. #5d6a8e
-   * is the same cool-slate hue walked up until it clears: 3.69:1 on
-   * background, 3.46:1 on card, 3.24:1 on muted.
+   * Input stroke is NOT `--border`, same non-text 3:1-floor rationale as
+   * `.dark`'s own `--input` below — see `palette-measurements.md`.
    */
-  --input: #5d6a8e;
-  --ring: #67e8f9; /* focus ring — light cyan, 13.64:1 on background, 12.80:1 on card */
+  --input: #7c8798;
+  --ring: #1d5fa8; /* focus ring — reuses primary */
 }
 
 /*
