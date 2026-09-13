@@ -19,16 +19,20 @@ const RUTA_INDEX_HTML = path.resolve(
 );
 
 function extraerScriptPrepaint(html: string): string {
-  // Deliberadamente exige el tag SIN atributos: el otro `<script>` de
-  // `index.html` es `<script type="module" src="/src/main.tsx">` y no debe
-  // matchear acá.
-  const coincidencia = html.match(/<script>([\s\S]*?)<\/script>/);
-  if (coincidencia == null) {
+  // Parsea el HTML en vez de usar una regex (CodeQL js/bad-tag-filter): el
+  // script de pre-paint es el único `<script>` sin `src` — el otro de
+  // `index.html` es `<script type="module" src="/src/main.tsx">`.
+  const documento = new DOMParser().parseFromString(html, 'text/html');
+  const script = Array.from(documento.querySelectorAll('script')).find(
+    (elemento) => !elemento.hasAttribute('src'),
+  );
+  const codigo = script?.textContent ?? '';
+  if (codigo.trim() === '') {
     throw new Error(
       'index.html no tiene un <script> inline de pre-paint (WT-04)',
     );
   }
-  return coincidencia[1];
+  return codigo;
 }
 
 interface ResultadoDom {
