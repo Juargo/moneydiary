@@ -20,6 +20,12 @@ import { stubApi } from './fixtures/api-stubs';
  * (same reasoning as `mobile-header.e2e.ts`'s sr-only h1), but co-located
  * sr-only radios can shadow each other's hit-target, so `force` skips that
  * check while still dispatching the click on the real `<input>`.
+ *
+ * 2026-09-13 (owner decision, ADR-043 amendment): the default preference is
+ * now `light`, not `system` — a first visit with no stored preference starts
+ * light and checks `Claro`, even under a dark-OS emulation. Live OS-follow
+ * (WT-02) now only applies once `Sistema` is explicitly chosen, so that test
+ * below selects `Sistema` first before flipping `emulateMedia`.
  */
 
 const RUTA_PERFIL = '/configuracion';
@@ -76,7 +82,21 @@ test.describe('runtime del tema (persistencia, OS en vivo, cross-tab)', () => {
     ).toBeChecked();
   });
 
-  test('bajo preferencia system, un cambio de OS en vivo actualiza el tema sin reload (WT-02)', async ({
+  test('primera visita sin preferencia guardada arranca en light con Claro marcado, aun con OS oscuro', async ({
+    page,
+  }) => {
+    await stubApi(page);
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto(RUTA_PERFIL);
+    await esperarPerfilListo(page);
+
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+    await expect(
+      seccionApariencia(page).getByRole('radio', { name: 'Claro' }),
+    ).toBeChecked();
+  });
+
+  test('bajo preferencia system (elegida explícitamente), un cambio de OS en vivo actualiza el tema sin reload (WT-02)', async ({
     page,
   }) => {
     await stubApi(page);
@@ -84,6 +104,11 @@ test.describe('runtime del tema (persistencia, OS en vivo, cross-tab)', () => {
     await page.goto(RUTA_PERFIL);
     await esperarPerfilListo(page);
 
+    // El default ya no es `system` (2026-09-13): hay que elegirlo
+    // explícitamente antes de que el seguimiento en vivo del OS aplique.
+    await seccionApariencia(page)
+      .getByRole('radio', { name: 'Sistema' })
+      .check({ force: true });
     await expect(page.locator('html')).not.toHaveClass(/dark/);
     await expect(
       seccionApariencia(page).getByRole('radio', { name: 'Sistema' }),

@@ -43,6 +43,13 @@ import { stubApi } from './fixtures/api-stubs';
  * `page.emulateMedia` BEFORE navigating — Playwright's own default is
  * `light`, so dark is no longer reached by default the way the S6 forced
  * lever guaranteed it.
+ *
+ * 2026-09-13 (owner decision, ADR-043 amendment): the default preference
+ * became `light` instead of `system`, so an unset OS-emulated dark scheme no
+ * longer resolves to dark on its own. Each test now seeds the stored
+ * preference `dark` via `addInitScript` BEFORE navigating, so the pre-paint
+ * script reads an explicit choice — `emulateMedia({ colorScheme: 'dark' })`
+ * stays as a belt-and-braces signal but is no longer what drives dark here.
  */
 
 test.describe('chrome oscuro', () => {
@@ -50,6 +57,9 @@ test.describe('chrome oscuro', () => {
     page,
   }) => {
     await stubApi(page);
+    await page.addInitScript(() => {
+      localStorage.setItem('moneydiary:tema', 'dark');
+    });
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/?periodo=2026-07');
     await page.getByText('Toca un ítem del gráfico o la leyenda').waitFor();
@@ -64,6 +74,9 @@ test.describe('chrome oscuro', () => {
     page,
   }) => {
     await stubApi(page);
+    await page.addInitScript(() => {
+      localStorage.setItem('moneydiary:tema', 'dark');
+    });
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/buckets/Deseos?periodo=2026-07');
     const select = page.locator('select').first();
