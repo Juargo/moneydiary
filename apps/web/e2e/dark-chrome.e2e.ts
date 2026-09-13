@@ -31,6 +31,12 @@ import { stubApi } from './fixtures/api-stubs';
  * `@layer base`, or adopting a shadcn `Select` primitive and deleting the
  * native-control rule as "dead") silently drops either line and the dropdowns
  * revert to a light OS-themed face inside a dark app. Nothing else reports it.
+ *
+ * `web-theme-switch` S3: `.dark` (statically applied to `<html>`, PR9 makes
+ * it dynamic) now carries the Tinta cálida identity, so the expected card
+ * literal below moved from Tecno-Analítico's `#11131a` to Tinta cálida's
+ * `#22211e`. `color-scheme: dark` itself is unaffected — both identities are
+ * dark, only their values change.
  */
 
 test.describe('chrome oscuro', () => {
@@ -64,8 +70,9 @@ test.describe('chrome oscuro', () => {
     expect(fondo).not.toBe('rgba(0, 0, 0, 0)');
     expect(fondo).not.toBe('transparent');
 
-    // And it must be the card surface (#11131a), not merely "some colour" —
-    // a select that drifts off the token would still pass the check above.
-    expect(fondo).toBe('rgb(17, 19, 26)');
+    // And it must be the card surface (#22211e, Tinta cálida), not merely
+    // "some colour" — a select that drifts off the token would still pass
+    // the check above.
+    expect(fondo).toBe('rgb(34, 33, 30)');
   });
 });

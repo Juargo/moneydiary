@@ -17,7 +17,7 @@
  * `CategoriasPanel`, `ResumenAnual`) now resolve fills exclusively through
  * `claseRellenoBucket`/`claseFondoBucket` (D3) — same values, one fewer place
  * to keep in sync, and the fill flips with the theme once `.dark`/`:root`
- * diverge (S6/S7).
+ * diverge (S3/S4).
  *
  * "Brote" palette (2026-09-12): re-tinted by product-owner choice for
  * psychological meaning, not just contrast — see the per-token rationale and
