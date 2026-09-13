@@ -103,4 +103,36 @@ describe('PerfilPanel', () => {
       screen.getByRole('button', { name: 'Vincular con Google' }),
     ).toBeInTheDocument();
   });
+
+  it('renderiza los cuatro bloques en el orden fijo: Editar perfil, Cuenta de Google, Apariencia, Sesión (WCFG-02, D9)', async () => {
+    renderPanel();
+
+    await screen.findByRole('heading', { level: 2, name: 'Editar perfil' });
+    const titulos = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((heading) => heading.textContent);
+
+    expect(titulos).toEqual([
+      'Editar perfil',
+      'Cuenta de Google',
+      'Apariencia',
+      'Sesión',
+    ]);
+  });
+
+  it('el bloque Apariencia trae la descripción y el SelectorTema completo; Guardar cambios sigue existiendo una sola vez, dentro de Editar perfil', async () => {
+    renderPanel();
+
+    await screen.findByRole('heading', { level: 2, name: 'Apariencia' });
+    expect(
+      screen.getByText('Se aplica al instante en este dispositivo.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Claro' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Oscuro' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Sistema' })).toBeInTheDocument();
+
+    expect(
+      screen.getAllByRole('button', { name: 'Guardar cambios' }),
+    ).toHaveLength(1);
+  });
 });

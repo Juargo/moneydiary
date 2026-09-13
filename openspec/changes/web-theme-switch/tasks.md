@@ -246,12 +246,12 @@ code was delivered in four chained PRs, each under 400 lines:
 
 ## Phase 10: S7a — `SelectorTema` + Apariencia (inert, forced dark) [WT-01][WT-06][WCFG-02][D8][D9] (PR10 `feat/tema-selector-perfil`, base PR9)
 
-- [ ] 10.0 **Manual QA gate (before continuing to S7b):** run `pnpm web dev`, confirm dark Sin categoría bucket fill `#696C63` reads distinctly against the card and the ingreso-tint cell (tightest measured margins, `palette-measurements.md`).
-- [ ] 10.1 [RED] Write `apps/web/src/components/SelectorTema.test.tsx`: radio roles/names, arrow-key navigation via `user-event`, per-instance `useId()` name, `vitest-axe` on both variants.
-- [ ] 10.2 [GREEN] Create `apps/web/src/components/SelectorTema.tsx` (native `fieldset`/radios; `compacto` variant, 32px icon radios).
-- [ ] 10.3 [RED] Update `PerfilPanel.test.tsx` for the new block order: `Editar perfil` → `Cuenta de Google` → `Apariencia` → `Sesión`; `Guardar cambios` stays scoped to `Editar perfil`.
-- [ ] 10.4 [GREEN] Add the `Apariencia` `SeccionConfig` to `apps/web/src/components/configuracion/perfil/PerfilPanel.tsx` with description "Se aplica al instante en este dispositivo." and the full `SelectorTema`.
-- [ ] 10.5 [REFACTOR] `pnpm web test -- PerfilPanel SelectorTema`, `pnpm web lint`.
+- [ ] 10.0 **Manual QA gate (before continuing to S7b):** run `pnpm web dev`, confirm dark Sin categoría bucket fill `#696C63` reads distinctly against the card and the ingreso-tint cell (tightest measured margins, `palette-measurements.md`). Handled by the orchestrator via screenshots before PR11.
+- [x] 10.1 [RED] Write `apps/web/src/components/SelectorTema.test.tsx`: radio roles/names, arrow-key navigation via `user-event`, per-instance `useId()` name, `vitest-axe` on both variants.
+- [x] 10.2 [GREEN] Create `apps/web/src/components/SelectorTema.tsx` (native `fieldset`/radios; `compacto` variant, 32px icon radios).
+- [x] 10.3 [RED] Update `PerfilPanel.test.tsx` for the new block order: `Editar perfil` → `Cuenta de Google` → `Apariencia` → `Sesión`; `Guardar cambios` stays scoped to `Editar perfil`.
+- [x] 10.4 [GREEN] Add the `Apariencia` `SeccionConfig` to `apps/web/src/components/configuracion/perfil/PerfilPanel.tsx` with description "Se aplica al instante en este dispositivo." and the full `SelectorTema`.
+- [x] 10.5 [REFACTOR] `pnpm web test -- PerfilPanel SelectorTema`, `pnpm web lint`.
 
 ## Phase 11: S7b — Unlock, sidebar shortcut, e2e [WT-02][WT-03][WT-04][WT-05][WT-06][D10] (PR11 `feat/tema-selector-sidebar-e2e`, base PR10)
 
