@@ -1,36 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import {
-  CLASE_SEPARADOR_PIE,
-  PIE_LABEL_FILL,
-  PIE_LABEL_FILL_LIGHT,
-  claseEtiquetaPie,
-  colorEtiquetaPie,
-} from './pie-colors';
+import { CLASE_SEPARADOR_PIE, claseEtiquetaPie } from './pie-colors';
 
 // Brote re-tint (2026-09-12): Sin categoría's new fill (#686663) is too dark
-// for the shared dark on-wedge label (2.99:1) — the label choice is now
-// per-bucket instead of a single constant. `colorEtiquetaPie` is the single
-// place that decides it, mirroring `construirOpcionesBucket` in
-// `bucket-colors.ts`.
-describe('colorEtiquetaPie', () => {
-  it('returns the dark label fill for Necesidades, Deseos, and Ahorro', () => {
-    expect(colorEtiquetaPie('Necesidades')).toBe(PIE_LABEL_FILL);
-    expect(colorEtiquetaPie('Deseos')).toBe(PIE_LABEL_FILL);
-    expect(colorEtiquetaPie('Ahorro')).toBe(PIE_LABEL_FILL);
-  });
-
-  it('returns the light label fill for SinCategoria (its fill is too dark for the dark label)', () => {
-    expect(colorEtiquetaPie('SinCategoria')).toBe(PIE_LABEL_FILL_LIGHT);
-  });
-
-  it('defaults to the dark label fill for an unknown bucket key', () => {
-    expect(colorEtiquetaPie('OtroBucket')).toBe(PIE_LABEL_FILL);
-  });
-});
-
-// D3 (design.md, web-theme-switch): the token-backed class helpers land
-// alongside `colorEtiquetaPie`/`PIE_*` above (kept for existing consumers
-// until PR4 rewires them) — same fallback shape, different literal.
+// for the shared dark on-wedge label (2.99:1) — the label choice is
+// per-bucket instead of a single constant, mirroring
+// `construirOpcionesBucket` in `bucket-colors.ts`.
+//
+// D3 (design.md, web-theme-switch), PR4: these token-backed class helpers
+// are the ONLY resolution path now — the literal-hex `colorEtiquetaPie`/
+// `PIE_LABEL_FILL`/`PIE_LABEL_FILL_LIGHT` this module used to export were
+// retired once their last consumer (`DistribucionPie`) switched to
+// `claseEtiquetaPie`.
 describe('claseEtiquetaPie', () => {
   it('returns the token-backed label fill class for each known bucket', () => {
     expect(claseEtiquetaPie('Necesidades')).toBe(

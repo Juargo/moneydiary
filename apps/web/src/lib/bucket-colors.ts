@@ -2,70 +2,27 @@
  * Bucket fill palette — WEB ONLY, diverges from
  * `apps/mobile/src/theme/colors.ts` by product decision (see
  * `openspec/changes/web-dashboard-redesign-mobile/design.md` §1.1 — do NOT
- * port this migration to `apps/mobile`). Hex values MUST match the Tailwind
- * `@theme` tokens in `index.css` (`--color-necesidades`/`--color-gustos`/
- * `--color-ahorro`/`--color-exceso`).
+ * port this migration to `apps/mobile`). The `--color-*` values live in the
+ * Tailwind `@theme` tokens in `index.css` (`--color-necesidades`/
+ * `--color-gustos`/`--color-ahorro`/`--color-exceso`/`--color-sin-categoria`)
+ * — `claseRellenoBucket`/`claseFondoBucket` below resolve to Tailwind
+ * utility classes generated from those SAME tokens, never a hardcoded hex.
  *
- * `resumen-view-model` does NOT import this module (corrected 2026-09-12,
- * `web-theme-switch` PR3 — the previous docstring claimed otherwise; the
- * domain layer never imports `lib/`, see that module's own docstring). These
- * constants stay literal hex for now only because their five presentation
+ * `resumen-view-model` does NOT import this module (WT-09) — the domain
+ * layer never imports `lib/`, see that module's own docstring.
+ *
+ * `web-theme-switch` PR4 (2026-09-12) retired the literal-hex `COLOR_BUCKET`/
+ * `COLOR_EXCESO` exports this file used to carry: the five presentation
  * consumers (`DistribucionPie`, `MiniDistribucionPie`, `LeyendaGasto`,
- * `CategoriasPanel`, `ResumenAnual`) still read them directly; `web-theme-
- * switch` PR4 moves those consumers onto `claseRellenoBucket`/
- * `claseFondoBucket` below, and this hex export retires once nothing imports
- * it (D3).
+ * `CategoriasPanel`, `ResumenAnual`) now resolve fills exclusively through
+ * `claseRellenoBucket`/`claseFondoBucket` (D3) — same values, one fewer place
+ * to keep in sync, and the fill flips with the theme once `.dark`/`:root`
+ * diverge (S6/S7).
  *
- * "Brote" palette (2026-09-12): the previous mid-tone pastels (minted for the
- * retired light "Serene Finance" identity and merely left alone by the
- * Tecno-Analítico restyle) were replaced by product-owner choice for
- * psychological meaning, not just contrast — Necesidades reads as structure
- * (steel blue), Deseos as pleasure (plum), Ahorro as growth and the most
- * salient color of the three (jade). All four fills (including the
- * `SinCategoria` grey below) are re-measured against the Tecno-Analítico dark
- * ground (`--background` #090a0f, `--card` #11131a) — see the per-token table
- * in `index.css`. They are named for the buckets, not for an identity — do
- * not assume a future identity change has to move them, and do not assume it
- * can't.
+ * "Brote" palette (2026-09-12): re-tinted by product-owner choice for
+ * psychological meaning, not just contrast — see the per-token rationale and
+ * measurements in `index.css`. Named for the buckets, not for an identity.
  */
-
-/**
- * Domain bucket name → slice/dot color. Keyed by the backend's canonical
- * bucket names ('Deseos', not the UI label 'Gustos').
- */
-export const COLOR_BUCKET: Record<string, string> = {
-  Necesidades: '#77A7E5', // steel blue — structure
-  Deseos: '#BB6C90', // plum — pleasure
-  Ahorro: '#47DAB4', // jade — growth, the most salient of the three
-  // US-047 (design D-08): a deliberate neutral grey for the donut ring's 4th
-  // wedge — NOT `COLOR_EXCESO` (over-budget and uncategorized are different
-  // meanings; sharing the accent would teach the user the wrong thing) and
-  // NOT the `#CCCCCC` unstyled fallback.
-  //
-  // Brote re-tint (2026-09-12) moved this from #AEB4C4 to a darker mid grey:
-  // the old grey sat adjacent to Ahorro and Necesidades on the donut ring and
-  // measured deutan ΔE 4.6 against the new jade and normal-vision ΔE 9.7
-  // against the new blue — under the CVD floor of 6 and the normal-vision
-  // floor of 15. #686663 clears both: worst normal-vision pair is 16.1
-  // (Deseos↔SinCategoria), worst CVD pair is 8.7 protan (Deseos↔SinCategoria)
-  // — and among the three spend buckets alone, worst CVD is 12.5 deutan
-  // (Necesidades↔Deseos) (OKLab ΔE×100).
-  //
-  // Contrast against `--background`/`--card`: 3.46:1 / 3.24:1 (still clears
-  // the 3:1 non-text floor, tighter than the other three buckets by design —
-  // see `index.css`). #686663 is too dark for the shared dark on-wedge label
-  // (2.99:1) — it takes the LIGHT label instead (`PIE_LABEL_FILL_LIGHT`
-  // #e8e6e1, 4.59:1) via `colorEtiquetaPie` (`lib/pie-colors.ts`); the on-wedge
-  // label choice is per-bucket now, not a single constant.
-  SinCategoria: '#686663', // mid grey
-};
-
-/**
- * Over-budget accent (fills/dots ONLY, never text — see design.md §1). May
- * ship unconsumed: the dashboard has no over-budget progress-bar affordance
- * today (YAGNI — not inventing one in a restyle).
- */
-export const COLOR_EXCESO = '#E88A8A';
 
 /**
  * Domain bucket name → user-facing label. The domain models the middle bucket
@@ -119,7 +76,9 @@ export function construirOpcionesBucket(
  * #1A1C1C to cyan #67E8F9 and inverted Round 9's "contrast can only improve"
  * conclusion for a dark ring on light fills — see git history for those
  * retired per-pastel numbers, superseded now that the fills themselves
- * changed). Current ratios, cyan `--ring` against each `COLOR_BUCKET` fill:
+ * changed). Current ratios, cyan `--ring` against each bucket fill (the
+ * `--color-*` tokens in `index.css`, formerly the literal-hex `COLOR_BUCKET`
+ * map this file retired in PR4):
  *
  * | Bucket fill                 | --ring #67E8F9 (cyan) |
  * | ---------------------------- | ---------------------- |
