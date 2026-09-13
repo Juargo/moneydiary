@@ -2,6 +2,7 @@ import { LogOut } from 'lucide-react';
 import { useMe } from '@/api/use-me';
 import { useCerrarSesion } from '@/lib/use-cerrar-sesion';
 import { Button } from '@/components/ui/button';
+import { SelectorTema } from '@/components/SelectorTema';
 import { SeccionConfig } from '../SeccionConfig';
 import { PerfilForm } from './PerfilForm';
 import { GoogleVinculoSection } from './GoogleVinculoSection';
@@ -82,6 +83,13 @@ import type { Mensaje } from './mensajes';
  * "this failed". Going through the token is why this survived the
  * Tecno-Analítico restyle untouched when `--destructive` moved from #ba1a1a
  * to #e11d48 (2026-09-03) — the raw literal would not have.
+ *
+ * **Apariencia (web-theme-switch PR10/S7a, ADR-043 D9).** A fourth
+ * `SeccionConfig`, between `Cuenta de Google` and `Sesión`: account-scoped
+ * blocks come first, the two device-scoped ones (Apariencia, Sesión) close
+ * the page. It wraps the full `SelectorTema` (WT-06) and applies the theme
+ * instantly on this device — it is deliberately NOT inside `PerfilForm`, so
+ * `Guardar cambios` never submits the theme choice.
  */
 export function PerfilPanel({
   avisoGoogle,
@@ -136,6 +144,13 @@ export function PerfilPanel({
               ))}
           </div>
         </div>
+      </SeccionConfig>
+
+      <SeccionConfig
+        titulo="Apariencia"
+        descripcion="Se aplica al instante en este dispositivo."
+      >
+        <SelectorTema />
       </SeccionConfig>
 
       <SeccionConfig
