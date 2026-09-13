@@ -4,10 +4,10 @@
 
 | Field | Value |
 |-------|-------|
-| Estimated changed lines | PR1 ~90-180 · PR2 ~250-380 · PR3 ~190-350 · PR4a 315 (measured) · PR4b ~300-350 · PR5 ~150-350 · PR6 ~200-300 · PR7 ~150-250 · PR8 ~80-150 · PR9 ~200-300 · PR10 ~150-250 · PR11 ~200-300 |
-| 400-line budget risk | Low — every upper bound in the plan is ≤380; the former S1 (previously flagged ~450-600) is now four PRs, each with margin below 400 |
+| Estimated changed lines | PR1 ~90-180 · PR2 ~250-380 · PR3 ~190-350 · PR4a 315 (measured) · PR4b ~300-350 · PR5 ~150-350 · PR6 ~200-300 (measured 399/400) · PR7 ~150-250 (measured 399/400) · PR7b ~250-400 (owner-approved insertion, pays contrast-coverage debt) · PR8 ~80-150 · PR9 ~200-300 · PR10 ~150-250 · PR11 ~200-300 |
+| 400-line budget risk | Low — every upper bound in the plan is ≤400; the former S1 (previously flagged ~450-600) is now four PRs, each with margin below 400 |
 | Chained PRs recommended | Yes |
-| Suggested split | Tracker → PR1(S1a) → PR2(S1b) → PR3(S1c) → PR4a(S1d-a) → PR4b(S1d-b) → PR5(S2) → PR6(S3) → PR7(S4) → PR8(S5) → PR9(S6) → PR10(S7a) → PR11(S7b) |
+| Suggested split | Tracker → PR1(S1a) → PR2(S1b) → PR3(S1c) → PR4a(S1d-a) → PR4b(S1d-b) → PR5(S2) → PR6(S3) → PR7(S4) → PR7b(contrast coverage) → PR8(S5) → PR9(S6) → PR10(S7a) → PR11(S7b) — 13 PRs total |
 | Delivery strategy | auto-chain |
 | Chain strategy | feature-branch-chain |
 
@@ -17,6 +17,8 @@ Chain strategy: feature-branch-chain
 400-line budget risk: Low
 
 **Split rationale (decided now, not deferred):** the original S1 bundled ADR docs, an `index.css` token move, two rewritten `lib/` modules, and five consumer components in one PR (~450-600 lines). `apps/web/src/index.css`, `bucket-colors.ts` and `pie-colors.ts` carry unusually heavy literate doc comments (see their current content), so the token-move and class-helper diffs run larger than a bare code change would suggest. Splitting along natural revert boundaries — docs, token declarations, class helpers, consumers — keeps every resulting PR's upper-bound estimate comfortably under 400 without touching any other slice's scope. S2 through S7b were already ≤400 in the prior forecast (max ~350) and stay single PRs; every other slice's upper bound is re-checked below and none exceeds 400.
+
+**PR7b insertion (owner-approved, mid-chain):** PR6 and PR7 each landed at 399/400 lines and had to defer their `.dark`/`:root` shadcn-var + curated AA-table coverage to keep under budget (see Phase 6/7 deviation notes below). The owner inserted a dedicated PR right after PR7 to pay that coverage debt: `TOKENS_LIGHT_SHADCN` (mirrors `TOKENS_DARK_SHADCN`) plus the full measured WCAG table for both themes, replacing the curated 5-pair table. Chain grew from 12 to 13 PRs.
 
 **Chain diagram:**
 ```
@@ -30,10 +32,11 @@ main
                      └─ PR5  feat/tema-error-foreground (base: PR4b) S2
                          └─ PR6  feat/tema-dark-tinta-calida (base: PR5) S3
                              └─ PR7  feat/tema-light-clinico-frio (base: PR6) S4
-                                 └─ PR8  docs/tema-design-rewrite (base: PR7) S5
-                                     └─ PR9  feat/tema-runtime-prepaint (base: PR8) S6
-                                         └─ PR10 feat/tema-selector-perfil (base: PR9) S7a
-                                             └─ PR11 feat/tema-selector-sidebar-e2e (base: PR10) S7b
+                                 └─ PR7b test/tema-contraste-completo (base: PR7) contrast coverage 📍
+                                     └─ PR8  docs/tema-design-rewrite (base: PR7b) S5
+                                         └─ PR9  feat/tema-runtime-prepaint (base: PR8) S6
+                                             └─ PR10 feat/tema-selector-perfil (base: PR9) S7a
+                                                 └─ PR11 feat/tema-selector-sidebar-e2e (base: PR10) S7b
 ```
 Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that shows a prior slice's diff.
 
@@ -49,6 +52,7 @@ Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that sh
 | 5 (S2) | Split error text from `--destructive` fill | PR5 | `pnpm web test -- error-foreground` | Manual `pnpm web dev`: a form validation error still reads legibly | Revert PR5 branch; `text-destructive` usages restored |
 | 6 (S3) | `.dark` becomes Tinta cálida | PR6 | `pnpm web test -- contraste-tokens` | `pnpm --filter @moneydiary/web exec playwright test e2e/dark-chrome.e2e.ts` | Revert PR6 branch; `:root` (old Tecno) still governs since class stays static |
 | 7 (S4) | `:root` becomes Clínico frío (unreachable) | PR7 | `pnpm web test -- contraste-tokens` | `pnpm --filter @moneydiary/web exec playwright test e2e/light-chrome.e2e.ts` | Revert PR7 branch; static `.dark` class still forces dark |
+| 7b | Pay PR6/PR7's deferred contrast-coverage debt: light shadcn `:root` dict + full measured WCAG table, both themes | PR7b | `pnpm exec vitest run src/test/contraste-tokens.test.ts` | N/A — pure data-driven unit test, no DOM/runtime surface changes | Revert PR7b branch; token dicts/ratio table return to PR7's curated-dark-only state |
 | 8 (S5) | Docs parity | PR8 | N/A — docs | N/A — docs-only | Revert PR8 branch |
 | 9 (S6) | Runtime store + pre-paint script, forced dark | PR9 | `pnpm web test -- tema controlador-tema prepaint-tema` | Manual reload with devtools open: class present before `#root` paints | Revert PR9 branch; `index.html` reverts to static `class="dark"` |
 | 10 (S7a) | `SelectorTema` + Apariencia block (inert, forced dark) | PR10 | `pnpm web test -- SelectorTema PerfilPanel` | Manual keyboard-only click-through of Apariencia radios | Revert PR10 branch; `PerfilPanel` reverts to 3 `SeccionConfig` blocks |
@@ -189,11 +193,18 @@ Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that sh
 - [x] 7.2 Rewrite the `index.css` docstring that claims "dark is the ONLY theme."
 - [x] 7.3 [RED] Create `apps/web/e2e/light-chrome.e2e.ts` (mirrors `dark-chrome.e2e.ts`): removes `.dark` in-page, expects `color-scheme: light`, select face `rgb(249, 250, 252)`.
 - [x] 7.4 [GREEN] Confirm 7.3 passes against 7.1.
-- [ ] 7.5 [RED] Extend `contraste-tokens.test.ts` with the light half of every measured pair (fails until 7.1). Partial in this PR: existing `@theme` dicts synced to light values (kept green); the shadcn `:root` dict + curated AA table move to the dedicated contrast-test PR right after this one (size-budget split, chained-pr).
-- [ ] 7.6 [GREEN] Confirm 7.5 passes; both themes now covered — a half-applied palette fails this file.
-- [ ] 7.7 [REFACTOR] `pnpm web test`, `pnpm web typecheck`.
+- [x] 7.5 [RED] Extend `contraste-tokens.test.ts` with the light half of every measured pair (fails until 7.1). Completed in PR7b (`test/tema-contraste-completo`, base PR7): `TOKENS_LIGHT_SHADCN` mirrors `TOKENS_DARK_SHADCN`, and `PARES_TEXTO`/`PARES_NO_TEXTO` replace the curated 5-pair table with every measured pair, run against both themes.
+- [x] 7.6 [GREEN] Confirm 7.5 passes; both themes now covered — a half-applied palette fails this file. Completed in PR7b: 214/214 tests green (116 ratio assertions, 58 per theme).
+- [x] 7.7 [REFACTOR] `pnpm web test`, `pnpm web typecheck`. Completed in PR7b.
 
-## Phase 8: S5 — Docs [D9] (PR8 `docs/tema-design-rewrite`, base PR7)
+## Phase 7b: Contrast-coverage debt payoff (PR7b `test/tema-contraste-completo`, base PR7)
+
+Owner-approved insertion (position 9 of 13) closing the gap 6.5/6.6 and 7.5-7.7
+deferred for budget. See tasks above for the closed items; this phase also
+fixed a stale `index.css` comment (`select, option` note) that still
+attributed `color-scheme: dark` to `:root`.
+
+## Phase 8: S5 — Docs [D9] (PR8 `docs/tema-design-rewrite`, base PR7b)
 
 - [ ] 8.1 Rewrite `DESIGN.md`: title, both identities, token table, jade-vs-ingreso-green adjacency rule (flagged item b), CVD floor-band note.
 
