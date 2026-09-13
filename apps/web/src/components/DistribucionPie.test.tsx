@@ -66,16 +66,23 @@ describe('DistribucionPie', () => {
     expect(screen.getAllByTestId('pie-slice')).toHaveLength(4);
   });
 
-  it('applies the resolved color to each slice, including a deliberate neutral grey for Sin categoría (US-047 D-08, not the #CCCCCC fallback)', () => {
+  it('applies the resolved fill class to each slice, including a deliberate neutral grey class for Sin categoría (US-047 D-08, not the muted-foreground fallback)', () => {
     renderPie({ tajadas: tajadasConSinCategoria });
-    const fills = screen
-      .getAllByTestId('pie-slice')
-      .map((el) => el.getAttribute('fill'));
-    // Brote bucket palette (2026-09-12): steel blue→Necesidades, plum→Gustos,
-    // jade→Ahorro, deliberate mid grey→Sin categoría (never the #CCCCCC
-    // unstyled fallback).
-    expect(fills).toEqual(['#77A7E5', '#BB6C90', '#47DAB4', '#686663']);
-    expect(fills).not.toContain('#CCCCCC');
+    const slices = screen.getAllByTestId('pie-slice');
+    // Brote bucket palette (2026-09-12), now resolved as token-backed
+    // classes (D3) instead of hex: steel blue→fill-necesidades,
+    // plum→fill-gustos, jade→fill-ahorro, deliberate mid
+    // grey→fill-sin-categoria (never the fill-muted-foreground fallback).
+    const clasesEsperadas = [
+      'fill-necesidades',
+      'fill-gustos',
+      'fill-ahorro',
+      'fill-sin-categoria',
+    ];
+    slices.forEach((slice, i) => {
+      expect(slice).toHaveClass(clasesEsperadas[i]);
+      expect(slice).not.toHaveClass('fill-muted-foreground');
+    });
   });
 
   it('renders the percent label on each slice', () => {
@@ -86,68 +93,69 @@ describe('DistribucionPie', () => {
   });
 
   // WDS-07 (WCAG 2.2 AA): white labels (#FFFFFF) would fail contrast on the
-  // bucket slice fills. The dark on-surface tone (#1a1c1c, `PIE_LABEL_FILL`)
-  // clears Necesidades/Deseos/Ahorro at 6.88:1/4.61:1/9.75:1 (Brote re-tint,
-  // 2026-09-12 — see `lib/pie-colors.ts`). Reliability follow-up (post-PR4):
-  // reverted from the `fill-foreground` token class back to a theme-immune
-  // literal — the bucket slice fills (`COLOR_BUCKET`) are PERMANENT literal
-  // hex that do NOT flip with `.dark`, but `--foreground` DOES flip
-  // (near-white in dark mode). A token-based label would silently
-  // reintroduce this exact contrast failure the moment dark mode is wired
-  // up, and this class-based assertion wouldn't catch it (jsdom doesn't
-  // resolve CSS vars). Assert the literal `fill` attribute AND that no
-  // theme-flipping class is used.
-  it('renders percent labels via a theme-immune literal fill for WCAG AA contrast, never white or a theme-flipping token (WDS-07)', () => {
+  // bucket slice fills. The dark on-surface class
+  // (`fill-pie-etiqueta-necesidades`/`-gustos`/`-ahorro`, bound to the
+  // `--color-pie-etiqueta-*` tokens) clears Necesidades/Deseos/Ahorro at
+  // 6.88:1/4.61:1/9.75:1 (Brote re-tint, 2026-09-12 — see
+  // `lib/pie-colors.ts`). A dedicated per-bucket token, never the generic
+  // `fill-foreground` design-system class: `--foreground` flips with the
+  // theme, the bucket fills below the label don't, and reusing it would
+  // silently reintroduce this exact contrast failure once dark mode is
+  // wired up.
+  it('renders percent labels via a dedicated token class for WCAG AA contrast, never the generic fill-foreground token (WDS-07)', () => {
     renderPie();
-    for (const label of [
-      screen.getByText('50%'),
-      screen.getByText('30%'),
-      screen.getByText('20%'),
-    ]) {
-      expect(label).toHaveAttribute('fill', '#1a1c1c');
+    const etiquetasPorClase: ReadonlyArray<[string, string]> = [
+      ['50%', 'fill-pie-etiqueta-necesidades'],
+      ['30%', 'fill-pie-etiqueta-gustos'],
+      ['20%', 'fill-pie-etiqueta-ahorro'],
+    ];
+    for (const [texto, clase] of etiquetasPorClase) {
+      const label = screen.getByText(texto);
+      expect(label).toHaveClass(clase);
       expect(label).not.toHaveClass('fill-foreground');
     }
   });
 
   // Brote re-tint (2026-09-12): Sin categoría's new fill (#686663) is too
-  // dark for the shared dark label (2.99:1) — the on-wedge label fill is now
-  // resolved per bucket via `colorEtiquetaPie` (`lib/pie-colors.ts`), not a
-  // single constant. Necesidades/Deseos/Ahorro keep the dark label; Sin
-  // categoría gets the light one (#e8e6e1, 4.59:1 on its own fill).
-  it('gives the Sin categoría wedge a light on-wedge label while the other three keep the dark one (Brote re-tint)', () => {
+  // dark for the shared dark label (2.99:1) — the on-wedge label class is
+  // resolved per bucket via `claseEtiquetaPie` (`lib/pie-colors.ts`), not a
+  // single constant. Necesidades/Deseos/Ahorro keep the dark label class;
+  // Sin categoría gets the light one (`fill-pie-etiqueta-sin-categoria`,
+  // 4.59:1 on its own fill).
+  it('gives the Sin categoría wedge a light on-wedge label class while the other three keep a dark one (Brote re-tint)', () => {
     renderPie({ tajadas: tajadasConSinCategoria });
-    expect(screen.getByText('44%')).toHaveAttribute('fill', '#1a1c1c');
-    expect(screen.getByText('28%')).toHaveAttribute('fill', '#1a1c1c');
-    expect(screen.getByText('18%')).toHaveAttribute('fill', '#1a1c1c');
-    expect(screen.getByText('10%')).toHaveAttribute('fill', '#e8e6e1');
+    expect(screen.getByText('44%')).toHaveClass(
+      'fill-pie-etiqueta-necesidades',
+    );
+    expect(screen.getByText('28%')).toHaveClass('fill-pie-etiqueta-gustos');
+    expect(screen.getByText('18%')).toHaveClass('fill-pie-etiqueta-ahorro');
+    expect(screen.getByText('10%')).toHaveClass(
+      'fill-pie-etiqueta-sin-categoria',
+    );
   });
 
   // WDS-07 (WCAG 1.4.11 non-text contrast): adjacent fill slices can sit
-  // close in luminance, so wedges need a visible separator between them.
-  // Reliability follow-up (post-PR4): reverted from the `stroke-card` token
-  // class back to a theme-immune literal — a token cannot track this stroke's
-  // backdrop (the mini pie alone sits on `bg-card` OR on `bg-ingreso` when its
-  // month is selected). That constraint is PERMANENT and this test still
-  // guards it.
+  // close in luminance, so wedges need a visible separator between them. A
+  // dedicated `stroke-pie-separador` token class (D3), never the generic
+  // `stroke-card` design-system class — no surface token can track this
+  // stroke's backdrop (the mini pie alone sits on `bg-card` OR on
+  // `bg-ingreso` when its month is selected). That constraint is PERMANENT
+  // and this test still guards it.
   //
-  // Tecno-Analítico (2026-09-02): only the literal's VALUE changed, white →
-  // #0d0f15, and it still disappears into every surface a pie can sit on
-  // (1.03:1 card, 1.03:1 background, 1.24:1 the selected-month ingreso tint)
-  // regardless of what the fills above it are. Brote re-tint (2026-09-12)
-  // re-measured the OTHER side of that pair — separation from the new fills
-  // is now 7.70:1 (Necesidades), 5.16:1 (Deseos), 10.91:1 (Ahorro), 3.35:1
-  // (Sin categoría) — see `lib/pie-colors.ts`.
-  it('renders a theme-immune dark stroke separator on each slice for WCAG 1.4.11 adjacency contrast, never a theme-flipping token', () => {
+  // Brote re-tint (2026-09-12) re-measured separation from the bucket fills:
+  // 7.70:1 (Necesidades), 5.16:1 (Deseos), 10.91:1 (Ahorro), 3.35:1 (Sin
+  // categoría) — see `lib/pie-colors.ts`.
+  it('renders a dedicated stroke separator class on each slice for WCAG 1.4.11 adjacency contrast, never the generic stroke-card token', () => {
     renderPie();
     for (const slice of screen.getAllByTestId('pie-slice')) {
-      expect(slice).toHaveAttribute('stroke', '#0d0f15');
+      expect(slice).toHaveClass('stroke-pie-separador');
       expect(slice).not.toHaveClass('stroke-card');
       expect(slice).toHaveAttribute('stroke-width', '2');
     }
     // The nested IDEAL reference pie shares the same bucket fills and the
     // same adjacency problem — its wedges need the same separator.
     for (const slice of screen.getAllByTestId('pie-ideal-slice')) {
-      expect(slice).toHaveAttribute('stroke', '#0d0f15');
+      expect(slice).toHaveClass('stroke-pie-separador');
       expect(slice).not.toHaveClass('stroke-card');
       expect(slice).toHaveAttribute('stroke-width', '2');
     }

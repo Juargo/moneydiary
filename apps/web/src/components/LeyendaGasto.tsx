@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { COLOR_BUCKET, ETIQUETA_BUCKET } from '@/lib/bucket-colors';
+import { claseFondoBucket, ETIQUETA_BUCKET } from '@/lib/bucket-colors';
 import type { ItemLeyenda } from '@/domain/resumen-view-model';
 
 /**
@@ -132,8 +132,10 @@ function FilaClickeable({
         <span className="flex items-center gap-2">
           <span
             data-testid="leyenda-dot"
-            className="h-3 w-3 shrink-0 rounded-none"
-            style={{ backgroundColor: COLOR_BUCKET[item.bucket] ?? '#CCCCCC' }}
+            className={cn(
+              'h-3 w-3 shrink-0 rounded-none',
+              claseFondoBucket(item.bucket),
+            )}
           />
           {/* Explicit `{' '}` text-node separators (not just `gap-*`
               utilities): the accessible-name algorithm concatenates

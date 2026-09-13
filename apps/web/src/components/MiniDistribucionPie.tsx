@@ -1,6 +1,6 @@
 import { calcularAngulos, arcoPath } from '@/domain/pie-geometry';
-import { COLOR_BUCKET } from '@/lib/bucket-colors';
-import { PIE_WEDGE_STROKE } from '@/lib/pie-colors';
+import { claseRellenoBucket } from '@/lib/bucket-colors';
+import { CLASE_SEPARADOR_PIE } from '@/lib/pie-colors';
 import type { TajadaGasto } from '@/domain/distribucion-gasto';
 
 /**
@@ -59,13 +59,14 @@ export function MiniDistribucionPie({
           key={tajada.bucket}
           data-testid="mini-pie-slice"
           d={arcoPath(cx, cy, r, tramos[i].inicio, tramos[i].fin)}
-          fill={COLOR_BUCKET[tajada.bucket] ?? '#CCCCCC'}
-          // WDS-07 (WCAG 1.4.11): same pastel-adjacency separator as the
-          // main DistribucionPie, scaled to a thinner 1px stroke — this pie
+          // Fill + WCAG 1.4.11 wedge separator, both dedicated token classes
+          // (D3) — same pastel-adjacency separator as the main
+          // DistribucionPie, scaled to a thinner 1px stroke below: this pie
           // is 56px (r=28) vs the main pie's 240px (r=120), so the main
-          // pie's 2px stroke would visually dominate a wedge this small.
-          // Theme-immune literal — see `lib/pie-colors.ts`.
-          stroke={PIE_WEDGE_STROKE}
+          // pie's 2px stroke would visually dominate a wedge this small. See
+          // `lib/pie-colors.ts` for why the separator must NOT be a
+          // `stroke-card` design-system class.
+          className={`${claseRellenoBucket(tajada.bucket)} ${CLASE_SEPARADOR_PIE}`}
           strokeWidth={1}
         />
       ))}

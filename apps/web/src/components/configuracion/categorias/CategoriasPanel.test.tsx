@@ -157,6 +157,23 @@ describe('CategoriasPanel', () => {
     expect(screen.queryByText('Deseos')).not.toBeInTheDocument();
   });
 
+  // `web-theme-switch` PR4 (D3): el swatch de color (mismo idioma que
+  // `LeyendaGasto.tsx`) reusa `claseFondoBucket` (`lib/bucket-colors.ts`),
+  // nunca un `backgroundColor` inline.
+  it('el swatch de cada grupo usa la clase de fondo del bucket, nunca el fallback muted-foreground (D3)', async () => {
+    renderPanel({ me: ME_NO_DEMO, categorias: CATALOGO });
+
+    const headings = await screen.findAllByRole('heading', { level: 3 });
+    const swatches = headings.map(
+      (heading) => heading.querySelector('[data-testid="bucket-swatch"]')!,
+    );
+    const clasesEsperadas = ['bg-necesidades', 'bg-gustos', 'bg-ahorro'];
+    swatches.forEach((swatch, i) => {
+      expect(swatch).toHaveClass(clasesEsperadas[i]);
+      expect(swatch).not.toHaveClass('bg-muted-foreground');
+    });
+  });
+
   it('cada grupo renderiza sus categorías vía CategoriaFila (nombre + Link de edición)', async () => {
     renderPanel({ me: ME_NO_DEMO, categorias: CATALOGO });
 
