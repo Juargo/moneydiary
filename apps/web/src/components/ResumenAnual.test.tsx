@@ -466,8 +466,9 @@ describe('ResumenAnual', () => {
   // US-047 PR1 interim BUCKETS_5030 renormalization is retired. Reuses the
   // eneroConSinCategoria fixture verbatim (nonzero SinCategoria total is the
   // whole point — a zero-total fixture cannot distinguish diluted from
-  // renormalized). Fills, not just count, prove the 4th wedge is genuinely
-  // SinCategoria grey in BUCKETS_ANILLO ring order.
+  // renormalized). Fill classes, not just count, prove the 4th wedge is
+  // genuinely SinCategoria grey in BUCKETS_ANILLO ring order (`web-theme-
+  // switch` D3: token-backed classes, not hex, since PR4).
   it('renders 4 mini-pie slices per month, including the SinCategoria wedge (WTA-01)', async () => {
     const enero = mesConDatos('2026-01');
     const eneroConSinCategoria: ResumenMesDto = {
@@ -503,12 +504,15 @@ describe('ResumenAnual', () => {
     await screen.findByRole('button', { name: 'Ver enero 2026' });
     const slices = screen.getAllByTestId('mini-pie-slice');
     expect(slices).toHaveLength(4);
-    expect(slices.map((slice) => slice.getAttribute('fill'))).toEqual([
-      '#77A7E5',
-      '#BB6C90',
-      '#47DAB4',
-      '#686663',
-    ]);
+    const clasesEsperadas = [
+      'fill-necesidades',
+      'fill-gustos',
+      'fill-ahorro',
+      'fill-sin-categoria',
+    ];
+    slices.forEach((slice, i) => {
+      expect(slice).toHaveClass(clasesEsperadas[i]);
+    });
   });
 
   it('a sinIngreso month that is also the current month stays disabled but still carries aria-current="date" (FIX 5)', async () => {

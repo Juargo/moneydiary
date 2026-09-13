@@ -186,17 +186,25 @@ describe('LeyendaGasto', () => {
 
   // Restored (judgment-day): dropped without replacement when this file was
   // rewritten for T7 — mirrors DistribucionPie.test.tsx's own color-dot
-  // guard (`applies the resolved color to each slice...`).
-  it('applies the resolved color to each color dot, including a deliberate neutral grey for Sin categoría (not the #CCCCCC fallback)', () => {
+  // guard (`applies the resolved fill class to each slice...`).
+  //
+  // `web-theme-switch` PR4 (D3): the dot is now a token-backed `bg-*` class
+  // (`claseFondoBucket`, `lib/bucket-colors.ts`), not an inline
+  // `backgroundColor` hex. Four dots render: the three `principales` rows
+  // plus `complemento`'s `sinCategoria` row (Ingresos has no dot).
+  it('applies the resolved fill class to each color dot, including the Sin categoría dedicated grey class, never the muted-foreground fallback', () => {
     renderLeyenda();
-    const colores = screen
-      .getAllByTestId('leyenda-dot')
-      .map((dot) => dot.style.backgroundColor);
-    // rgb(104, 102, 99) === #686663, the SinCategoria dedicated mid grey
-    // (Brote re-tint, 2026-09-12).
-    expect(colores).toContain('rgb(104, 102, 99)');
-    expect(colores).not.toContain('#CCCCCC');
-    expect(colores).not.toContain('rgb(204, 204, 204)');
+    const dots = screen.getAllByTestId('leyenda-dot');
+    const clasesEsperadas = [
+      'bg-necesidades',
+      'bg-gustos',
+      'bg-ahorro',
+      'bg-sin-categoria',
+    ];
+    dots.forEach((dot, i) => {
+      expect(dot).toHaveClass(clasesEsperadas[i]);
+      expect(dot).not.toHaveClass('bg-muted-foreground');
+    });
   });
 
   it('clicking a spend-bucket row reports its bucket via onSelectBucket', () => {
