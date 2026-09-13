@@ -5,12 +5,6 @@
  * llega inyectada — es la única forma de probar `iniciar()` (listeners de
  * `matchMedia`/`storage`) en jsdom sin depender de los globales reales, y de
  * simular un storage que lanza (WT-03) o un `matchMedia` ausente.
- *
- * Nota (PR9b, split de PR9): este módulo cubre solo el núcleo del
- * controlador — lectura/escritura de preferencia, aplicación al DOM y
- * suscripción. `iniciar()` (los listeners de `matchMedia`/`storage` que
- * conectan cambios externos) llega en PR9c, sin tocar la firma de `entorno`
- * definida acá.
  */
 import {
   CLAVE_PREFERENCIA_TEMA,
@@ -32,6 +26,9 @@ export interface ControladorTema {
   obtenerEstado(): EstadoTema;
   cambiarPreferencia(preferencia: PreferenciaTema): void;
   suscribir(listener: () => void): () => void;
+  /** Conecta los listeners de `matchMedia`/`storage`. Devuelve la función
+   * de limpieza que los remueve a ambos. */
+  iniciar(): () => void;
 }
 
 export function crearControladorTema(entorno: {
@@ -40,7 +37,7 @@ export function crearControladorTema(entorno: {
   documento: Document;
   ventana: Window;
 }): ControladorTema {
-  const { storage, matchMedia, documento } = entorno;
+  const { storage, matchMedia, documento, ventana } = entorno;
   const listeners = new Set<() => void>();
 
   function osPrefiereOscuro(): boolean {
@@ -92,6 +89,43 @@ export function crearControladorTema(entorno: {
     suscribir(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+
+    iniciar() {
+      const limpiezas: Array<() => void> = [];
+
+      if (matchMedia != null) {
+        const media = matchMedia('(prefers-color-scheme: dark)');
+        const alCambiarOS = () => {
+          // Solo re-resuelve bajo `system` (WT-02) — bajo una preferencia
+          // explícita, un cambio de OS no debe tocar el tema aplicado.
+          if (estado.preferencia !== 'system') {
+            return;
+          }
+          estado = calcularEstado(estado.preferencia);
+          aplicar();
+          notificar();
+        };
+        media.addEventListener('change', alCambiarOS);
+        limpiezas.push(() => media.removeEventListener('change', alCambiarOS));
+      }
+
+      const alCambiarStorage = (evento: StorageEvent) => {
+        // `key === null` significa `storage.clear()` en otra pestaña; se
+        // relee igual que cualquier cambio de la clave de tema (WT-05).
+        if (evento.key !== null && evento.key !== CLAVE_PREFERENCIA_TEMA) {
+          return;
+        }
+        estado = calcularEstado(leerPreferencia(storage));
+        aplicar();
+        notificar();
+      };
+      ventana.addEventListener('storage', alCambiarStorage);
+      limpiezas.push(() =>
+        ventana.removeEventListener('storage', alCambiarStorage),
+      );
+
+      return () => limpiezas.forEach((limpiar) => limpiar());
     },
   };
 }
