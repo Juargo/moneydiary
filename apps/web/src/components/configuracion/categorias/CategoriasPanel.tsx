@@ -6,7 +6,7 @@ import {
   agruparPorBucket,
   type GrupoCategoriaPorBucket,
 } from '@/domain/agrupar-categorias-por-bucket';
-import { COLOR_BUCKET, ETIQUETA_BUCKET } from '@/lib/bucket-colors';
+import { claseFondoBucket, ETIQUETA_BUCKET } from '@/lib/bucket-colors';
 import { Loading } from '../../states/Loading';
 import { ErrorState } from '../../states/Error';
 import { Empty } from '../../states/Empty';
@@ -277,14 +277,15 @@ export function CategoriasPanel() {
               corrida. Son 3-4 grupos como máximo, no veinte: el costo de
               tener varias superficies está acotado por el dominio.
 
-              El swatch de color reusa el idioma EXACTO de `LeyendaGasto.tsx:133-137`
-              (`h-3 w-3 rounded-none` + `COLOR_BUCKET` inline, con el mismo
-              fallback `#CCCCCC`). No es un puntito decorativo: es el mismo
-              código de color que el donut y la leyenda del dashboard ya le
-              enseñaron al usuario, y acá es lo único que conecta esta
-              pantalla con esa lectura. Los pasteles de `COLOR_BUCKET` son
-              rellenos, nunca texto (ver el docstring de `bucket-colors.ts`),
-              así que el nombre del bucket sigue en `text-foreground`.
+              El swatch de color reusa el idioma EXACTO de `LeyendaGasto.tsx`
+              (`h-3 w-3 rounded-none` + `claseFondoBucket`, mismo fallback
+              `bg-muted-foreground`, `web-theme-switch` D3). No es un puntito
+              decorativo: es el mismo código de color que el donut y la
+              leyenda del dashboard ya le enseñaron al usuario, y acá es lo
+              único que conecta esta pantalla con esa lectura. Los rellenos de
+              bucket son fondos, nunca texto (ver el docstring de
+              `bucket-colors.ts`), así que el nombre del bucket sigue en
+              `text-foreground`.
             */}
             {grupos.map((grupo) => (
               <section
@@ -294,10 +295,11 @@ export function CategoriasPanel() {
                 <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                   <span
                     aria-hidden="true"
-                    className="h-3 w-3 shrink-0 rounded-none"
-                    style={{
-                      backgroundColor: COLOR_BUCKET[grupo.bucket] ?? '#CCCCCC',
-                    }}
+                    data-testid="bucket-swatch"
+                    className={cn(
+                      'h-3 w-3 shrink-0 rounded-none',
+                      claseFondoBucket(grupo.bucket),
+                    )}
                   />
                   {ETIQUETA_BUCKET[grupo.bucket] ?? grupo.bucket}
                 </h3>

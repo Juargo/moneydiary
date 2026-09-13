@@ -168,7 +168,17 @@ function MesCelda({
           esSeleccionado && 'border-2 border-ingreso-foreground bg-ingreso',
         )}
       >
-        <MiniDistribucionPie tajadas={tajadas} size={56} />
+        {/* web-theme-switch S3 flagged item (d): unconditional card ring so
+            the wedge edge touches `bg-card` (3.01:1 PASS), not the
+            `bg-ingreso` selected-month tint (2.85:1 FAIL, dark Sin
+            categoría's tightest margin — `palette-measurements.md`).
+            `p-0.5` keeps the 56px pie inside the unchanged h-16 w-16 box. */}
+        <span
+          data-testid="mini-pie-ring"
+          className="rounded-full bg-card p-0.5"
+        >
+          <MiniDistribucionPie tajadas={tajadas} size={56} />
+        </span>
       </span>
     </>
   );

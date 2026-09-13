@@ -3,8 +3,8 @@ import {
   arcoPath,
   radioEtiqueta,
 } from '@/domain/pie-geometry';
-import { COLOR_BUCKET, ETIQUETA_BUCKET } from '@/lib/bucket-colors';
-import { PIE_WEDGE_STROKE, colorEtiquetaPie } from '@/lib/pie-colors';
+import { claseRellenoBucket, ETIQUETA_BUCKET } from '@/lib/bucket-colors';
+import { CLASE_SEPARADOR_PIE, claseEtiquetaPie } from '@/lib/pie-colors';
 // US-047 PR1 compile-fix (tasks.md "Proposed PR boundaries" #1): `BUCKETS_GASTO`
 // was split into `BUCKETS_5030`/`BUCKETS_ANILLO` (D-05). The IDEAL inset
 // indexes `targets`, which has no `SinCategoria` key, so it MUST keep using
@@ -18,7 +18,7 @@ import type { ResumenViewModel } from '@/domain/resumen-view-model';
 
 interface Slice {
   readonly bucket: string;
-  readonly color: string;
+  readonly claseFill: string;
   readonly fraccion: number;
   readonly porcentaje: number;
 }
@@ -114,12 +114,11 @@ function Pie({
               key={slice.bucket}
               data-testid={sliceTestId}
               d={d}
-              fill={slice.color}
               strokeWidth={2}
-              // WCAG 1.4.11 wedge separator — theme-immune literal, see
-              // `lib/pie-colors.ts` for why this must NOT be a `--card`
-              // token class.
-              stroke={PIE_WEDGE_STROKE}
+              // Fill + WCAG 1.4.11 wedge separator, both dedicated token
+              // classes (D3) — see `lib/pie-colors.ts` for why the separator
+              // must NOT be a `stroke-card` design-system class.
+              className={`${slice.claseFill} ${CLASE_SEPARADOR_PIE}`}
             />
           );
         }
@@ -129,12 +128,13 @@ function Pie({
             key={slice.bucket}
             data-testid={sliceTestId}
             d={d}
-            fill={slice.color}
             strokeWidth={2}
             role="button"
             tabIndex={0}
             aria-label={ETIQUETA_BUCKET[slice.bucket] ?? slice.bucket}
-            stroke={PIE_WEDGE_STROKE}
+            // Fill + WCAG 1.4.11 wedge separator classes (D3), same as the
+            // non-interactive branch above, PLUS the interactive/focus
+            // classes below.
             // TWO-TONE focus indicator (2026-09-03, re-derived for the Brote
             // re-tint 2026-09-12) — required here, and only here, because the
             // outline crosses two opposite backgrounds.
@@ -163,12 +163,12 @@ function Pie({
             //     that fall on the dark card/background (12.80:1);
             //   - the wedge's OWN stroke, which on focus goes dark and
             //     thickens to 4px, for the stretches that fall on the fill
-            //     (3.35-10.91:1, the `PIE_WEDGE_STROKE` table in
+            //     (3.35-10.91:1, the separator token's ratio table in
             //     `lib/pie-colors.ts`). It also traces the wedge's real shape
             //     rather than a rectangle, so it reads as "this slice".
             // Do not collapse this back to a single ring without re-deriving
             // the interval above.
-            className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:[stroke-width:4]"
+            className={`${slice.claseFill} ${CLASE_SEPARADOR_PIE} cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:[stroke-width:4]`}
             onClick={() => onSelectSlice(slice.bucket)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -198,15 +198,15 @@ function Pie({
               x={x}
               y={y}
               // WDS-07 (WCAG 2.2 AA): white (#FFFFFF) would fail contrast on
-              // the bucket fills. Theme-immune, per-bucket resolution — see
-              // `lib/pie-colors.ts`'s `colorEtiquetaPie` for why this must
-              // NOT be a `--foreground` token class (it flips in dark mode,
-              // the bucket fills below it don't) and why the label itself is
-              // no longer a single constant: the Brote re-tint (2026-09-12)
-              // gave Sin categoría a fill too dark for the shared dark label,
-              // so it alone takes the light one. See DistribucionPie.test.tsx
-              // for the guarding assertions.
-              fill={colorEtiquetaPie(slice.bucket)}
+              // the bucket fills. Dedicated per-bucket token class — see
+              // `lib/pie-colors.ts`'s `claseEtiquetaPie` for why this must
+              // NOT be a `fill-foreground` design-system class (it flips
+              // independently of the bucket fills below it) and why the
+              // label itself is no longer a single constant: the Brote
+              // re-tint (2026-09-12) gave Sin categoría a fill too dark for
+              // the shared dark label, so it alone takes the light one. See
+              // DistribucionPie.test.tsx for the guarding assertions.
+              className={claseEtiquetaPie(slice.bucket)}
               fontSize={size * 0.09}
               fontWeight="bold"
               textAnchor="middle"
@@ -228,7 +228,7 @@ function Pie({
 function slicesDesdeTajadas(tajadas: ReadonlyArray<TajadaGasto>): Slice[] {
   return tajadas.map((t) => ({
     bucket: t.bucket,
-    color: COLOR_BUCKET[t.bucket] ?? '#CCCCCC',
+    claseFill: claseRellenoBucket(t.bucket),
     fraccion: t.fraccion,
     porcentaje: t.porcentaje,
   }));
@@ -246,7 +246,7 @@ function slicesIdeales(targets: ResumenViewModel['targets']): Slice[] {
   };
   return BUCKETS_5030.map((bucket) => ({
     bucket,
-    color: COLOR_BUCKET[bucket],
+    claseFill: claseRellenoBucket(bucket),
     fraccion: valores[bucket] / total,
     porcentaje: Math.round((valores[bucket] / total) * 100),
   }));

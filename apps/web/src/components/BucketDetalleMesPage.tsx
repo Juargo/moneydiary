@@ -153,7 +153,7 @@ export function BucketDetalleMesPage({
         </p>
       )}
       {categoriasFallidasSinDatos && categoriasQuery.error && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-red-600">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-error-foreground">
           <p role="alert">{categoriasQuery.error.message}</p>
           {/* No `disabled` binding on retry — same dead-code reasoning as
               the retired flat chain's retry (judgment-day finding): TanStack

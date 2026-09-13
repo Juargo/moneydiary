@@ -14,35 +14,28 @@ const tajadas: ReadonlyArray<TajadaGasto> = [
 ];
 
 describe('MiniDistribucionPie', () => {
-  it('renders one slice per tajada with its resolved color', () => {
+  it('renders one slice per tajada with its resolved fill class', () => {
     render(<MiniDistribucionPie tajadas={tajadas} />);
-    const fills = screen
-      .getAllByTestId('mini-pie-slice')
-      .map((el) => el.getAttribute('fill'));
-    // Brote bucket palette (2026-09-12): steel blue→Necesidades, plum→Gustos, jade→Ahorro.
-    expect(fills).toEqual(['#77A7E5', '#BB6C90', '#47DAB4']);
+    const slices = screen.getAllByTestId('mini-pie-slice');
+    // Brote bucket palette (2026-09-12), resolved as token-backed classes
+    // (D3): steel blue→fill-necesidades, plum→fill-gustos, jade→fill-ahorro.
+    const clasesEsperadas = ['fill-necesidades', 'fill-gustos', 'fill-ahorro'];
+    slices.forEach((slice, i) => {
+      expect(slice).toHaveClass(clasesEsperadas[i]);
+    });
   });
 
   // WDS-07 (WCAG 1.4.11 non-text contrast): same adjacency problem as the
-  // main pie's fill wedges — a separator stroke between slices.
-  // Reliability follow-up (post-PR4): reverted from the `stroke-card` token
-  // class back to a theme-immune literal. THIS component is the sharpest
-  // reason that revert has to stand: its pie renders inside a cell that is
-  // `bg-card` normally but `bg-ingreso` when the month is selected
-  // (`ResumenAnual`), so no single surface token could ever describe the
-  // stroke's backdrop.
-  //
-  // Tecno-Analítico (2026-09-02, history): the literal's VALUE changed,
-  // white → #0d0f15, dropping a bright halo on the dark ground (1.03:1 on
-  // card, 1.24:1 on the ingreso tint) — that part of the stroke's job never
-  // depends on the bucket fills. Its separation FROM the fills does, and the
-  // fills themselves are not permanent — they were re-tinted for Brote
-  // (2026-09-12); current separation numbers per fill live in
-  // `lib/pie-colors.ts`, not here.
-  it('renders a theme-immune dark stroke separator on each slice for WCAG 1.4.11 adjacency contrast, never a theme-flipping token', () => {
+  // main pie's fill wedges — a separator stroke between slices. A dedicated
+  // `stroke-pie-separador` token class (D3), never the generic `stroke-card`
+  // design-system class. THIS component is the sharpest reason that
+  // constraint has to stand: its pie renders inside a cell that is `bg-card`
+  // normally but `bg-ingreso` when the month is selected (`ResumenAnual`),
+  // so no single surface token could ever describe the stroke's backdrop.
+  it('renders a dedicated stroke separator class on each slice for WCAG 1.4.11 adjacency contrast, never the generic stroke-card token', () => {
     render(<MiniDistribucionPie tajadas={tajadas} />);
     for (const slice of screen.getAllByTestId('mini-pie-slice')) {
-      expect(slice).toHaveAttribute('stroke', '#0d0f15');
+      expect(slice).toHaveClass('stroke-pie-separador');
       expect(slice).not.toHaveClass('stroke-card');
     }
   });

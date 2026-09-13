@@ -4,7 +4,46 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Fallback estático para cuando el script de abajo no puede correr
+         (JS deshabilitado): valor dark por defecto. El script lo
+         sobreescribe con el valor resuelto (preferencia guardada u OS) en
+         cuanto se ejecuta. -->
+    <meta name="theme-color" content="#1A1917" />
     <title>MoneyDiary</title>
+    <!-- Script de pre-paint (WT-04, ADR-043 D5): aplica la clase `dark`,
+         `color-scheme` y el `content` del meta de arriba ANTES del primer
+         paint y antes de que React monte — evita el flash del tema
+         incorrecto. Espeja `lib/tema.ts` a propósito (no puede importarlo:
+         no hay bundler en tiempo de carga de este HTML) —
+         `prepaint-tema.test.ts` extrae este texto literal y lo compara con
+         el módulo para toda la matriz de entradas. `forzado` acá DEBE
+         mantenerse en lockstep con `TEMA_FORZADO` en `lib/tema.ts` — desde
+         S7b (PR11) ambos quedan en `null` (selector real). Rollback de
+         emergencia: volver a poner `forzado = 'dark'` acá Y `TEMA_FORZADO =
+         'dark'` en `lib/tema.ts` (deben moverse juntos). No existe CSP en
+         `apps/web` hoy (`vercel.json` no tiene bloque `headers`); si se
+         agrega una en el futuro, permitir este script por su hash `sha256`
+         en vez de moverlo a un archivo externo (ADR-043). -->
+    <script>
+      (function () {
+        var p = null,
+          forzado = null; // Palanca de emergencia: 'dark' para forzar
+        try {
+          p = localStorage.getItem('moneydiary:tema');
+        } catch (e) {}
+        if (p !== 'light' && p !== 'dark') p = 'system';
+        var osOscuro = !!(
+          window.matchMedia &&
+          matchMedia('(prefers-color-scheme: dark)').matches
+        );
+        var t = forzado || (p === 'system' ? (osOscuro ? 'dark' : 'light') : p);
+        var r = document.documentElement;
+        r.classList.toggle('dark', t === 'dark');
+        r.style.colorScheme = t;
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute('content', t === 'dark' ? '#1A1917' : '#EDF0F5');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

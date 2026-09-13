@@ -272,7 +272,7 @@ export function NuevaCategoriaDesdeFilaForm({
                 }
                 className={cn(
                   CLASE_BOTON_ICONO,
-                  'mt-1 text-destructive disabled:cursor-not-allowed disabled:opacity-50',
+                  'mt-1 text-error-foreground disabled:cursor-not-allowed disabled:opacity-50',
                 )}
               >
                 <Trash2 aria-hidden="true" className="size-[18px]" />
@@ -286,7 +286,10 @@ export function NuevaCategoriaDesdeFilaForm({
                 </p>
               )}
               {tieneErrorIndexado && errorActual !== null && (
-                <p role="alert" className="w-full text-xs text-destructive">
+                <p
+                  role="alert"
+                  className="w-full text-xs text-error-foreground"
+                >
                   {mensajeDeErrorCatalogo(errorActual)}
                 </p>
               )}
@@ -313,7 +316,7 @@ export function NuevaCategoriaDesdeFilaForm({
         </p>
       )}
       {errorFormLevel && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-error-foreground">
           {mensajeDeErrorCatalogo(errorFormLevel)}
         </p>
       )}

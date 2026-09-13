@@ -184,7 +184,7 @@ export function InlineConfirm({
       </div>
       {extra}
       {error != null && (
-        <p role="alert" className="text-destructive">
+        <p role="alert" className="text-error-foreground">
           {error}
         </p>
       )}

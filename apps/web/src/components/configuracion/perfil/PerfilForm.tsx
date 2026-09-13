@@ -176,7 +176,7 @@ export function PerfilForm({ me }: { readonly me: MeDto }) {
                 <p key={indice}>{linea}</p>
               ))}
           </div>
-          <div role="alert" className="text-destructive">
+          <div role="alert" className="text-error-foreground">
             {mensaje?.tono === 'error' &&
               mensaje.lineas.map((linea, indice) => (
                 <p key={indice}>{linea}</p>

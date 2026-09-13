@@ -160,7 +160,7 @@ export function EditarCategoria({
           SUPERFICIE_SECCION,
         )}
       >
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-error-foreground">
           {mensajeDeErrorCatalogo(query.error)}
         </p>
         {/*
@@ -638,7 +638,7 @@ function EditarCategoriaCargada({
         would duplicate the alert on a failed bucket-change confirm.
       */}
         {actualizacion.isError && dialogo === null && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-error-foreground">
             {mensajeDeErrorCatalogo(actualizacion.error)}
           </p>
         )}
@@ -813,7 +813,7 @@ function EditarCategoriaCargada({
             setDialogo('eliminar');
           }}
           aria-label={`Eliminar categoría ${categoria.nombre}`}
-          className="self-start text-destructive"
+          className="self-start text-error-foreground"
         >
           Eliminar categoría
         </Button>

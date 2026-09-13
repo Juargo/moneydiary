@@ -1063,7 +1063,7 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
           estado === 'preview-protegido') && (
           <CircleAlert
             aria-hidden="true"
-            className="size-4 shrink-0 text-destructive"
+            className="size-4 shrink-0 text-error-foreground"
           />
         )}
         {mensajeEstado}
@@ -1087,7 +1087,7 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
             ref={errorRef}
             tabIndex={-1}
             role="alert"
-            className="text-sm text-destructive focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            className="text-sm text-error-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
           >
             {mensajeError}
           </p>
@@ -1121,7 +1121,7 @@ export function SubirCartola({ esDemo }: { readonly esDemo?: boolean }) {
           <p
             id="password-pdf-error"
             role="alert"
-            className="text-sm text-destructive"
+            className="text-sm text-error-foreground"
           >
             {motivoPassword === 'password-incorrecta'
               ? 'La contraseña ingresada es incorrecta. Intenta de nuevo.'

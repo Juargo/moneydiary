@@ -209,7 +209,7 @@ export function ListaIngestas() {
               // reset) the dialog against a `seleccionados` set that no
               // longer matches what's already disclosed/in flight.
               disabled={bulk.interaccionBloqueada}
-              className="text-destructive"
+              className="text-error-foreground"
             >
               Eliminar seleccionadas ({bulk.seleccionados.size})
             </Button>
@@ -323,7 +323,7 @@ function IngestaItem({
         <span className="text-muted-foreground">{ingesta.banco ?? '—'}</span>
       </div>
       {esFallida ? (
-        <p className="text-sm text-destructive">{ingesta.motivoFallo}</p>
+        <p className="text-sm text-error-foreground">{ingesta.motivoFallo}</p>
       ) : (
         <div className="flex items-center justify-between text-sm text-foreground">
           <span>

@@ -706,7 +706,7 @@ export function PatronFila({
           // Mismo criterio que `CategoriaFila`: el rojo se gana en hover y
           // foco, no viene encendido de fábrica. Una categoría con ocho
           // patrones mostraba ocho papeleras rojas fijas.
-          'text-muted-foreground transition-colors hover:text-destructive focus-visible:text-destructive',
+          'text-muted-foreground transition-colors hover:text-error-foreground focus-visible:text-error-foreground',
           'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-muted-foreground',
         )}
       >
@@ -725,7 +725,7 @@ export function PatronFila({
         <p
           id={idError}
           role="alert"
-          className="w-full text-xs text-destructive"
+          className="w-full text-xs text-error-foreground"
         >
           {mensajeDeErrorCatalogo(errorMutacion)}
         </p>

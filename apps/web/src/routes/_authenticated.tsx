@@ -8,6 +8,7 @@ import { useCerrarSesion } from '@/lib/use-cerrar-sesion';
 import { DemoBanner } from '@/components/DemoBanner';
 import { AppShell } from '@/components/app-shell/AppShell';
 import { ApiVersionBadge } from '@/components/app-shell/ApiVersionBadge';
+import { SelectorTema } from '@/components/SelectorTema';
 
 /**
  * Pathless protected layout (AUTH-10, design.md §6.1): every route nested
@@ -31,6 +32,14 @@ import { ApiVersionBadge } from '@/components/app-shell/ApiVersionBadge';
  * satisfies "MUST NOT make an additional API call" (see
  * `test/demo-banner-layout.test.tsx` for the end-to-end proof, same pattern
  * as `redirect-after-login.test.tsx`).
+ *
+ * The sidebar footer also carries the compact `SelectorTema` (web-theme-
+ * switch WT-06, ADR-043 D10, task 11.2/11.3): rides the same `sidebarFooter`
+ * slot as `ApiVersionBadge`/the Configuración link/logout, so `Sidebar.tsx`
+ * stays untouched. It shares the `usePreferenciaTema` default context value
+ * (the module-level `controladorTema` singleton) with the Perfil →
+ * Apariencia instance, so both surfaces stay in sync (WT-06) — no wiring
+ * needed here beyond mounting the component.
  *
  * `AppShell` (responsive nav shell, `web-dashboard-redesign-mobile`
  * design.md §5) is mounted here — NOT in `__root.tsx` — because this
@@ -127,6 +136,7 @@ function RouteComponent() {
       sidebarFooter={
         <div className="flex flex-col gap-2">
           <ApiVersionBadge />
+          <SelectorTema compacto />
           <Link
             to="/configuracion"
             aria-label="Configuración de la cuenta"

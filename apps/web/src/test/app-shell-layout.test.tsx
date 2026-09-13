@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createMemoryHistory,
@@ -97,6 +97,40 @@ describe('AppShell wiring in the route tree (real route tree)', () => {
     );
     expect(
       screen.getByRole('navigation', { name: 'Navegación principal (móvil)' }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the compact SelectorTema shortcut in the sidebar footer (WT-06, task 11.2/11.3)', async () => {
+    const fetchStub = buildFetchStub({
+      userId: 'user-1',
+      email: 'usuario@moneydiary.cl',
+      esDemo: false,
+      nombre: 'Usuario de Prueba',
+      googleVinculado: false,
+    });
+    vi.stubGlobal('fetch', fetchStub);
+
+    renderApp('/');
+
+    const barraLateral = await screen.findByRole('navigation', {
+      name: 'Navegación principal',
+    });
+
+    // The three radios live inside the sidebar's footer slot, next to
+    // ApiVersionBadge, the Configuración link and the logout button.
+    expect(
+      within(barraLateral).getByRole('radio', { name: 'Claro' }),
+    ).toBeInTheDocument();
+    expect(
+      within(barraLateral).getByRole('radio', { name: 'Oscuro' }),
+    ).toBeInTheDocument();
+    expect(
+      within(barraLateral).getByRole('radio', { name: 'Sistema' }),
+    ).toBeInTheDocument();
+    expect(
+      within(barraLateral).getByRole('link', {
+        name: 'Configuración de la cuenta',
+      }),
     ).toBeInTheDocument();
   });
 
