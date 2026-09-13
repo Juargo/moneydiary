@@ -5,8 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Fallback estático para cuando el script de abajo no puede correr
-         (JS deshabilitado): coincide con el tema forzado actual (dark). El
-         script lo sobreescribe con el valor resuelto en cuanto se ejecuta. -->
+         (JS deshabilitado): valor dark por defecto. El script lo
+         sobreescribe con el valor resuelto (preferencia guardada u OS) en
+         cuanto se ejecuta. -->
     <meta name="theme-color" content="#1A1917" />
     <title>MoneyDiary</title>
     <!-- Script de pre-paint (WT-04, ADR-043 D5): aplica la clase `dark`,
@@ -16,16 +17,17 @@
          no hay bundler en tiempo de carga de este HTML) —
          `prepaint-tema.test.ts` extrae este texto literal y lo compara con
          el módulo para toda la matriz de entradas. `forzado` acá DEBE
-         mantenerse en lockstep con `TEMA_FORZADO` en `lib/tema.ts`
-         (actualmente 'dark', la palanca de emergencia de S6; ambos pasan a
-         `null` juntos en S7b/PR11). No existe CSP en `apps/web` hoy
-         (`vercel.json` no tiene bloque `headers`); si se agrega una en el
-         futuro, permitir este script por su hash `sha256` en vez de
-         moverlo a un archivo externo (ADR-043). -->
+         mantenerse en lockstep con `TEMA_FORZADO` en `lib/tema.ts` — desde
+         S7b (PR11) ambos quedan en `null` (selector real). Rollback de
+         emergencia: volver a poner `forzado = 'dark'` acá Y `TEMA_FORZADO =
+         'dark'` en `lib/tema.ts` (deben moverse juntos). No existe CSP en
+         `apps/web` hoy (`vercel.json` no tiene bloque `headers`); si se
+         agrega una en el futuro, permitir este script por su hash `sha256`
+         en vez de moverlo a un archivo externo (ADR-043). -->
     <script>
       (function () {
         var p = null,
-          forzado = 'dark'; // S6; null desde S7b (PR11)
+          forzado = null; // Palanca de emergencia: 'dark' para forzar
         try {
           p = localStorage.getItem('moneydiary:tema');
         } catch (e) {}

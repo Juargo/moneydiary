@@ -43,16 +43,22 @@ describe('leerPreferencia', () => {
   });
 });
 
-describe('resolverTema — forzado dark (S6, palanca de emergencia)', () => {
-  it('TEMA_FORZADO está fijo en dark durante esta PR', () => {
-    expect(TEMA_FORZADO).toBe('dark');
+describe('resolverTema — selector desbloqueado (S7b)', () => {
+  it('TEMA_FORZADO queda en null: la palanca de emergencia está apagada', () => {
+    expect(TEMA_FORZADO).toBeNull();
   });
 
-  it.each(['light', 'dark', 'system'] as const)(
-    'gana sobre la preferencia %s, tanto con OS oscuro como claro',
-    (preferencia) => {
-      expect(resolverTema(preferencia, true)).toBe('dark');
-      expect(resolverTema(preferencia, false)).toBe('dark');
+  it.each([
+    ['light', true, 'light'],
+    ['light', false, 'light'],
+    ['dark', true, 'dark'],
+    ['dark', false, 'dark'],
+    ['system', true, 'dark'],
+    ['system', false, 'light'],
+  ] as const)(
+    'preferencia=%s con osOscuro=%s resuelve a %s',
+    (preferencia, osOscuro, esperado) => {
+      expect(resolverTema(preferencia, osOscuro)).toBe(esperado);
     },
   );
 });

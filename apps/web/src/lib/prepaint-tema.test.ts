@@ -151,11 +151,13 @@ describe('script de pre-paint embebido en index.html', () => {
     },
   );
 
-  it('fuerza dark aunque localStorage y el OS digan light (invariante S6)', () => {
-    expect(TEMA_FORZADO).toBe('dark');
-    const resultado = ejecutarScriptPrepaint(script, 'light', false, false);
-    expect(resultado.tieneClaseDark).toBe(true);
-    expect(resultado.colorScheme).toBe('dark');
-    expect(resultado.themeColor).toBe('#1A1917');
+  it('no fuerza ningún tema: TEMA_FORZADO está en null desde S7b', () => {
+    expect(TEMA_FORZADO).toBeNull();
+    // Con el selector desbloqueado, localStorage=light y OS=dark resuelve a
+    // light — la preferencia explícita gana sobre el OS (WT-02).
+    const resultado = ejecutarScriptPrepaint(script, 'light', false, true);
+    expect(resultado.tieneClaseDark).toBe(false);
+    expect(resultado.colorScheme).toBe('light');
+    expect(resultado.themeColor).toBe('#EDF0F5');
   });
 });

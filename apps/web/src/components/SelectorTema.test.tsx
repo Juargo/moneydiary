@@ -136,6 +136,32 @@ describe('SelectorTema', () => {
     expect(controladorSidebar.cambiarPreferencia).not.toHaveBeenCalled();
   });
 
+  it('dos instancias que comparten el MISMO controlador quedan en sync (Perfil ↔ Sidebar, WT-06)', async () => {
+    const controladorCompartido = crearControladorFalso('light');
+    render(
+      <ContextoControladorTema.Provider value={controladorCompartido}>
+        <SelectorTema />
+        <SelectorTema compacto />
+      </ContextoControladorTema.Provider>,
+    );
+    const usuario = userEvent.setup();
+
+    const [radioPerfil, radioSidebar] = screen.getAllByRole('radio', {
+      name: 'Oscuro',
+    });
+    expect(radioPerfil).not.toBeChecked();
+    expect(radioSidebar).not.toBeChecked();
+
+    await usuario.click(radioPerfil);
+
+    // Un solo controlador compartido: la selección hecha en la instancia
+    // "Perfil" se refleja en la instancia "Sidebar" sin ninguna prop ni
+    // contexto extra — es la garantía de producción (D4, `_authenticated.tsx`
+    // y `PerfilPanel.tsx` consumen el mismo `controladorTema` por defecto).
+    expect(radioPerfil).toBeChecked();
+    expect(radioSidebar).toBeChecked();
+  });
+
   it('no tiene violaciones de accesibilidad (variante completa)', async () => {
     const { container } = renderSelector(crearControladorFalso());
 

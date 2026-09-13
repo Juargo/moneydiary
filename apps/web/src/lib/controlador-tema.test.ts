@@ -111,7 +111,7 @@ function crearVentanaFalsa() {
 }
 
 describe('crearControladorTema', () => {
-  it('lee la preferencia inicial de storage y aplica el tema forzado en la construcción', () => {
+  it('lee la preferencia inicial de storage y aplica el tema resuelto en la construcción', () => {
     const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'light' });
     const { matchMedia } = crearMatchMediaFalso(false);
     const { documento, raiz } = crearDocumentoFalso();
@@ -125,10 +125,8 @@ describe('crearControladorTema', () => {
     });
 
     expect(controlador.obtenerEstado().preferencia).toBe('light');
-    // Invariante S6: el tema aplicado sigue forzado a dark aunque la
-    // preferencia guardada sea light.
-    expect(controlador.obtenerEstado().temaResuelto).toBe('dark');
-    expect(raiz.classList.contains('dark')).toBe(true);
+    expect(controlador.obtenerEstado().temaResuelto).toBe('light');
+    expect(raiz.classList.contains('dark')).toBe(false);
   });
 
   it('obtenerEstado devuelve una referencia estable entre llamadas sin cambios', () => {
@@ -160,15 +158,15 @@ describe('crearControladorTema', () => {
     const listener = vi.fn();
     controlador.suscribir(listener);
 
-    controlador.cambiarPreferencia('light');
+    controlador.cambiarPreferencia('dark');
 
-    expect(storage.getItem(CLAVE_PREFERENCIA_TEMA)).toBe('light');
-    expect(controlador.obtenerEstado().preferencia).toBe('light');
+    expect(storage.getItem(CLAVE_PREFERENCIA_TEMA)).toBe('dark');
+    expect(controlador.obtenerEstado().preferencia).toBe('dark');
     expect(controlador.obtenerEstado().temaResuelto).toBe('dark');
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
-  it('cambiarPreferencia sigue aplicando el tema (forzado) aunque falle la escritura en storage', () => {
+  it('cambiarPreferencia sigue aplicando el tema aunque falle la escritura en storage (WT-03)', () => {
     const storage = crearStorageFalso({}, { lanzaAlEscribir: true });
     const { matchMedia } = crearMatchMediaFalso(false);
     const { documento, raiz } = crearDocumentoFalso();
@@ -180,8 +178,8 @@ describe('crearControladorTema', () => {
       ventana,
     });
 
-    expect(() => controlador.cambiarPreferencia('light')).not.toThrow();
-    expect(controlador.obtenerEstado().preferencia).toBe('light');
+    expect(() => controlador.cambiarPreferencia('dark')).not.toThrow();
+    expect(controlador.obtenerEstado().preferencia).toBe('dark');
     expect(raiz.classList.contains('dark')).toBe(true);
   });
 
@@ -206,7 +204,7 @@ describe('crearControladorTema', () => {
   });
 
   describe('iniciar()', () => {
-    it('sigue el cambio de OS solo cuando la preferencia es system, y el tema aplicado queda forzado dark de todas formas', () => {
+    it('sigue el cambio de OS cuando la preferencia es system, actualizando el tema aplicado', () => {
       const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'system' });
       const { matchMedia, cambiarOS } = crearMatchMediaFalso(false);
       const { documento, raiz } = crearDocumentoFalso();
@@ -220,6 +218,9 @@ describe('crearControladorTema', () => {
       const listener = vi.fn();
       controlador.suscribir(listener);
       controlador.iniciar();
+
+      expect(controlador.obtenerEstado().temaResuelto).toBe('light');
+      expect(raiz.classList.contains('dark')).toBe(false);
 
       cambiarOS(true);
 
@@ -264,7 +265,7 @@ describe('crearControladorTema', () => {
       expect(() => controlador.iniciar()).not.toThrow();
     });
 
-    it('reacciona a un evento storage de la clave de tema y mantiene el tema forzado', () => {
+    it('reacciona a un evento storage de la clave de tema y aplica el tema resuelto', () => {
       const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'light' });
       const { matchMedia } = crearMatchMediaFalso(false);
       const { documento, raiz } = crearDocumentoFalso();
