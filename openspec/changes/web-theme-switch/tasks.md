@@ -54,8 +54,8 @@ Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that sh
 
 ## Phase 1: S1a — ADR-043 + doc index rows [records D1-D10] (PR1 `feat/tema-adr-docs`)
 
-- [ ] 1.1 Create `docs/adr/ADR-043-tema-claro-oscuro-web.md` recording D1-D10, `:root`/`.dark`, tri-state + system default, localStorage-only.
-- [ ] 1.2 Add ADR-043 row to `docs/adr/README.md` and the ADR summary row to `CLAUDE.md`.
+- [x] 1.1 Create `docs/adr/ADR-043-tema-claro-oscuro-web.md` recording D1-D10, `:root`/`.dark`, tri-state + system default, localStorage-only.
+- [x] 1.2 Add ADR-043 row to `docs/adr/README.md` and the ADR summary row to `CLAUDE.md`.
 
 ## Phase 2: S1b — Inert token migration to `:root` [D1] (PR2 `feat/tema-tokens-inertes`, base PR1)
 
