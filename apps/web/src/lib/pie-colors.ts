@@ -79,3 +79,38 @@ export function colorEtiquetaPie(bucket: string): string {
  * All clear WCAG 1.4.11's 3:1 non-text floor.
  */
 export const PIE_WEDGE_STROKE = '#0d0f15';
+
+/**
+ * Token-backed replacements for `colorEtiquetaPie`/`PIE_WEDGE_STROKE` above
+ * (D3, `web-theme-switch`): they resolve to `fill-pie-etiqueta-*`/
+ * `stroke-pie-separador` classes pointing at the `--color-pie-etiqueta-*`/
+ * `--color-pie-separador` tokens in `index.css`, so the on-wedge label and
+ * separator flip with the theme once it exists (S6/S7), instead of staying
+ * pinned to today's dark-only values. The three constants above stay as-is
+ * for their current consumers until `web-theme-switch` PR4 rewires them;
+ * both pairs coexist deliberately in the meantime.
+ *
+ * Static full literal per branch, same reason as `claseRellenoBucket` in
+ * `lib/bucket-colors.ts`: Tailwind 4 only emits utilities it can find as a
+ * complete string in source.
+ */
+const CLASE_ETIQUETA_PIE: Record<string, string> = {
+  Necesidades: 'fill-pie-etiqueta-necesidades',
+  Deseos: 'fill-pie-etiqueta-gustos',
+  Ahorro: 'fill-pie-etiqueta-ahorro',
+  SinCategoria: 'fill-pie-etiqueta-sin-categoria',
+};
+
+/**
+ * Mirrors `colorEtiquetaPie`'s fallback: an unrecognized bucket key gets the
+ * same dark-label family the three spend buckets use (Necesidades/Deseos/
+ * Ahorro all resolve to the identical token value today — see `index.css` —
+ * so any of the three is an equivalent fallback; Necesidades is picked for
+ * consistency with `BUCKETS_5030`'s canonical order).
+ */
+export function claseEtiquetaPie(bucket: string): string {
+  return CLASE_ETIQUETA_PIE[bucket] ?? 'fill-pie-etiqueta-necesidades';
+}
+
+/** Token-backed replacement for `PIE_WEDGE_STROKE` above — see the block comment. */
+export const CLASE_SEPARADOR_PIE = 'stroke-pie-separador';
