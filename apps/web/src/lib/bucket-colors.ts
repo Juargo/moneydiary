@@ -4,9 +4,17 @@
  * `openspec/changes/web-dashboard-redesign-mobile/design.md` §1.1 — do NOT
  * port this migration to `apps/mobile`). Hex values MUST match the Tailwind
  * `@theme` tokens in `index.css` (`--color-necesidades`/`--color-gustos`/
- * `--color-ahorro`/`--color-exceso`) — kept as literal hex here (not
- * `var(--color-...)`) because this module also feeds the pure
- * `resumen-view-model` (no DOM, no CSS cascade available).
+ * `--color-ahorro`/`--color-exceso`).
+ *
+ * `resumen-view-model` does NOT import this module (corrected 2026-09-12,
+ * `web-theme-switch` PR3 — the previous docstring claimed otherwise; the
+ * domain layer never imports `lib/`, see that module's own docstring). These
+ * constants stay literal hex for now only because their five presentation
+ * consumers (`DistribucionPie`, `MiniDistribucionPie`, `LeyendaGasto`,
+ * `CategoriasPanel`, `ResumenAnual`) still read them directly; `web-theme-
+ * switch` PR4 moves those consumers onto `claseRellenoBucket`/
+ * `claseFondoBucket` below, and this hex export retires once nothing imports
+ * it (D3).
  *
  * "Brote" palette (2026-09-12): the previous mid-tone pastels (minted for the
  * retired light "Serene Finance" identity and merely left alone by the
@@ -142,3 +150,33 @@ export function construirOpcionesBucket(
  * So "route every focus state through --ring" is still the house grammar, but
  * it is no longer sufficient on its own wherever the ring lands on a fill.
  */
+
+/**
+ * Domain bucket name → Tailwind SVG-fill class, backed by the `--color-*`
+ * tokens above (D3, `web-theme-switch`). Static full literal per branch —
+ * Tailwind 4 detects utilities by scanning source for complete class
+ * strings, so this MUST NOT be built from a template literal or
+ * concatenation (`fill-${slug}` would compile to nothing).
+ */
+const CLASE_RELLENO_BUCKET: Record<string, string> = {
+  Necesidades: 'fill-necesidades',
+  Deseos: 'fill-gustos',
+  Ahorro: 'fill-ahorro',
+  SinCategoria: 'fill-sin-categoria',
+};
+
+export function claseRellenoBucket(bucket: string): string {
+  return CLASE_RELLENO_BUCKET[bucket] ?? 'fill-muted-foreground';
+}
+
+/** Same mapping as `claseRellenoBucket`, for `background-color` instead of SVG `fill`. */
+const CLASE_FONDO_BUCKET: Record<string, string> = {
+  Necesidades: 'bg-necesidades',
+  Deseos: 'bg-gustos',
+  Ahorro: 'bg-ahorro',
+  SinCategoria: 'bg-sin-categoria',
+};
+
+export function claseFondoBucket(bucket: string): string {
+  return CLASE_FONDO_BUCKET[bucket] ?? 'bg-muted-foreground';
+}

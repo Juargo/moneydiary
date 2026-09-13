@@ -66,9 +66,32 @@ Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that sh
 
 ## Phase 3: S1c — `bucket-colors`/`pie-colors` class helpers [D3][WT-09] (PR3 `feat/tema-clase-helpers`, base PR2)
 
-- [ ] 3.1 [RED] Rewrite `apps/web/src/lib/bucket-colors.test.ts` and `pie-colors.test.ts` for `claseRellenoBucket`/`claseFondoBucket`/`claseEtiquetaPie`/`CLASE_SEPARADOR_PIE`.
-- [ ] 3.2 [GREEN] Rewrite `apps/web/src/lib/bucket-colors.ts` and `pie-colors.ts` to return class names, not hex; fix the stale docstring claiming the view-model consumes them [WT-09].
-- [ ] 3.3 [REFACTOR] `pnpm web test -- bucket-colors pie-colors`; `pnpm web lint`.
+- [x] 3.1 [RED] Rewrite `apps/web/src/lib/bucket-colors.test.ts` and `pie-colors.test.ts` for `claseRellenoBucket`/`claseFondoBucket`/`claseEtiquetaPie`/`CLASE_SEPARADOR_PIE`.
+- [x] 3.2 [GREEN] Rewrite `apps/web/src/lib/bucket-colors.ts` and `pie-colors.ts` to return class names, not hex; fix the stale docstring claiming the view-model consumes them [WT-09].
+- [x] 3.3 [REFACTOR] `pnpm web test -- bucket-colors pie-colors`; `pnpm web lint`.
+
+  **Deviation from 3.1/3.2's wording (recorded here and in the PR3 body):**
+  "rewrite ... to return class names" reads as replacing the hex exports.
+  That would break `DistribucionPie`/`MiniDistribucionPie`/`LeyendaGasto`/
+  `CategoriasPanel`/`ResumenAnual`, which still import `COLOR_BUCKET`/
+  `colorEtiquetaPie`/`PIE_WEDGE_STROKE` — those five consumers move to the
+  new class helpers only in PR4 (Phase 4), per this file's own Suggested
+  Work Units row for unit 3 ("PR3 alone leaves unused exports, not a broken
+  build") and per `index.css`'s S1b comment ("PR4 wires the five ...
+  consumers"). Followed that plan instead of the literal task wording: ADDED
+  `claseRellenoBucket`/`claseFondoBucket` (`bucket-colors.ts`) and
+  `claseEtiquetaPie`/`CLASE_SEPARADOR_PIE` (`pie-colors.ts`) alongside the
+  existing hex exports, which are untouched in behavior and stay until PR4
+  retires them. `bucket-colors.test.ts` did not exist before this PR — it
+  is a new file, not a rewrite of one.
+
+  The WT-09 stale-docstring fix from 3.2 IS done as originally worded:
+  `bucket-colors.ts`'s module docstring claimed this module "also feeds the
+  pure `resumen-view-model`" — verified false (`resumen-view-model.ts` only
+  mentions `lib/bucket-colors` in a comment explaining that presentation,
+  not domain, resolves color; it has no import of `lib/` at all, by design).
+  Corrected to state the real reason the hex stays literal for now (still
+  read directly by the five presentation consumers until PR4).
 
 ## Phase 4: S1d — Consumers switch to class helpers (PR4 `feat/tema-consumidores-clases`, base PR3)
 

@@ -70,12 +70,14 @@
    * D3, ADR-043). Declared INERT here in S1b: no consumer reads these
    * tokens yet — `lib/pie-colors.ts` still exports `PIE_LABEL_FILL` /
    * `PIE_LABEL_FILL_LIGHT` / `PIE_WEDGE_STROKE` as literal hex, unchanged.
-   * PR3 rewrites that module to return `fill-pie-etiqueta-*` /
-   * `stroke-pie-separador` classes pointing at these tokens, and PR4 wires
-   * the five pie/legend/categorías consumers. Values below are the SAME
-   * literals as those three constants today, so introducing the tokens now
-   * causes no visual change. They diverge per theme once Clínico frío /
-   * Tinta cálida land (S6/S7) — see design.md's Token Table.
+   * PR3 ADDS `claseEtiquetaPie`/`CLASE_SEPARADOR_PIE` to that module,
+   * returning `fill-pie-etiqueta-*`/`stroke-pie-separador` classes pointing
+   * at these tokens, alongside (not replacing) the three hex constants; PR4
+   * wires the five pie/legend/categorías consumers onto the new classes and
+   * retires the hex trio. Values below are the SAME literals as those three
+   * constants today, so introducing the tokens now causes no visual change.
+   * They diverge per theme once Clínico frío / Tinta cálida land (S6/S7) —
+   * see design.md's Token Table.
    */
   --color-pie-etiqueta-necesidades: #1a1c1c;
   --color-pie-etiqueta-gustos: #1a1c1c;
