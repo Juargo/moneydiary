@@ -210,6 +210,8 @@ attributed `color-scheme: dark` to `:root`.
 
 ## Phase 9: S6 — Runtime store + pre-paint, forced dark [D4][D5][WT-03][WT-04] (PR9 `feat/tema-runtime-prepaint`, base PR8)
 
+**Re-slice in progress (owner-approved, position renumbered 12-15 of 16):** PR9a `feat/tema-runtime-modulo` (#645, base PR8) delivered `lib/tema.ts`. PR9b `feat/tema-controlador-nucleo` (#646, base PR9a) delivers the controller core (`obtenerEstado`/`cambiarPreferencia`/`suscribir`, no `iniciar()`) — 304 lines, green standalone. PR9c (controller listeners, `iniciar()`) and PR9d (hook + `main.tsx`/`index.html` wiring + `prepaint-tema.test.ts`) remain `[ ]`, both base-chained after PR9b.
+
 - [ ] 9.1 [RED] Write `apps/web/src/lib/tema.test.ts`: `leerPreferencia` (throwing/invalid storage → `system`), `resolverTema`, `TEMA_FORZADO='dark'` override.
 - [ ] 9.2 [GREEN] Create `apps/web/src/lib/tema.ts` per the design interfaces.
 - [ ] 9.3 [RED] Write `apps/web/src/lib/controlador-tema.test.ts`: OS follow only under `system`, `storage` events, failing write still applies theme, injected fakes.
