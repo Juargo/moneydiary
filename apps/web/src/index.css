@@ -384,15 +384,15 @@ body {
 
   /*
    * Native `<select>` painted EXPLICITLY rather than left to the UA.
-   * `color-scheme: dark` on :root is necessary but not sufficient: the app's
-   * two native selects (`CampoSelect`, `ReclasificarCategoriaControl`) set
+   * `color-scheme` alone is necessary but not sufficient: the app's two
+   * native selects (`CampoSelect`, `ReclasificarCategoriaControl`) set
    * `text-foreground` and a border but no background, so the face fell
    * through to the UA's own widget theme — which stayed light even with the
-   * root scheme computing to `dark` (verified in-browser: root `dark`,
-   * element `dark`, face still light). A control whose face the design does
-   * not own is a control that leaks the platform's theme, so it is set here,
-   * once, instead of adding a `bg-*` class to each call site and to every
-   * future one.
+   * root scheme computing to `dark` (verified in-browser while `.dark` was
+   * the only theme: root `dark`, element `dark`, face still light). A
+   * control whose face the design does not own is a control that leaks the
+   * platform's theme, so it is set here, once, instead of adding a `bg-*`
+   * class to each call site and to every future one.
    *
    * `option` is listed separately on purpose: the popup list is painted by
    * the OS in its own layer and does not inherit the closed control's
