@@ -68,7 +68,7 @@ function LoginPage() {
       <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-border bg-card p-6 shadow-sm">
         <LoginForm redirectTo={redirect} />
         {error === 'google' && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-error-foreground">
             No pudimos iniciar sesión con Google.
           </p>
         )}

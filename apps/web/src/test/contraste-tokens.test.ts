@@ -77,6 +77,15 @@ const TOKENS_NUEVOS_PIE: Record<string, string> = {
   'color-pie-separador': '#0d0f15',
 };
 
+// Token de S2 (D6, DCR-06) — texto de error separado del fill/border de
+// `--destructive`. Valor de hoy (Tecno-Analítico) idéntico al literal ya
+// vigente en `--color-semaforo-rojo-foreground`/`--color-cargo-foreground`;
+// S3/S4 lo reemplazan por los valores medidos de cada tema
+// (`palette-measurements.md`).
+const TOKENS_NUEVOS_ERROR: Record<string, string> = {
+  'color-error-foreground': '#fb7185',
+};
+
 describe('contraste-tokens', () => {
   const css = leerIndexCssSinComentarios();
 
@@ -93,6 +102,15 @@ describe('contraste-tokens', () => {
     'token nuevo de pie --%s',
     (token, esperado) => {
       it(`declara ${esperado} (S1b, D3)`, () => {
+        expect(valorDeclarado(css, token)).toBe(esperado);
+      });
+    },
+  );
+
+  describe.each(Object.entries(TOKENS_NUEVOS_ERROR))(
+    'token nuevo de error --%s',
+    (token, esperado) => {
+      it(`declara ${esperado} (S2, D6)`, () => {
         expect(valorDeclarado(css, token)).toBe(esperado);
       });
     },

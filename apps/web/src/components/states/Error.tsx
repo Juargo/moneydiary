@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
  * assistive technology instead of failing silently.
  *
  * Design-system hardening round 2 (P1): the message now carries
- * `text-destructive` (it IS an error, semantically) and the hand-rolled
+ * `text-error-foreground` (it IS an error, semantically) and the hand-rolled
  * `rounded-full bg-slate-800` retry pill is retired in favor of the shared
  * `<Button>` (default variant — the only action on this screen, same
  * weight as a primary "Confirmar"). Contrast (index.css hexes):
@@ -43,7 +43,7 @@ export function ErrorState({
 }) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-8 text-center">
-      <p role="alert" className="text-sm text-destructive">
+      <p role="alert" className="text-sm text-error-foreground">
         {mensaje ?? error.message}
       </p>
       <Button type="button" onClick={onRetry}>

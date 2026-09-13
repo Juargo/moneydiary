@@ -178,6 +178,21 @@
    * amounts deliberately do NOT take this color.
    */
   --color-cargo-foreground: #fb7185;
+
+  /*
+   * Error/validation TEXT (`web-theme-switch` D6, DCR-06). Split off `--destructive`
+   * because, in Tinta cálida (dark), no single value clears AA for both roles at
+   * once: white text on the fill needs L≤0.183, while text directly on the card
+   * needs L≥0.244 (`palette-measurements.md`'s addendum — `#E11D48`/`#BE4E43` as
+   * TEXT on the dark card measure 3.43:1/3.34:1, both below 4.5:1). `--destructive`
+   * stays a fill/border token only (buttons, invalid-input outlines); this token is
+   * for every `text-destructive` reader (form errors, delete confirmations, etc.).
+   * SAME literal as `--color-semaforo-rojo-foreground`/`--color-cargo-foreground`
+   * for now (today's Tecno-Analítico identity has one palette) but deliberately its
+   * own token, same discipline as `exito`/`cargo` above — S3/S4 give it its own
+   * measured value per theme (dark `#D97A72`, light `#B4143C`).
+   */
+  --color-error-foreground: #fb7185;
 }
 
 /*

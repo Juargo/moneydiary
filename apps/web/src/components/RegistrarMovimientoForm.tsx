@@ -524,7 +524,7 @@ export function RegistrarMovimientoForm({
           disabled={esDemo || formularioBloqueado}
         />
         {errores.fecha && (
-          <p className="text-sm text-destructive">{errores.fecha}</p>
+          <p className="text-sm text-error-foreground">{errores.fecha}</p>
         )}
 
         {/* Descripción — CampoTexto (type='text', D-15) */}
@@ -537,7 +537,7 @@ export function RegistrarMovimientoForm({
           disabled={esDemo || formularioBloqueado}
         />
         {errores.descripcion && (
-          <p className="text-sm text-destructive">{errores.descripcion}</p>
+          <p className="text-sm text-error-foreground">{errores.descripcion}</p>
         )}
 
         {/* Monto — CampoTexto (type='text', inputMode='numeric', pattern
@@ -552,7 +552,7 @@ export function RegistrarMovimientoForm({
           disabled={esDemo || formularioBloqueado}
         />
         {errores.monto && (
-          <p className="text-sm text-destructive">{errores.monto}</p>
+          <p className="text-sm text-error-foreground">{errores.monto}</p>
         )}
       </fieldset>
 
@@ -570,7 +570,7 @@ export function RegistrarMovimientoForm({
           </legend>
           {/* Catalog error degrade (D-08, CA-08) */}
           {catalogo.tag === 'error' && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-error-foreground">
               No se pudo cargar el catálogo de categorías. Puedes intentar con
               los valores que ya tienes seleccionados o reintentar más tarde.
             </p>
@@ -608,7 +608,7 @@ export function RegistrarMovimientoForm({
           />
 
           {errores.cascade && (
-            <p className="text-sm text-destructive">{errores.cascade}</p>
+            <p className="text-sm text-error-foreground">{errores.cascade}</p>
           )}
         </fieldset>
       )}
@@ -621,7 +621,7 @@ export function RegistrarMovimientoForm({
       )}
 
       {/* Error feedback region (role="alert", D-10, PerfilForm idiom) */}
-      <div role="alert" className="text-sm text-destructive">
+      <div role="alert" className="text-sm text-error-foreground">
         {feedback?.tono === 'error' && <p>{feedback.texto}</p>}
       </div>
 

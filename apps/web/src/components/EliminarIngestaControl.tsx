@@ -161,7 +161,7 @@ export function EliminarIngestaControl({
         disabled={esDemo}
         onClick={abrir}
         aria-label={`Eliminar cartola ${banco} (${fechaLabel})`}
-        className="text-destructive"
+        className="text-error-foreground"
       >
         Eliminar
       </Button>

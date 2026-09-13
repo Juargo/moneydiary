@@ -135,12 +135,26 @@ Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that sh
 
 ## Phase 5: S2 — error-foreground split [D6][DCR-06] (PR5 `feat/tema-error-foreground`, base PR4b)
 
-- [ ] 5.1 Add `--color-error-foreground` to `apps/web/src/index.css` (today's Tecno value `#fb7185`, per design's temporary marker).
-- [ ] 5.2 [RED] Extend `contraste-tokens.test.ts` with the `error-foreground` pair (fails until 5.1).
-- [ ] 5.3 [GREEN] Confirm 5.2 passes.
-- [ ] 5.4 Grep `text-destructive` under `apps/web/src` (34 usages, 19 files) and `apps/web/src/components/BucketDetalleMesPage.tsx:156` (`text-red-600`); replace all with `text-error-foreground`; keep `--destructive` fill/border usages untouched.
-- [ ] 5.5 [GREEN] Update every test asserting `text-destructive`/`text-red-600` class output in the touched 19+1 files to `text-error-foreground`.
-- [ ] 5.6 [REFACTOR] `pnpm web test`, `pnpm web lint`; re-run `contraste-tokens.test.ts`.
+- [x] 5.1 Add `--color-error-foreground` to `apps/web/src/index.css` (today's Tecno value `#fb7185`, per design's temporary marker).
+- [x] 5.2 [RED] Extend `contraste-tokens.test.ts` with the `error-foreground` pair (fails until 5.1).
+- [x] 5.3 [GREEN] Confirm 5.2 passes.
+- [x] 5.4 Grep `text-destructive` under `apps/web/src` (34 usages, 19 files) and `apps/web/src/components/BucketDetalleMesPage.tsx:156` (`text-red-600`); replace all with `text-error-foreground`; keep `--destructive` fill/border usages untouched.
+- [x] 5.5 [GREEN] Update every test asserting `text-destructive`/`text-red-600` class output in the touched 19+1 files to `text-error-foreground`.
+- [x] 5.6 [REFACTOR] `pnpm web test`, `pnpm web lint`; re-run `contraste-tokens.test.ts`.
+
+  **TDD order note:** followed the inverted order the orchestrator specified
+  instead of 5.1-before-5.2's literal wording: wrote the failing
+  `contraste-tokens.test.ts` expectation FIRST (RED — `undefined` !== `#fb7185`),
+  then added the token (GREEN). Same for 5.4/5.5: flipped the two existing
+  class assertions (`Error.test.tsx`, `EditarCategoria.test.tsx`) to expect
+  `text-error-foreground` FIRST (RED — both failed against the still-unmigrated
+  components), then did the 34+1 usage migration (GREEN). Only two test files
+  asserted the class directly; the other 32 migrated usages had no dedicated
+  class-assertion test to flip. `rg` confirmed the 34+1 count and, post-migration,
+  that the only two remaining `text-destructive`/`text-red-600` string matches
+  under `apps/web/src` are explanatory prose comments (`index.css`'s new
+  token docstring; `PerfilPanel.tsx`'s note about a PRIOR, unrelated raw-hex
+  migration) — not live usages.
 
 ## Phase 6: S3 — `.dark` = Tinta cálida [D2][D7][DCR-07] (PR6 `feat/tema-dark-tinta-calida`, base PR5)
 
