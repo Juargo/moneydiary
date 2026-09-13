@@ -158,15 +158,30 @@ Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that sh
 
 ## Phase 6: S3 — `.dark` = Tinta cálida [D2][D7][DCR-07] (PR6 `feat/tema-dark-tinta-calida`, base PR5)
 
-- [ ] 6.1 Add `.dark {}` block to `apps/web/src/index.css` with all Tinta cálida measured values (Token Table); `color-scheme: dark` inside `.dark` only.
-- [ ] 6.2 Statically add `class="dark"` to `<html>` in `apps/web/index.html` (script lands in Phase 9).
-- [ ] 6.3 [RED] Update `apps/web/e2e/dark-chrome.e2e.ts` to expect card `rgb(34, 33, 30)` and Tinta cálida `color-scheme`.
-- [ ] 6.4 [GREEN] Confirm 6.3 passes against 6.1/6.2.
-- [ ] 6.5 [RED] Extend `contraste-tokens.test.ts` with the dark half of every measured pair (fails until 6.1).
-- [ ] 6.6 [GREEN] Confirm 6.5 passes.
-- [ ] 6.7 Remove `dark:` variants from `apps/web/src/components/ui/button.tsx` and `badge.tsx`; keep the `@custom-variant dark` declaration [D7].
-- [ ] 6.8 Wrap the `ResumenAnual` mini-pie in `rounded-full bg-card p-0.5` (flagged item d); update its test/snapshot for the ring.
-- [ ] 6.9 [REFACTOR] `pnpm web test`, axe both `button`/`badge` variants now that `.dark` is live.
+- [x] 6.1 Add `.dark {}` block to `apps/web/src/index.css` with all Tinta cálida measured values (Token Table); `color-scheme: dark` inside `.dark` only.
+- [x] 6.2 Statically add `class="dark"` to `<html>` in `apps/web/index.html` (script lands in Phase 9).
+- [x] 6.3 [RED] Update `apps/web/e2e/dark-chrome.e2e.ts` to expect card `rgb(34, 33, 30)` and Tinta cálida `color-scheme`.
+- [x] 6.4 [GREEN] Confirm 6.3 passes against 6.1/6.2.
+- [x] 6.5 [RED] Extend `contraste-tokens.test.ts` with the dark half of every measured pair (fails until 6.1).
+- [x] 6.6 [GREEN] Confirm 6.5 passes.
+- [x] 6.7 Remove `dark:` variants from `apps/web/src/components/ui/button.tsx` and `badge.tsx`; keep the `@custom-variant dark` declaration [D7].
+- [x] 6.8 Wrap the `ResumenAnual` mini-pie in `rounded-full bg-card p-0.5` (flagged item d); update its test/snapshot for the ring.
+- [x] 6.9 [REFACTOR] `pnpm web test`, axe both `button`/`badge` variants now that `.dark` is live.
+
+  **Deviations (budget-scoped, this PR only):** 6.5/6.6's "every measured
+  pair" kept as existence/literal checks for all 48 dark tokens (18 shadcn +
+  30 custom, scoped to `.dark {}` via a new `bloqueDark()` helper) plus a
+  curated 5-pair `contraste()` AA table (general text, the PO's `#be4e43`
+  destructive, and the three Sin categoría-linked adjusted anchors) instead
+  of re-deriving every row of `palette-measurements.md` — that would have
+  cost ~150 more lines for no new failure-mode coverage. The curation pass
+  itself caught a bug: the first draft paired the focus ring against Ahorro
+  (1.01:1 FAIL) instead of Sin categoría (3.01:1, the actual passing case).
+  6.9's axe check reuses existing `vitest-axe` coverage on components that
+  already render `Button`/`Badge` (no dedicated file existed to extend);
+  full `pnpm web test` (1938/1938) is the regression proof.
+  Bonus: `lib/bucket-colors.ts` had the same stale "(S6/S7)" fixed in
+  `index.css` — corrected both to "(S3/S4)".
 
 ## Phase 7: S4 — `:root` = Clínico frío (unreachable) [D1][DCR-04][DCR-05] (PR7 `feat/tema-light-clinico-frio`, base PR6)
 

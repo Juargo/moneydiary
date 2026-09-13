@@ -515,6 +515,37 @@ describe('ResumenAnual', () => {
     });
   });
 
+  // web-theme-switch S3 flagged item (d): the wedge edge must touch the
+  // card (`bg-card`), not the `bg-ingreso` selected-month tint — dark Sin
+  // categoría's fill only clears 3:1 against the card (2.85:1 against the
+  // tint, `palette-measurements.md`). Unconditional ring, so it wraps the
+  // pie on every cell, selected or not, without any layout shift (the pie
+  // stays inside its existing h-16 w-16 box).
+  it('wraps the mini pie in a rounded card ring so its edge never touches the ingreso tint (flagged item d)', async () => {
+    mockFetchAnual({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(anioConDatosHastaJulio()),
+    });
+
+    renderConRouter(
+      <ResumenAnual
+        anio={2026}
+        periodoSeleccionado="2026-03"
+        onSelectPeriodo={vi.fn()}
+        ahora={AHORA}
+      />,
+    );
+
+    const botonMarzo = await screen.findByRole('button', {
+      name: 'Ver marzo 2026',
+    });
+    const anillo = within(botonMarzo).getByTestId('mini-pie-ring');
+    expect(anillo.className).toContain('rounded-full');
+    expect(anillo.className).toContain('bg-card');
+    expect(anillo.className).toContain('p-0.5');
+  });
+
   it('a sinIngreso month that is also the current month stays disabled but still carries aria-current="date" (FIX 5)', async () => {
     const onSelectPeriodo = vi.fn();
     const datos = anioConDatosHastaJulio();

@@ -1,12 +1,10 @@
 @import 'tailwindcss';
 
 /*
- * `.dark` is never applied by anything: the Tecno-Analítico restyle
- * (2026-09-02) makes dark the ONLY theme, so the dark values live directly in
- * `:root` and there is no theme toggle — same single-system decision the
- * previous light identity made, only inverted. This variant stays declared
- * because shadcn's stock `button.tsx` / `badge.tsx` still ship `dark:`
- * utility classes that need it to compile.
+ * `.dark` carries the Tinta cálida identity (below) and is applied
+ * statically on `<html>` (`web-theme-switch` S3) — the pre-paint script
+ * that makes it dynamic lands in S6. `button.tsx`/`badge.tsx` no longer use
+ * this variant (D7, S3); it stays declared for any future `dark:` utility.
  */
 @custom-variant dark (&:is(.dark *));
 
@@ -75,7 +73,7 @@
    * `PIE_WEDGE_STROKE` trio that module used to export was retired the same
    * PR. Values below are unchanged from those retired constants, so this
    * migration caused no visual change. They diverge per theme once Clínico
-   * frío / Tinta cálida land (S6/S7) — see design.md's Token Table.
+   * frío / Tinta cálida land (S3/S4) — see design.md's Token Table.
    */
   --color-pie-etiqueta-necesidades: #1a1c1c;
   --color-pie-etiqueta-gustos: #1a1c1c;
@@ -283,6 +281,100 @@
    */
   --input: #5d6a8e;
   --ring: #67e8f9; /* focus ring — light cyan, 13.64:1 on background, 12.80:1 on card */
+}
+
+/*
+ * `.dark` — Tinta cálida (`web-theme-switch` S3, D1/D2/D7, DCR-07). Values
+ * measured in `palette-measurements.md`; `design.md`'s Token Table is the
+ * per-token source of truth this block mirrors.
+ *
+ * CSS ORDERING TRAP (D1): `.dark` and `:root` share the same specificity
+ * (0,1,0) and both match `<html class="dark">`. `@layer`ed rules (the
+ * `@theme` blocks above) always lose to unlayered ones regardless of order,
+ * but `:root`'s shadcn raw vars are unlayered too — so for THOSE, source
+ * order breaks the tie. This block MUST stay physically AFTER `:root`.
+ *
+ * Every token is a separate literal even where the hex repeats across rows
+ * (no aliasing, same discipline `:root` already follows). `--radius` and
+ * the fonts are theme-invariant and stay untouched.
+ */
+.dark {
+  color-scheme: dark;
+
+  /* shadcn raw vars (D1, D7) */
+  --background: #1a1917;
+  --foreground: #d5d0c6;
+  --card: #22211e;
+  --card-foreground: #d5d0c6;
+  --popover: #22211e;
+  --popover-foreground: #d5d0c6;
+  --muted: #2a2825;
+  --muted-foreground: #9a9488;
+  --accent: #302e2a;
+  --accent-foreground: #d5d0c6;
+  --primary: #6fb8be;
+  --primary-foreground: #1a1917;
+  --secondary: #b0a893;
+  --secondary-foreground: #1a1917;
+  /* Product-owner pick (2026-09-12, flagged item c) over the
+   * reused-shipped #e11d48 — white text 4.82:1 AA. */
+  --destructive: #be4e43;
+  --border: #3f3b34;
+  --input: #7a7362;
+  --ring: #8fcdd2;
+
+  /* Bucket fills ("Brote", WT-08) — sin-categoria/exceso are adjusted
+   * anchors (`palette-measurements.md`: #686663 → #696c63 clears the new
+   * card's 3:1 floor without breaking the CVD/normal-vision floor). */
+  --color-necesidades: #77a7e5;
+  --color-gustos: #bb6c90;
+  --color-ahorro: #47dab4;
+  --color-exceso: #bf9350;
+  --color-sin-categoria: #696c63;
+
+  /* On-wedge pie labels + separator (D3) — re-derived for the new dark
+   * surfaces, not reused Tecno-Analítico literals. */
+  --color-pie-etiqueta-necesidades: #1a1c1c;
+  --color-pie-etiqueta-gustos: #1a1c1c;
+  --color-pie-etiqueta-ahorro: #1a1c1c;
+  --color-pie-etiqueta-sin-categoria: #f0eee9;
+  --color-pie-separador: #100f0d;
+
+  /* Income card pair (DCR-01/03) */
+  --color-ingreso: #202a1e;
+  --color-ingreso-foreground: #7fb77e;
+
+  /* Identity-link status pair (US-042) — same verified pair as `ingreso`,
+   * literal on purpose (see the `:root`/`@theme` docstring above). */
+  --color-vinculo-activo: #202a1e;
+  --color-vinculo-activo-foreground: #7fb77e;
+
+  /* Semáforo chip pairs — PO anchors read as -foreground ink (mirrors the
+   * shipped fill+ink pattern); the fill tints were derived. */
+  --color-semaforo-verde: #202a1e;
+  --color-semaforo-verde-foreground: #7fb77e;
+  --color-semaforo-amarillo: #2b2313;
+  --color-semaforo-amarillo-foreground: #d9a44c;
+  --color-semaforo-rojo: #2b1f1d;
+  --color-semaforo-rojo-foreground: #d97a72;
+
+  /* Semáforo zone-band fills (`ZonaBar.tsx`) — non-text, so they reuse the
+   * -foreground ink directly as a saturated mark rather than a tint. */
+  --color-semaforo-verde-band: #7fb77e;
+  --color-semaforo-amarillo-band: #d9a44c;
+  --color-semaforo-rojo-band: #d97a72;
+
+  /* Warning surface family */
+  --color-warning: #2b2210;
+  --color-warning-border: #8a6a2e;
+  --color-warning-foreground: #d9a44c;
+  --color-warning-accent: #332813;
+
+  /* Success/expense/error TEXT — literal-per-intent, never `var()` aliased.
+   * `error-foreground` (D6): 5.35:1 on card / 5.84:1 on background, AA. */
+  --color-exito-foreground: #7fb77e;
+  --color-cargo-foreground: #d97a72;
+  --color-error-foreground: #d97a72;
 }
 
 @theme inline {
