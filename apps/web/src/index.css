@@ -55,29 +55,27 @@
    *
    * All clear the 3:1 non-text floor. Unlike the other three,
    * `--color-sin-categoria`'s fill is too dark for the donut's shared dark
-   * on-wedge label (`PIE_LABEL_FILL` #1a1c1c, 2.99:1 against it) — it takes a
-   * light label instead (`PIE_LABEL_FILL_LIGHT` #e8e6e1, 4.59:1), resolved
-   * per bucket by `colorEtiquetaPie` in `lib/pie-colors.ts`.
+   * on-wedge label (`--color-pie-etiqueta-*` #1a1c1c, 2.99:1 against it) — it
+   * takes a light label instead (`--color-pie-etiqueta-sin-categoria`
+   * #e8e6e1, 4.59:1), resolved per bucket by `claseEtiquetaPie` in
+   * `lib/pie-colors.ts`.
    */
-  --color-necesidades: #77a7e5; /* steel blue — Necesidades */
-  --color-gustos: #bb6c90; /* plum — Deseos/Gustos */
-  --color-ahorro: #47dab4; /* jade — Ahorro */
+  --color-necesidades: #77a7e5; /* steel blue — Necesidades, consumed via fill-/bg-necesidades */
+  --color-gustos: #bb6c90; /* plum — Deseos/Gustos, consumed via fill-/bg-gustos */
+  --color-ahorro: #47dab4; /* jade — Ahorro, consumed via fill-/bg-ahorro */
   --color-exceso: #e88a8a; /* coral — over-budget state (currently unconsumed) */
-  --color-sin-categoria: #686663; /* mid grey — donut ring's 4th wedge (US-047 D-08) (currently unconsumed) */
+  --color-sin-categoria: #686663; /* mid grey — donut ring's 4th wedge (US-047 D-08), consumed via fill-/bg-sin-categoria */
 
   /*
    * On-wedge pie label fills + wedge separator stroke (`web-theme-switch`
-   * D3, ADR-043). Declared INERT here in S1b: no consumer reads these
-   * tokens yet — `lib/pie-colors.ts` still exports `PIE_LABEL_FILL` /
-   * `PIE_LABEL_FILL_LIGHT` / `PIE_WEDGE_STROKE` as literal hex, unchanged.
-   * PR3 ADDS `claseEtiquetaPie`/`CLASE_SEPARADOR_PIE` to that module,
-   * returning `fill-pie-etiqueta-*`/`stroke-pie-separador` classes pointing
-   * at these tokens, alongside (not replacing) the three hex constants; PR4
-   * wires the five pie/legend/categorías consumers onto the new classes and
-   * retires the hex trio. Values below are the SAME literals as those three
-   * constants today, so introducing the tokens now causes no visual change.
-   * They diverge per theme once Clínico frío / Tinta cálida land (S6/S7) —
-   * see design.md's Token Table.
+   * D3, ADR-043). Consumed since PR4 via `claseEtiquetaPie`/
+   * `CLASE_SEPARADOR_PIE` (`lib/pie-colors.ts`), which resolve to the
+   * `fill-pie-etiqueta-*`/`stroke-pie-separador` classes bound to these
+   * tokens — the literal-hex `PIE_LABEL_FILL`/`PIE_LABEL_FILL_LIGHT`/
+   * `PIE_WEDGE_STROKE` trio that module used to export was retired the same
+   * PR. Values below are unchanged from those retired constants, so this
+   * migration caused no visual change. They diverge per theme once Clínico
+   * frío / Tinta cálida land (S6/S7) — see design.md's Token Table.
    */
   --color-pie-etiqueta-necesidades: #1a1c1c;
   --color-pie-etiqueta-gustos: #1a1c1c;
@@ -201,16 +199,15 @@
  * no toggle and no `.dark` block.
  *
  * ⚠️ REVERTING IS NOT A ONE-FILE OPERATION. Restoring the light identity
- * means reverting THIS file AND re-deriving `PIE_WEDGE_STROKE` in
- * `lib/pie-colors.ts`. That constant is a hand-picked literal (it cannot be a
- * token — see its own docstring), and its current value #0d0f15 was chosen to
- * disappear into the DARK surfaces below. Revert `index.css` alone and
- * `--card` goes back to white while the donut keeps a near-black stroke:
- * exactly the halo defect this restyle removed, pointing the other way. No
- * test catches that — the pie specs assert the literal, not its contrast
- * against whatever `--card` currently resolves to, so a half-revert ships
- * green. `git show HEAD~:apps/web/src/index.css` and
- * `git show HEAD~:apps/web/src/lib/pie-colors.ts` have both sets of values.
+ * means reverting THIS file's `--color-pie-separador` token too (`web-theme-
+ * switch` D3 moved the wedge separator from a hand-picked literal in
+ * `lib/pie-colors.ts` to this token — see that module's docstring). Its
+ * current value #0d0f15 was chosen to disappear into the DARK surfaces
+ * below. Revert only the surface tokens below and `--card` goes back to
+ * white while the donut keeps a near-black stroke: exactly the halo defect
+ * this restyle removed, pointing the other way. The pie specs assert the
+ * resolved class, not a live contrast ratio, so a half-revert ships green.
+ * `git show HEAD~:apps/web/src/index.css` has the prior token values.
  */
 :root {
   /*

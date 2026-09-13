@@ -4,10 +4,10 @@
 
 | Field | Value |
 |-------|-------|
-| Estimated changed lines | PR1 ~90-180 · PR2 ~250-380 · PR3 ~190-350 · PR4 ~125-350 · PR5 ~150-350 · PR6 ~200-300 · PR7 ~150-250 · PR8 ~80-150 · PR9 ~200-300 · PR10 ~150-250 · PR11 ~200-300 |
+| Estimated changed lines | PR1 ~90-180 · PR2 ~250-380 · PR3 ~190-350 · PR4a 315 (measured) · PR4b ~300-350 · PR5 ~150-350 · PR6 ~200-300 · PR7 ~150-250 · PR8 ~80-150 · PR9 ~200-300 · PR10 ~150-250 · PR11 ~200-300 |
 | 400-line budget risk | Low — every upper bound in the plan is ≤380; the former S1 (previously flagged ~450-600) is now four PRs, each with margin below 400 |
 | Chained PRs recommended | Yes |
-| Suggested split | Tracker → PR1(S1a) → PR2(S1b) → PR3(S1c) → PR4(S1d) → PR5(S2) → PR6(S3) → PR7(S4) → PR8(S5) → PR9(S6) → PR10(S7a) → PR11(S7b) |
+| Suggested split | Tracker → PR1(S1a) → PR2(S1b) → PR3(S1c) → PR4a(S1d-a) → PR4b(S1d-b) → PR5(S2) → PR6(S3) → PR7(S4) → PR8(S5) → PR9(S6) → PR10(S7a) → PR11(S7b) |
 | Delivery strategy | auto-chain |
 | Chain strategy | feature-branch-chain |
 
@@ -25,8 +25,9 @@ main
      └─ PR1  feat/tema-adr-docs                  (base: tracker)   S1a
          └─ PR2  feat/tema-tokens-inertes         (base: PR1)      S1b
              └─ PR3  feat/tema-clase-helpers      (base: PR2)      S1c
-                 └─ PR4  feat/tema-consumidores-clases (base: PR3) S1d
-                     └─ PR5  feat/tema-error-foreground (base: PR4) S2
+                 └─ PR4a feat/tema-consumidores-clases (base: PR3) S1d-a
+                  └─ PR4b feat/tema-retira-hex        (base: PR4a) S1d-b
+                     └─ PR5  feat/tema-error-foreground (base: PR4b) S2
                          └─ PR6  feat/tema-dark-tinta-calida (base: PR5) S3
                              └─ PR7  feat/tema-light-clinico-frio (base: PR6) S4
                                  └─ PR8  docs/tema-design-rewrite (base: PR7) S5
@@ -43,7 +44,8 @@ Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that sh
 | 1 (S1a) | ADR-043 + doc index rows, no code | PR1 | N/A — docs-only | N/A — docs-only | Revert PR1 branch |
 | 2 (S1b) | Move theme-adjacent tokens from `@theme` into `:root` with today's (Tecno) values, add placeholder pie tokens; no visual change | PR2 | `pnpm web test -- contraste-tokens` | `pnpm web typecheck` — confirm no consumer regresses | Revert PR2 branch; tokens return to `@theme`, no behavior change |
 | 3 (S1c) | `bucket-colors.ts`/`pie-colors.ts` return class names instead of hex | PR3 | `pnpm web test -- bucket-colors pie-colors` | N/A — pure functions, no DOM; confirm via `pnpm web lint` | Revert PR3 branch; consumers still import PR3 exports until PR4, so PR3 alone leaves unused exports, not a broken build |
-| 4 (S1d) | 5 consumer components switch to class helpers, no runtime file left importing hex constants | PR4 | `pnpm web test -- DistribucionPie MiniDistribucionPie LeyendaGasto CategoriasPanel ResumenAnual` | Manual `pnpm web dev`: pies/legend render identical colors (still Tecno values) | Revert PR4 branch; consumers revert to hex/inline `style` |
+| 4a (S1d-a) | 5 consumer components switch to class helpers; hex exports still present | PR4a (#638) | `pnpm web test -- DistribucionPie MiniDistribucionPie LeyendaGasto CategoriasPanel ResumenAnual` | Playwright computed style: Ahorro wedge `fill` rgb(71, 218, 180), separator `stroke` rgb(13, 15, 21) | Revert PR4a branch; consumers revert to hex/inline `style` |
+| 4b (S1d-b) | Retire the unused hex exports and the docstrings/tests that named them (closes WT-09) | PR4b | `pnpm web test -- bucket-colors pie-colors contraste-tokens` | `rg` proves zero importers of the retired exports in `apps/web/src` + `apps/web/e2e` | Revert PR4b branch; hex exports return, unused |
 | 5 (S2) | Split error text from `--destructive` fill | PR5 | `pnpm web test -- error-foreground` | Manual `pnpm web dev`: a form validation error still reads legibly | Revert PR5 branch; `text-destructive` usages restored |
 | 6 (S3) | `.dark` becomes Tinta cálida | PR6 | `pnpm web test -- contraste-tokens` | `pnpm --filter @moneydiary/web exec playwright test e2e/dark-chrome.e2e.ts` | Revert PR6 branch; `:root` (old Tecno) still governs since class stays static |
 | 7 (S4) | `:root` becomes Clínico frío (unreachable) | PR7 | `pnpm web test -- contraste-tokens` | `pnpm --filter @moneydiary/web exec playwright test e2e/light-chrome.e2e.ts` | Revert PR7 branch; static `.dark` class still forces dark |
@@ -93,12 +95,45 @@ Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that sh
   Corrected to state the real reason the hex stays literal for now (still
   read directly by the five presentation consumers until PR4).
 
-## Phase 4: S1d — Consumers switch to class helpers (PR4 `feat/tema-consumidores-clases`, base PR3)
+## Phase 4: S1d — Consumers switch to class helpers (PR4a `feat/tema-consumidores-clases` #638, base PR3; PR4b `feat/tema-retira-hex`, base PR4a)
 
-- [ ] 4.1 [GREEN] Update `DistribucionPie.tsx`, `MiniDistribucionPie.tsx`, `LeyendaGasto.tsx`, `CategoriasPanel.tsx`, `ResumenAnual.tsx` to consume class helpers instead of hex/inline `style`; update their tests to assert classes, not hex.
-- [ ] 4.2 [REFACTOR] `pnpm web lint` and `pnpm web typecheck`; confirm no runtime file imports the removed hex constants (closes the WT-09 import check for the whole S1 chain).
+- [x] 4.1 [GREEN] (PR4a) Update `DistribucionPie.tsx`, `MiniDistribucionPie.tsx`, `LeyendaGasto.tsx`, `CategoriasPanel.tsx`, `ResumenAnual.tsx` to consume class helpers instead of hex/inline `style`; update their tests to assert classes, not hex.
+- [x] 4.2 [REFACTOR] (PR4b) `pnpm web lint` and `pnpm web typecheck`; confirm no runtime file imports the removed hex constants (closes the WT-09 import check for the whole S1 chain).
 
-## Phase 5: S2 — error-foreground split [D6][DCR-06] (PR5 `feat/tema-error-foreground`, base PR4)
+  **`ResumenAnual.tsx` needed no code change:** it never imports
+  `bucket-colors`/`pie-colors` directly — its mini-pie color comes from
+  `MiniDistribucionPie` (already switched). Its own test
+  (`ResumenAnual.test.tsx`) DID assert `mini-pie-slice`'s hex `fill`
+  attribute directly and was updated to assert the resolved class instead.
+
+  **`COLOR_BUCKET`/`COLOR_EXCESO`/`colorEtiquetaPie`/`PIE_LABEL_FILL`/
+  `PIE_LABEL_FILL_LIGHT`/`PIE_WEDGE_STROKE` removed** from
+  `bucket-colors.ts`/`pie-colors.ts` this PR (confirmed via `rg` across
+  `apps/web/src` + `apps/web/e2e` — zero remaining importers before
+  deletion), closing WT-09 for the whole S1 chain. Docstrings in both
+  modules, `index.css`, and `contraste-tokens.test.ts` updated to stop
+  naming the retired exports. `CategoriasPanel.tsx`'s bucket swatch (no
+  prior color test) gained a `data-testid="bucket-swatch"` and one new
+  class-assertion test, mirroring `LeyendaGasto`'s existing dot coverage —
+  the swap from inline `style` to a class had no test guarding it before.
+
+  **Split into PR4a + PR4b (maintainer decision, 2026-09-12):** the first
+  delivery of this phase measured 661 changed lines against PR3, over the
+  400-line budget. It was re-sliced along the natural revert boundary the
+  original "no cohesive split" note missed: switching consumers does not
+  require removing the exports in the same PR, because the exports can stay
+  unused for one PR without breaking the build (WT-09 closes in PR4b, and
+  `main` never sees the intermediate state under the feature-branch chain).
+  - **PR4a** (#638, 315 lines): the five consumers and their tests; hex
+    exports still present. Verified in isolation: 1871 tests, typecheck,
+    lint green.
+  - **PR4b** (`feat/tema-retira-hex`, ~309 code lines + this note): removes
+    the six hex exports, their tests, and the docstrings in
+    `bucket-colors.ts`, `pie-colors.ts`, `index.css` and
+    `contraste-tokens.test.ts` that named them.
+  The native attempt ledger was reset by the maintainer for this re-slice.
+
+## Phase 5: S2 — error-foreground split [D6][DCR-06] (PR5 `feat/tema-error-foreground`, base PR4b)
 
 - [ ] 5.1 Add `--color-error-foreground` to `apps/web/src/index.css` (today's Tecno value `#fb7185`, per design's temporary marker).
 - [ ] 5.2 [RED] Extend `contraste-tokens.test.ts` with the `error-foreground` pair (fails until 5.1).

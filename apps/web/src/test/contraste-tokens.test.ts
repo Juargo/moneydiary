@@ -64,11 +64,11 @@ const TOKENS_EXISTENTES: Record<string, string> = {
   'color-cargo-foreground': '#fb7185',
 };
 
-// Tokens nuevos de esta slice (S1b, D3) — inertes: ningún consumidor los lee
-// todavía (`lib/pie-colors.ts` sigue exportando `PIE_LABEL_FILL`/
-// `PIE_LABEL_FILL_LIGHT`/`PIE_WEDGE_STROKE` como hex literal hasta PR3).
-// Mismos números que esos tres constantes hoy, para que declarar el token no
-// cambie nada visualmente.
+// Tokens de S1b (D3), consumidos desde PR4 vía `claseEtiquetaPie`/
+// `CLASE_SEPARADOR_PIE` (`lib/pie-colors.ts`) — la etiqueta sobre la tajada y
+// el separador de bordes. Mismos números que los literales-hex retirados en
+// PR4, para que declarar el token no cambiara nada visualmente en su
+// momento.
 const TOKENS_NUEVOS_PIE: Record<string, string> = {
   'color-pie-etiqueta-necesidades': '#1a1c1c',
   'color-pie-etiqueta-gustos': '#1a1c1c',
@@ -92,7 +92,7 @@ describe('contraste-tokens', () => {
   describe.each(Object.entries(TOKENS_NUEVOS_PIE))(
     'token nuevo de pie --%s',
     (token, esperado) => {
-      it(`declara ${esperado} (S1b, sin consumidor todavía)`, () => {
+      it(`declara ${esperado} (S1b, D3)`, () => {
         expect(valorDeclarado(css, token)).toBe(esperado);
       });
     },
