@@ -102,7 +102,7 @@ export function UndoToast() {
           'pointer-events-auto relative flex w-full max-w-sm items-center gap-4 overflow-hidden rounded-lg border border-border bg-card p-4 text-foreground shadow-md',
         )}
       >
-        <p className={cn('flex-1 text-sm', esError && 'text-destructive')}>
+        <p className={cn('flex-1 text-sm', esError && 'text-error-foreground')}>
           {snapshot.mensaje}
         </p>
         {!esError && (

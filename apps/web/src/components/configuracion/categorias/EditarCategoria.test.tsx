@@ -601,7 +601,7 @@ describe('EditarCategoria — delete from the edit screen (Q6d, WCTG-05, WCTG-08
       name: 'Eliminar categoría Supermercado',
     });
     expect(eliminar).toHaveTextContent('Eliminar categoría');
-    expect(eliminar).toHaveClass('text-destructive');
+    expect(eliminar).toHaveClass('text-error-foreground');
   });
 
   it('click en Eliminar categoría abre el diálogo con fraseDeImpacto(eliminar) usando el transaccionesCount YA CARGADO', async () => {

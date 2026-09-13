@@ -120,7 +120,7 @@ export function EliminarMovimientoControl({
         disabled={esDemo}
         onClick={abrir}
         aria-label={`Eliminar movimiento ${descripcion} (${fechaLabel})`}
-        className="text-destructive"
+        className="text-error-foreground"
       >
         Eliminar
       </Button>

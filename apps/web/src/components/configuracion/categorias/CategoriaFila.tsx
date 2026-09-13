@@ -169,7 +169,7 @@ export function CategoriaFila({
           // significar "cuidado" cuando está siempre encendido. El icono
           // `Trash2` ya dice qué hace la acción; el color refuerza cuando el
           // usuario apunta.
-          'text-muted-foreground transition-colors hover:text-destructive focus-visible:text-destructive',
+          'text-muted-foreground transition-colors hover:text-error-foreground focus-visible:text-error-foreground',
           'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-muted-foreground',
         )}
       >

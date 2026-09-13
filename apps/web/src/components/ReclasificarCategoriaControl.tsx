@@ -225,7 +225,7 @@ export function ReclasificarCategoriaControl({
         )}
       </select>
       {errorMensaje && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="text-xs text-error-foreground">
           {errorMensaje}
         </p>
       )}

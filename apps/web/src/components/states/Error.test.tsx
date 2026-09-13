@@ -103,15 +103,19 @@ describe('ErrorState', () => {
     expect(retry).toHaveAttribute('data-variant', 'default');
   });
 
-  // Error copy is semantically an error — it must carry the destructive
-  // token, not a neutral slate gray (P1 audit finding).
-  it('renders the error message with the destructive text token', () => {
+  // Error copy is semantically an error — it must carry the error-foreground
+  // token, not a neutral slate gray (P1 audit finding). `web-theme-switch`
+  // S2 (D6) split this off `text-destructive`: that token stays fill/border
+  // only.
+  it('renders the error message with the error-foreground text token', () => {
     const error: ApiError = {
       tag: 'network',
       message: 'Problema de conexión.',
     };
     render(<ErrorState error={error} onRetry={() => {}} />);
 
-    expect(screen.getByRole('alert').className).toContain('text-destructive');
+    expect(screen.getByRole('alert').className).toContain(
+      'text-error-foreground',
+    );
   });
 });

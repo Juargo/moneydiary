@@ -64,7 +64,7 @@ export function LoginForm({ redirectTo }: { readonly redirectTo?: string }) {
         required
       />
       {estado === 'error' && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-error-foreground">
           Credenciales inválidas.
         </p>
       )}

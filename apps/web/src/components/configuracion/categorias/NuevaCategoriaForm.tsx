@@ -106,7 +106,7 @@ export function NuevaCategoriaForm({
         </p>
       )}
       {mutation.isError && (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-error-foreground">
           {mensajeDeErrorCatalogo(mutation.error)}
         </p>
       )}
