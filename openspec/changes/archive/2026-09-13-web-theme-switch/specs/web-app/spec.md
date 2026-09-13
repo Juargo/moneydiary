@@ -1,6 +1,6 @@
-# Delta for Web App
+# Delta for web-app
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: DCR-04 — Authenticated app shell uses the Clínico frío background identity
 
@@ -78,6 +78,8 @@ alter DOM structure.
 `:root` tokens change" / "`.dark` theme MUST continue to render without
 regression." Superseded: dark is now itself the changed identity.)
 
+## MODIFIED Requirements
+
 ### Requirement: WCFG-02 — Perfil layout matches the verbatim visual contract (CA-02)
 
 The Perfil screen MUST render, in order: the shared `Configuración` `<h1>`
@@ -151,3 +153,30 @@ appearance/theme control. `web-theme` inserts a fourth block, `Apariencia`,
 between `Cuenta de Google` and `Sesión` — design decision D9 — and confirms
 `Guardar cambios` stays scoped to `Editar perfil`, never submitting the
 device-local theme choice.)
+
+## REMOVED Requirements
+
+### Requirement: DCR-04 — Authenticated app shell uses the pale-blue background token
+
+(Reason: web-theme-switch replaces the retired single light/dark identity values with the measured Clínico frío / Tinta cálida themes; the requirement keeps its ID and is re-added above under its new title.)
+
+(Migration: none — same ID, rewritten requirement in ADDED above.)
+
+### Requirement: DCR-05 — Primary token is `#2260b2` in light mode
+
+(Reason: web-theme-switch replaces the retired single light/dark identity values with the measured Clínico frío / Tinta cálida themes; the requirement keeps its ID and is re-added above under its new title.)
+
+(Migration: none — same ID, rewritten requirement in ADDED above.)
+
+### Requirement: DCR-06 — New color pairings meet WCAG 2.2 AA (ADR-018)
+
+(Reason: web-theme-switch replaces the retired single light/dark identity values with the measured Clínico frío / Tinta cálida themes; the requirement keeps its ID and is re-added above under its new title.)
+
+(Migration: none — same ID, rewritten requirement in ADDED above.)
+
+### Requirement: DCR-07 — Dark mode is unaffected
+
+(Reason: web-theme-switch replaces the retired single light/dark identity values with the measured Clínico frío / Tinta cálida themes; the requirement keeps its ID and is re-added above under its new title.)
+
+(Migration: none — same ID, rewritten requirement in ADDED above.)
+
