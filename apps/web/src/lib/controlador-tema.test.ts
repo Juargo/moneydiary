@@ -204,4 +204,148 @@ describe('crearControladorTema', () => {
 
     expect(listener).not.toHaveBeenCalled();
   });
+
+  describe('iniciar()', () => {
+    it('sigue el cambio de OS solo cuando la preferencia es system, y el tema aplicado queda forzado dark de todas formas', () => {
+      const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'system' });
+      const { matchMedia, cambiarOS } = crearMatchMediaFalso(false);
+      const { documento, raiz } = crearDocumentoFalso();
+      const { ventana } = crearVentanaFalsa();
+      const controlador = crearControladorTema({
+        storage,
+        matchMedia,
+        documento,
+        ventana,
+      });
+      const listener = vi.fn();
+      controlador.suscribir(listener);
+      controlador.iniciar();
+
+      cambiarOS(true);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(controlador.obtenerEstado().preferencia).toBe('system');
+      expect(controlador.obtenerEstado().temaResuelto).toBe('dark');
+      expect(raiz.classList.contains('dark')).toBe(true);
+    });
+
+    it('ignora un cambio de OS cuando la preferencia es explícita', () => {
+      const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'light' });
+      const { matchMedia, cambiarOS } = crearMatchMediaFalso(false);
+      const { documento } = crearDocumentoFalso();
+      const { ventana } = crearVentanaFalsa();
+      const controlador = crearControladorTema({
+        storage,
+        matchMedia,
+        documento,
+        ventana,
+      });
+      const listener = vi.fn();
+      controlador.suscribir(listener);
+      controlador.iniciar();
+
+      cambiarOS(true);
+
+      expect(listener).not.toHaveBeenCalled();
+      expect(controlador.obtenerEstado().preferencia).toBe('light');
+    });
+
+    it('no falla si matchMedia no está disponible en el entorno', () => {
+      const storage = crearStorageFalso();
+      const { documento } = crearDocumentoFalso();
+      const { ventana } = crearVentanaFalsa();
+      const controlador = crearControladorTema({
+        storage,
+        matchMedia: undefined,
+        documento,
+        ventana,
+      });
+
+      expect(() => controlador.iniciar()).not.toThrow();
+    });
+
+    it('reacciona a un evento storage de la clave de tema y mantiene el tema forzado', () => {
+      const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'light' });
+      const { matchMedia } = crearMatchMediaFalso(false);
+      const { documento, raiz } = crearDocumentoFalso();
+      const { ventana, emitirStorage } = crearVentanaFalsa();
+      const controlador = crearControladorTema({
+        storage,
+        matchMedia,
+        documento,
+        ventana,
+      });
+      controlador.iniciar();
+      const listener = vi.fn();
+      controlador.suscribir(listener);
+
+      storage.setItem(CLAVE_PREFERENCIA_TEMA, 'dark');
+      emitirStorage({ key: CLAVE_PREFERENCIA_TEMA });
+
+      expect(controlador.obtenerEstado().preferencia).toBe('dark');
+      expect(raiz.classList.contains('dark')).toBe(true);
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('reacciona a un evento storage con key null (clear) releyendo storage', () => {
+      const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'light' });
+      const { matchMedia } = crearMatchMediaFalso(false);
+      const { documento } = crearDocumentoFalso();
+      const { ventana, emitirStorage } = crearVentanaFalsa();
+      const controlador = crearControladorTema({
+        storage,
+        matchMedia,
+        documento,
+        ventana,
+      });
+      controlador.iniciar();
+
+      storage.clear();
+      emitirStorage({ key: null });
+
+      expect(controlador.obtenerEstado().preferencia).toBe('system');
+    });
+
+    it('ignora eventos storage de otras claves', () => {
+      const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'light' });
+      const { matchMedia } = crearMatchMediaFalso(false);
+      const { documento } = crearDocumentoFalso();
+      const { ventana, emitirStorage } = crearVentanaFalsa();
+      const controlador = crearControladorTema({
+        storage,
+        matchMedia,
+        documento,
+        ventana,
+      });
+      controlador.iniciar();
+      const listener = vi.fn();
+      controlador.suscribir(listener);
+
+      emitirStorage({ key: 'otra-clave-cualquiera' });
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('la función de limpieza devuelta remueve ambos listeners (matchMedia y storage)', () => {
+      const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'system' });
+      const { matchMedia, cambiarOS } = crearMatchMediaFalso(false);
+      const { documento } = crearDocumentoFalso();
+      const { ventana, emitirStorage } = crearVentanaFalsa();
+      const controlador = crearControladorTema({
+        storage,
+        matchMedia,
+        documento,
+        ventana,
+      });
+      const listener = vi.fn();
+      controlador.suscribir(listener);
+      const limpiar = controlador.iniciar();
+
+      limpiar();
+      cambiarOS(true);
+      emitirStorage({ key: CLAVE_PREFERENCIA_TEMA });
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+  });
 });
