@@ -206,7 +206,7 @@ attributed `color-scheme: dark` to `:root`.
 
 ## Phase 8: S5 — Docs [D9] (PR8 `docs/tema-design-rewrite`, base PR7b)
 
-- [ ] 8.1 Rewrite `DESIGN.md`: title, both identities, token table, jade-vs-ingreso-green adjacency rule (flagged item b), CVD floor-band note.
+- [x] 8.1 Rewrite `DESIGN.md`: title, both identities, token table, jade-vs-ingreso-green adjacency rule (flagged item b), CVD floor-band note.
 
 ## Phase 9: S6 — Runtime store + pre-paint, forced dark [D4][D5][WT-03][WT-04] (PR9 `feat/tema-runtime-prepaint`, base PR8)
 
