@@ -59,10 +59,10 @@ Only `feat/web-theme-switch` merges to `main`. Retarget/rebase any child that sh
 
 ## Phase 2: S1b — Inert token migration to `:root` [D1] (PR2 `feat/tema-tokens-inertes`, base PR1)
 
-- [ ] 2.1 In `apps/web/src/index.css`, move `--color-{necesidades,gustos,ahorro,sin-categoria,exceso}`, `ingreso`/`vinculo-activo`/`semaforo-*`/`warning-*`/`exito-foreground`/`cargo-foreground` and the new `pie-etiqueta-*`/`pie-separador` tokens from `@theme` into `:root`, literal today's (Tecno) values; fonts/`--radius` stay in `@theme` [D1].
-- [ ] 2.2 [RED] Write `apps/web/src/test/contraste-tokens.test.ts`: parses `index.css`, asserts every listed token exists in `:root` and matches today's literal value (existence/literal check only — the AA-ratio assertions for both themes land per-theme in Phase 6/7).
-- [ ] 2.3 [GREEN] Confirm 2.2 passes against 2.1.
-- [ ] 2.4 [REFACTOR] `pnpm web typecheck`; `pnpm web test -- contraste-tokens`.
+- [x] 2.1 In `apps/web/src/index.css`, declare the new `pie-etiqueta-*`/`pie-separador` tokens with literal today's (Tecno) values [D1]. Deviation from this task's original wording: D1 (design.md, confirmed by the committed ADR-043) keeps the existing `--color-{necesidades,...}`/`ingreso`/`semaforo-*`/`warning-*`/`exito-foreground`/`cargo-foreground` tokens in `@theme` rather than moving them into `:root` — "move every token into `:root` behind `@theme inline`" is D1's explicitly rejected alternative. No existing token was moved or changed; only the 5 new pie tokens were added, alongside the others in `@theme`.
+- [x] 2.2 [RED] Write `apps/web/src/test/contraste-tokens.test.ts`: parses `index.css`, asserts every listed token (existing + the 5 new pie ones) exists with today's literal value (existence/literal check only, selector-agnostic per the D1 correction above — the AA-ratio assertions for both themes land per-theme in Phase 6/7).
+- [x] 2.3 [GREEN] Confirm 2.2 passes against 2.1.
+- [x] 2.4 [REFACTOR] `pnpm web typecheck`; `pnpm web test -- contraste-tokens`.
 
 ## Phase 3: S1c — `bucket-colors`/`pie-colors` class helpers [D3][WT-09] (PR3 `feat/tema-clase-helpers`, base PR2)
 

@@ -66,6 +66,24 @@
   --color-sin-categoria: #686663; /* mid grey — donut ring's 4th wedge (US-047 D-08) (currently unconsumed) */
 
   /*
+   * On-wedge pie label fills + wedge separator stroke (`web-theme-switch`
+   * D3, ADR-043). Declared INERT here in S1b: no consumer reads these
+   * tokens yet — `lib/pie-colors.ts` still exports `PIE_LABEL_FILL` /
+   * `PIE_LABEL_FILL_LIGHT` / `PIE_WEDGE_STROKE` as literal hex, unchanged.
+   * PR3 rewrites that module to return `fill-pie-etiqueta-*` /
+   * `stroke-pie-separador` classes pointing at these tokens, and PR4 wires
+   * the five pie/legend/categorías consumers. Values below are the SAME
+   * literals as those three constants today, so introducing the tokens now
+   * causes no visual change. They diverge per theme once Clínico frío /
+   * Tinta cálida land (S6/S7) — see design.md's Token Table.
+   */
+  --color-pie-etiqueta-necesidades: #1a1c1c;
+  --color-pie-etiqueta-gustos: #1a1c1c;
+  --color-pie-etiqueta-ahorro: #1a1c1c;
+  --color-pie-etiqueta-sin-categoria: #e8e6e1;
+  --color-pie-separador: #0d0f15;
+
+  /*
    * Income card fill+text PAIR (DCR-01/03). Unlike the bucket fills above
    * (fills only, never text), income is a self-contained pair —
    * `--color-ingreso` is the card background, `--color-ingreso-foreground`
