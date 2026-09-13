@@ -5,6 +5,7 @@ import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { routeTree } from './routeTree.gen';
 import { QUERY_CLIENT_DEFAULTS } from './api/query-client-defaults';
 import { esErrorPermanente } from './api/retry-policy';
+import { controladorTema } from './lib/use-preferencia-tema';
 // Self-hosted Inter Variable (the app's body/label face) — same-origin,
 // bundled font file, no render-blocking Google Fonts CDN. Referenced by
 // --font-sans in index.css. Explicit `/index.css` path (not the bare package
@@ -52,6 +53,14 @@ declare module '@tanstack/react-router' {
     router: typeof router;
   }
 }
+
+// El script inline de `index.html` (WT-04) ya aplicó la clase/color-scheme
+// antes del primer paint; `iniciar()` solo conecta los listeners de OS
+// (`matchMedia`) y cross-tab (`storage`) para mantener el DOM sincronizado
+// después de que React monta (WT-02/WT-05). El entorno del controlador ya
+// pasa `matchMedia: undefined` si el navegador no lo soporta
+// (`lib/use-preferencia-tema.ts`), así que esta llamada no lanza en ese caso.
+controladorTema.iniciar();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

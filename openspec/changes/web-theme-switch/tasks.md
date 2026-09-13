@@ -210,17 +210,39 @@ attributed `color-scheme: dark` to `:root`.
 
 ## Phase 9: S6 — Runtime store + pre-paint, forced dark [D4][D5][WT-03][WT-04] (PR9 `feat/tema-runtime-prepaint`, base PR8)
 
-**Re-slice in progress (owner-approved, position renumbered 12-15 of 16):** PR9a `feat/tema-runtime-modulo` (#645, base PR8) delivered `lib/tema.ts`. PR9b `feat/tema-controlador-nucleo` (#646, base PR9a) delivers the controller core (`obtenerEstado`/`cambiarPreferencia`/`suscribir`, no `iniciar()`) — 304 lines, green standalone. PR9c (controller listeners, `iniciar()`) and PR9d (hook + `main.tsx`/`index.html` wiring + `prepaint-tema.test.ts`) remain `[ ]`, both base-chained after PR9b.
+**Split into four PRs (maintainer decision, 2026-09-13):** the full phase was
+implemented and verified green in one attempt, but measured 1065 changed
+lines. The native attempt ledger was reset by the maintainer and the verified
+code was delivered in four chained PRs, each under 400 lines:
+- **PR9a** `feat/tema-runtime-modulo` (#645, base PR8): `lib/tema.ts` + test — 197 lines.
+- **PR9b** `feat/tema-controlador-nucleo` (#646, base PR9a): controller core, no `iniciar()` — 306 lines.
+- **PR9c** `feat/tema-controlador-listeners` (#647, base PR9b): `iniciar()` listeners + tests — 192 lines.
+- **PR9d** `feat/tema-runtime-prepaint` (base PR9c): hook, `main.tsx` wiring, `index.html` script + `theme-color`, parity test, e2e fix.
 
-- [ ] 9.1 [RED] Write `apps/web/src/lib/tema.test.ts`: `leerPreferencia` (throwing/invalid storage → `system`), `resolverTema`, `TEMA_FORZADO='dark'` override.
-- [ ] 9.2 [GREEN] Create `apps/web/src/lib/tema.ts` per the design interfaces.
-- [ ] 9.3 [RED] Write `apps/web/src/lib/controlador-tema.test.ts`: OS follow only under `system`, `storage` events, failing write still applies theme, injected fakes.
-- [ ] 9.4 [GREEN] Create `apps/web/src/lib/controlador-tema.ts` (`crearControladorTema`).
-- [ ] 9.5 [GREEN] Create `apps/web/src/lib/use-preferencia-tema.ts`; wire `controladorTema.iniciar()` in `apps/web/src/main.tsx`.
-- [ ] 9.6 Replace the static `class="dark"` in `apps/web/index.html` with the inline pre-paint `<script>` (forzado `'dark'`) + `theme-color` meta.
-- [ ] 9.7 [RED] Write `apps/web/src/lib/prepaint-tema.test.ts`: extracts the script from `index.html`, runs it via `new Function` against stubbed globals, compares with `resolverTema`.
-- [ ] 9.8 [GREEN] Confirm 9.7 passes; fix any drift between script and module.
-- [ ] 9.9 [REFACTOR] `pnpm web test`, `pnpm web typecheck`.
+- [x] 9.1 [RED] Write `apps/web/src/lib/tema.test.ts`: `leerPreferencia` (throwing/invalid storage → `system`), `resolverTema`, `TEMA_FORZADO='dark'` override.
+- [x] 9.2 [GREEN] Create `apps/web/src/lib/tema.ts` per the design interfaces.
+- [x] 9.3 [RED] Write `apps/web/src/lib/controlador-tema.test.ts`: OS follow only under `system`, `storage` events, failing write still applies theme, injected fakes.
+- [x] 9.4 [GREEN] Create `apps/web/src/lib/controlador-tema.ts` (`crearControladorTema`).
+- [x] 9.5 [GREEN] Create `apps/web/src/lib/use-preferencia-tema.ts`; wire `controladorTema.iniciar()` in `apps/web/src/main.tsx`.
+- [x] 9.6 Replace the static `class="dark"` in `apps/web/index.html` with the inline pre-paint `<script>` (forzado `'dark'`) + `theme-color` meta.
+- [x] 9.7 [RED] Write `apps/web/src/lib/prepaint-tema.test.ts`: extracts the script from `index.html`, runs it via `new Function` against stubbed globals, compares with `resolverTema`.
+- [x] 9.8 [GREEN] Confirm 9.7 passes; fix any drift between script and module.
+- [x] 9.9 [REFACTOR] `pnpm web test`, `pnpm web typecheck`.
+
+  **Order deviation:** 9.7 (parity test) was written RED against the
+  still-static `index.html` before 9.6 added the script; 9.1/9.3 were RED
+  against missing modules before 9.2/9.4.
+
+  **Design deviation (recorded):** `resolverTema` applies `TEMA_FORZADO`
+  internally instead of each caller, so no path (script, controller, OS
+  change, cross-tab `storage` event) can leak `light` while forced.
+  `EstadoTema.preferencia` keeps the raw stored value, so the PR11 unlock
+  stays a one-line change (`TEMA_FORZADO = null`, `forzado = null`).
+
+  **Unplanned e2e fix:** the script and `aplicarTema` set an inline
+  `documentElement.style.colorScheme`, which beats the CSS cascade;
+  `e2e/light-chrome.e2e.ts` now also clears that inline style when it removes
+  the `dark` class in-page.
 
 ## Phase 10: S7a — `SelectorTema` + Apariencia (inert, forced dark) [WT-01][WT-06][WCFG-02][D8][D9] (PR10 `feat/tema-selector-perfil`, base PR9)
 
