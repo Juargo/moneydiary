@@ -21,25 +21,25 @@ describe('leerPreferencia', () => {
     },
   );
 
-  it('cae a system cuando el valor almacenado no es reconocido', () => {
-    expect(leerPreferencia({ getItem: () => 'sepia' })).toBe('system');
+  it('cae a light cuando el valor almacenado no es reconocido', () => {
+    expect(leerPreferencia({ getItem: () => 'sepia' })).toBe('light');
   });
 
-  it('cae a system cuando no hay nada almacenado', () => {
-    expect(leerPreferencia({ getItem: () => null })).toBe('system');
+  it('cae a light cuando no hay nada almacenado', () => {
+    expect(leerPreferencia({ getItem: () => null })).toBe('light');
   });
 
-  it('cae a system cuando no hay storage disponible', () => {
-    expect(leerPreferencia(null)).toBe('system');
+  it('cae a light cuando no hay storage disponible', () => {
+    expect(leerPreferencia(null)).toBe('light');
   });
 
-  it('cae a system cuando getItem lanza (ej. navegación privada)', () => {
+  it('cae a light cuando getItem lanza (ej. navegación privada)', () => {
     const storage = {
       getItem: () => {
         throw new Error('SecurityError');
       },
     };
-    expect(leerPreferencia(storage)).toBe('system');
+    expect(leerPreferencia(storage)).toBe('light');
   });
 });
 

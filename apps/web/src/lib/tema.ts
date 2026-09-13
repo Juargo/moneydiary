@@ -31,22 +31,25 @@ const THEME_COLOR: Record<TemaResuelto, string> = {
 
 /**
  * Lee la preferencia guardada. Cualquier fallo de acceso (modo privado,
- * storage deshabilitado) o un valor no reconocido caen a `'system'` — WT-03.
+ * storage deshabilitado) o un valor no reconocido caen a `'light'` — default
+ * de producto (decisión del owner, 2026-09-13; enmienda WT-02/WT-03 de
+ * ADR-043, que documentaban `'system'` como default). Una elección explícita
+ * guardada (`'light'`/`'dark'`/`'system'`) se sigue respetando tal cual.
  */
 export function leerPreferencia(
   storage: Pick<Storage, 'getItem'> | null,
 ): PreferenciaTema {
   if (storage == null) {
-    return 'system';
+    return 'light';
   }
   try {
     const valor = storage.getItem(CLAVE_PREFERENCIA_TEMA);
     if (valor === 'light' || valor === 'dark' || valor === 'system') {
       return valor;
     }
-    return 'system';
+    return 'light';
   } catch {
-    return 'system';
+    return 'light';
   }
 }
 

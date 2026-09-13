@@ -289,7 +289,7 @@ describe('crearControladorTema', () => {
     });
 
     it('reacciona a un evento storage con key null (clear) releyendo storage', () => {
-      const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'light' });
+      const storage = crearStorageFalso({ [CLAVE_PREFERENCIA_TEMA]: 'dark' });
       const { matchMedia } = crearMatchMediaFalso(false);
       const { documento } = crearDocumentoFalso();
       const { ventana, emitirStorage } = crearVentanaFalsa();
@@ -304,7 +304,8 @@ describe('crearControladorTema', () => {
       storage.clear();
       emitirStorage({ key: null });
 
-      expect(controlador.obtenerEstado().preferencia).toBe('system');
+      // Storage vacío cae al default (light), no a `system` — ver tema.ts.
+      expect(controlador.obtenerEstado().preferencia).toBe('light');
     });
 
     it('ignora eventos storage de otras claves', () => {

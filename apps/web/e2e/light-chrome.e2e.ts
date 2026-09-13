@@ -4,15 +4,20 @@ import { stubApi } from './fixtures/api-stubs';
 /**
  * e2e/light-chrome.e2e.ts — mirrors `dark-chrome.e2e.ts` for the `:root`
  * default (S4, D1/D2, DCR-04/05). Since S7b (PR11) the selector is live and
- * light is reachable: no preference is stored (default `system`), so
- * `page.emulateMedia({ colorScheme: 'light' })` before navigating drives the
- * pre-paint script to resolve `light` for real — no in-page DOM
- * manipulation needed anymore. Same jsdom-can't-paint reasoning as
+ * light is reachable via `page.emulateMedia({ colorScheme: 'light' })`
+ * before navigating — no in-page DOM manipulation needed.
+ *
+ * 2026-09-13 (owner decision, ADR-043 amendment): `light` is now the default
+ * preference itself (no preference stored), not merely the OS-follow result
+ * under `system` — these tests keep `emulateMedia({ colorScheme: 'light' })`
+ * as a belt-and-braces signal, but the assertions below hold even without an
+ * OS scheme set, since a first visit with no stored preference starts light
+ * regardless of the OS. Same jsdom-can't-paint reasoning as
  * `dark-chrome.e2e.ts`.
  */
 
 test.describe('chrome claro (Clínico frío)', () => {
-  test('con OS claro y sin preferencia guardada, el elemento raíz declara color-scheme: light', async ({
+  test('sin preferencia guardada, el elemento raíz declara color-scheme: light por default', async ({
     page,
   }) => {
     await stubApi(page);

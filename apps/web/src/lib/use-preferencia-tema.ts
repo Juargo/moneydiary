@@ -21,7 +21,8 @@ function obtenerStorage(): Storage | null {
     return window.localStorage;
   } catch {
     // WT-03: navegación privada u otro bloqueo de storage — sin storage, el
-    // controlador cae a `system` y no persiste, pero no lanza.
+    // controlador cae al default (`light`, ver `leerPreferencia` en
+    // `tema.ts`) y no persiste, pero no lanza.
     return null;
   }
 }

@@ -23,7 +23,11 @@
          'dark'` en `lib/tema.ts` (deben moverse juntos). No existe CSP en
          `apps/web` hoy (`vercel.json` no tiene bloque `headers`); si se
          agrega una en el futuro, permitir este script por su hash `sha256`
-         en vez de moverlo a un archivo externo (ADR-043). -->
+         en vez de moverlo a un archivo externo (ADR-043). Default `'light'`
+         cuando no hay valor guardado, es inválido, o el storage lanza —
+         decisión del owner, 2026-09-13 (enmienda WT-02/WT-03); una elección
+         explícita guardada (incluido `'system'`) se sigue respetando. DEBE
+         seguir en lockstep con `leerPreferencia` en `lib/tema.ts`. -->
     <script>
       (function () {
         var p = null,
@@ -31,7 +35,7 @@
         try {
           p = localStorage.getItem('moneydiary:tema');
         } catch (e) {}
-        if (p !== 'light' && p !== 'dark') p = 'system';
+        if (p !== 'light' && p !== 'dark' && p !== 'system') p = 'light';
         var osOscuro = !!(
           window.matchMedia &&
           matchMedia('(prefers-color-scheme: dark)').matches
